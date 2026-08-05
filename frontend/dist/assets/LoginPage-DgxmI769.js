@@ -1,0 +1,1 @@
+import{A as o}from"./AuthPage-DuNhLept.js";import{o as t,e as r}from"./index-CodkJJA2.js";import"./AppSelect-YOdDhHL0.js";import"./user-C6DWG8R4.js";import"./_plugin-vue_export-helper-DlAUqK2U.js";const _={__name:"LoginPage",setup(a){return(e,i)=>(t(),r(o,{"initial-tab":"login"}))}};export{_ as default};
