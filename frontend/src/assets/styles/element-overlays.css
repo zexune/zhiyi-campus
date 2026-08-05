@@ -1,0 +1,933 @@
+/* ============================================================
+   智易校园 · Element Plus 浮层主题
+   统一确认框、普通弹窗、菜单、选择器与消息提示的“校园布告栏”视觉。
+   ============================================================ */
+
+@keyframes app-surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.97) rotate(-.4deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+/* Element Plus 默认只锁 body；根滚动容器也同步锁定，避免窄屏遮罩旁残留滚动槽。 */
+html:has(> body.el-popup-parent--hidden),
+html:has(> body.el-message-box-parent--hidden) {
+  overflow: hidden;
+}
+
+/* ============ 普通对话框 ============ */
+.app-modal {
+  background: color-mix(in srgb, var(--ink) 62%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.app-modal .el-overlay-dialog {
+  padding: var(--spacing-md);
+}
+
+.app-dialog.el-dialog {
+  position: relative;
+  width: min(480px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  overflow: visible;
+  border: 3px solid var(--ink);
+  border-radius: var(--r-m);
+  background-color: var(--paper);
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 8%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: 9px 9px 0 var(--ink);
+  color: var(--ink);
+  animation: app-surface-in .22s cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.app-dialog.el-dialog::before,
+.el-message-box::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: -13px;
+  left: 50%;
+  width: 96px;
+  height: 24px;
+  border: var(--bw) solid var(--ink);
+  background: var(--yellow);
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: translateX(-50%) rotate(-2deg);
+  pointer-events: none;
+}
+
+.app-dialog .el-dialog__header {
+  position: relative;
+  margin: 0;
+  padding: 26px 64px 16px 26px;
+  border-bottom: var(--bw) solid var(--ink);
+}
+
+.app-dialog .el-dialog__header::before {
+  content: 'CAMPUS NOTICE';
+  width: fit-content;
+  display: block;
+  margin-bottom: 5px;
+  padding: 2px 8px;
+  border: var(--bw) solid var(--ink);
+  border-radius: 5px;
+  background: var(--yellow);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  line-height: 1.4;
+  transform: rotate(-1deg);
+}
+
+.app-dialog .el-dialog__title {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 27px;
+  letter-spacing: .8px;
+  line-height: 1.2;
+}
+
+.app-dialog .el-dialog__headerbtn,
+.el-message-box__headerbtn {
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: var(--bw) solid var(--ink);
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform .15s, background-color .15s, box-shadow .15s;
+}
+
+.app-dialog .el-dialog__headerbtn:hover,
+.el-message-box__headerbtn:hover {
+  background: var(--primary);
+  box-shadow: 4px 4px 0 var(--ink);
+  transform: translate(-1px, -1px) rotate(5deg);
+}
+
+.app-dialog .el-dialog__headerbtn .el-dialog__close,
+.el-message-box__headerbtn .el-message-box__close {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.app-dialog .el-dialog__headerbtn:hover .el-dialog__close,
+.el-message-box__headerbtn:hover .el-message-box__close {
+  color: var(--white);
+}
+
+.app-dialog .el-dialog__body {
+  min-height: 0;
+  padding: 20px 26px;
+  overflow-y: auto;
+  color: var(--ink);
+}
+
+.app-dialog .el-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 26px 22px;
+  border-top: var(--bw) solid var(--ink);
+}
+
+.app-dialog .el-dialog__footer .btn {
+  min-width: 104px;
+  margin: 0;
+}
+
+/* ============ ElMessageBox 确认框 ============ */
+.el-overlay.is-message-box {
+  padding: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 62%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.el-overlay.is-message-box .el-overlay-message-box {
+  padding: var(--spacing-md);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.el-message-box {
+  position: relative;
+  width: min(480px, calc(100vw - 48px));
+  max-width: none;
+  padding: 0;
+  overflow: visible;
+  border: 3px solid var(--ink);
+  border-radius: var(--r-m);
+  background-color: var(--paper);
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 8%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: 9px 9px 0 var(--ink);
+  color: var(--ink);
+  animation: app-surface-in .22s cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.el-message-box__header {
+  position: relative;
+  padding: 26px 64px 15px 26px;
+  border-bottom: var(--bw) solid var(--ink);
+}
+
+.el-message-box__header::before {
+  content: 'PLEASE CONFIRM';
+  width: fit-content;
+  display: block;
+  margin-bottom: 5px;
+  padding: 2px 8px;
+  border: var(--bw) solid var(--ink);
+  border-radius: 5px;
+  background: var(--yellow);
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  line-height: 1.4;
+  transform: rotate(-1deg);
+}
+
+.el-message-box__title {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 27px;
+  letter-spacing: .8px;
+  line-height: 1.2;
+}
+
+.el-message-box__content {
+  padding: 20px 26px;
+  color: var(--ink);
+}
+
+.el-message-box__container {
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.el-message-box__status {
+  position: static;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+  padding: 8px;
+  border: var(--bw) solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--ink);
+  transform: none;
+}
+
+.el-message-box__status.el-message-box-icon--warning {
+  background: var(--yellow);
+}
+
+.el-message-box__status.el-message-box-icon--error {
+  background: var(--red);
+  color: var(--white);
+}
+
+.el-message-box__status.el-message-box-icon--success {
+  background: var(--green);
+  color: var(--white);
+}
+
+.el-message-box__status.el-message-box-icon--info {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.el-message-box__status + .el-message-box__message {
+  padding-left: 0;
+}
+
+.el-message-box__message {
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.el-message-box__message p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.75;
+}
+
+.el-message-box__btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 15px 26px 22px;
+  border-top: var(--bw) solid var(--ink);
+}
+
+.el-message-box__btns .el-button {
+  min-width: 92px;
+  height: auto;
+  margin: 0;
+  padding: 9px 18px;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--white);
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 800;
+  transition: transform .15s, box-shadow .15s, background-color .15s;
+}
+
+.el-message-box__btns .el-button:hover {
+  border-color: var(--ink);
+  background: var(--paper-deep);
+  box-shadow: 4px 4px 0 var(--ink);
+  color: var(--ink);
+  transform: translate(-1px, -1px);
+}
+
+.el-message-box__btns .el-button--primary {
+  background: var(--primary);
+  color: var(--white);
+}
+
+.el-message-box__btns .el-button--primary:hover {
+  background: var(--primary-deep);
+  color: var(--white);
+}
+
+.el-message-box__btns .el-button:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ============ 账户菜单 ============ */
+.app-dropdown.el-popper {
+  padding: 0;
+  overflow: visible;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--paper);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.app-dropdown .el-popper__arrow::before {
+  border-color: var(--ink);
+  background: var(--yellow);
+}
+
+.app-dropdown .el-dropdown-menu {
+  min-width: 166px;
+  padding: 7px;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.app-dropdown .el-dropdown-menu__item {
+  min-height: 40px;
+  margin: 2px 0;
+  padding: 8px 12px;
+  border: var(--bw) solid transparent;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  transition: background-color .15s, border-color .15s, transform .15s;
+}
+
+.app-dropdown .el-dropdown-menu__item:not(.is-disabled):focus,
+.app-dropdown .el-dropdown-menu__item:not(.is-disabled):hover {
+  border-color: var(--ink);
+  background: var(--yellow);
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+.app-dropdown .el-dropdown-menu__item--divided {
+  margin-top: 7px;
+  border-top: var(--bw) dashed var(--ink-soft);
+}
+
+.app-dropdown .el-dropdown-menu__item--divided::before {
+  display: none;
+}
+
+/* ============ 统一选择器 ============ */
+.app-select {
+  width: 100%;
+  vertical-align: middle;
+}
+
+.app-select .el-select__wrapper {
+  min-height: 46px;
+  padding: 8px 13px;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--white);
+  box-shadow: none;
+  color: var(--ink);
+  transition: transform .15s, box-shadow .15s, background-color .15s;
+}
+
+.app-select .el-select__wrapper:hover {
+  background: var(--paper);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.app-select .el-select__wrapper.is-focused {
+  box-shadow: var(--shadow-s);
+  transform: translate(-1px, -1px);
+}
+
+.app-select .el-select__selected-item,
+.app-select .el-select__placeholder {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.app-select .el-select__placeholder.is-transparent {
+  color: color-mix(in srgb, var(--ink-soft) 62%, var(--white));
+}
+
+.app-select .el-select__caret {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.app-select.is-disabled .el-select__wrapper {
+  border-color: var(--ink-soft);
+  background: var(--paper-deep);
+  box-shadow: none;
+}
+
+.app-select-popper.el-popper {
+  padding: 0;
+  overflow: visible;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--paper);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.app-select-popper .el-popper__arrow::before {
+  border-color: var(--ink);
+  background: var(--yellow);
+}
+
+.app-select-popper .el-select-dropdown {
+  padding: 6px;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.app-select-popper .el-select-dropdown__wrap {
+  max-height: 250px;
+}
+
+.app-select-popper .el-select-dropdown__list {
+  padding: 0;
+}
+
+.app-select-popper .el-select-dropdown__item {
+  min-height: 40px;
+  height: auto;
+  margin: 2px 0;
+  padding: 9px 36px 9px 12px;
+  border: var(--bw) solid transparent;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  transition: background-color .15s, border-color .15s, transform .15s;
+}
+
+.app-select-popper .el-select-dropdown__item.is-hovering {
+  border-color: var(--ink);
+  background: var(--yellow);
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+.app-select-popper .el-select-dropdown__item.is-selected {
+  border-color: var(--ink);
+  background: var(--green);
+  color: var(--white);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.app-select-popper .el-select-dropdown__item.is-disabled {
+  color: var(--ink-soft);
+  opacity: .55;
+}
+
+.app-select-popper .el-select-dropdown__empty {
+  padding: 16px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ============ 统一日期时间选择器 ============ */
+.app-date-time.el-date-editor {
+  width: 100%;
+  height: auto;
+}
+
+.app-date-time .el-input__wrapper {
+  min-height: 46px;
+  padding: 8px 13px;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--white);
+  box-shadow: none;
+  transition: transform .15s, box-shadow .15s, background-color .15s;
+}
+
+.app-date-time .el-input__wrapper:hover {
+  background: var(--paper);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.app-date-time .el-input__wrapper.is-focus {
+  box-shadow: var(--shadow-s);
+  transform: translate(-1px, -1px);
+}
+
+.app-date-time .el-input__inner {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.app-date-time .el-input__prefix,
+.app-date-time .el-input__suffix {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.app-date-picker.el-popper {
+  padding: 0;
+  overflow: visible;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-m);
+  background: var(--white);
+  box-shadow: var(--shadow-m);
+}
+
+.app-date-picker .el-popper__arrow::before {
+  border-color: var(--ink);
+  background: var(--white);
+}
+
+.app-date-picker .el-picker-panel,
+.app-date-picker .el-picker-panel__body-wrapper,
+.app-date-picker .el-date-picker,
+.app-date-picker .el-time-panel {
+  border: 0;
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+.app-date-picker .el-date-picker__time-header {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  background: var(--paper);
+}
+
+.app-date-picker .el-date-picker__editor-wrap {
+  padding: 0;
+}
+
+.app-date-picker .el-date-picker__time-header .el-input__wrapper {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 62%, transparent);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: none;
+}
+
+.app-date-picker .el-date-picker__time-header .el-input__wrapper.is-focus {
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 72%, transparent);
+}
+
+.app-date-picker .el-date-picker__time-header .el-input__inner {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-align: center;
+}
+
+.app-date-picker .el-date-picker__header {
+  margin: 0;
+  padding: 11px 14px 7px;
+  border-bottom: 0;
+  background: var(--white);
+}
+
+.app-date-picker .el-date-picker__header-label {
+  padding: 3px 5px;
+  border-radius: 7px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.app-date-picker .el-date-picker__header-label:hover,
+.app-date-picker .el-date-picker__header-label.active {
+  background: color-mix(in srgb, var(--yellow) 42%, var(--white));
+}
+
+.app-date-picker .el-picker-panel__icon-btn {
+  width: 28px;
+  height: 28px;
+  margin: 0 2px;
+  border: 1.5px solid transparent;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 15px;
+  transition: background-color .15s, border-color .15s, transform .15s;
+}
+
+.app-date-picker .el-picker-panel__icon-btn:hover {
+  border-color: var(--ink);
+  background: var(--paper-deep);
+  transform: translateY(-1px);
+}
+
+.app-date-picker .el-picker-panel__content {
+  margin: 5px 15px 10px;
+}
+
+.app-date-picker .el-date-table th {
+  padding: 6px 0 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app-date-picker .el-date-table td {
+  padding: 3px 0;
+}
+
+.app-date-picker .el-date-table td .el-date-table-cell {
+  height: 34px;
+  padding: 2px 0;
+}
+
+.app-date-picker .el-date-table td .el-date-table-cell__text {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.app-date-picker .el-date-table td.available:hover .el-date-table-cell__text {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--yellow) 55%, var(--white));
+  color: var(--ink);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+}
+
+.app-date-picker .el-date-table td.today .el-date-table-cell__text {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.app-date-picker .el-date-table td.current:not(.disabled) .el-date-table-cell__text {
+  border-color: var(--ink);
+  background: var(--primary);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+  color: var(--white);
+}
+
+.app-date-picker .el-date-table td.prev-month .el-date-table-cell__text,
+.app-date-picker .el-date-table td.next-month .el-date-table-cell__text,
+.app-date-picker .el-date-table td.disabled .el-date-table-cell__text {
+  color: color-mix(in srgb, var(--ink-soft) 48%, var(--paper));
+}
+
+.app-date-picker .el-time-panel {
+  overflow: hidden;
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.app-date-picker .el-time-panel__header {
+  padding: 12px;
+  border-bottom: var(--bw) solid var(--ink);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.app-date-picker .el-time-spinner__item {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-date-picker .el-time-spinner__item:hover:not(.is-disabled) {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.app-date-picker .el-time-spinner__item.is-active:not(.is-disabled) {
+  background: var(--green);
+  color: var(--white);
+  font-weight: 900;
+}
+
+.app-date-picker .el-time-panel__content::before,
+.app-date-picker .el-time-panel__content::after {
+  border-color: var(--ink-soft);
+}
+
+.app-date-picker .el-picker-panel__footer,
+.app-date-picker .el-time-panel__footer {
+  padding: 10px 12px;
+  border-top: 1.5px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  background: var(--white);
+}
+
+.app-date-picker .el-button {
+  height: auto;
+  padding: 7px 13px;
+  border: var(--bw) solid var(--ink);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app-date-picker .el-button:hover,
+.app-date-picker .el-button.is-text:hover {
+  border-color: var(--ink);
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.app-date-picker .el-button--primary {
+  background: var(--primary);
+  color: var(--white);
+}
+
+@media (max-width: 720px) {
+  .app-date-picker .el-picker-panel__body {
+    min-width: 0;
+  }
+
+  .app-date-picker .el-date-picker__time-header,
+  .app-date-picker .el-time-panel {
+    width: 100%;
+  }
+}
+
+/* ============ 全站消息提示 ============ */
+.el-message {
+  min-width: min(360px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 12px 16px;
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--paper);
+  box-shadow: 5px 5px 0 var(--ink);
+  color: var(--ink);
+}
+
+.el-message .el-message__content {
+  min-width: 0;
+  flex: 1;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.el-message .el-message__icon {
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  color: var(--ink);
+}
+
+.el-message--success {
+  border-left: 7px solid var(--green);
+}
+
+.el-message--warning {
+  border-left: 7px solid var(--yellow);
+}
+
+.el-message--error {
+  border-left: 7px solid var(--red);
+}
+
+.el-message--info {
+  border-left: 7px solid var(--blue);
+}
+
+.el-message .el-message__closeBtn {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  margin-left: 6px;
+  padding: 5px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--ink-soft);
+  font-size: 16px;
+  transition: color .15s, background-color .15s, box-shadow .15s, transform .15s;
+}
+
+.el-message .el-message__closeBtn:hover {
+  background: var(--yellow);
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--primary);
+  transform: translate(-1px, -1px) rotate(5deg);
+}
+
+.el-message .el-message__closeBtn:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .app-modal .el-overlay-dialog {
+    padding: 12px;
+  }
+
+  .el-overlay.is-message-box .el-overlay-message-box {
+    padding: 12px;
+  }
+
+  .app-dialog.el-dialog,
+  .el-message-box {
+    max-height: calc(100vh - 24px);
+    border-radius: var(--r-s);
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+
+  .app-dialog.el-dialog {
+    width: calc(100vw - 24px) !important;
+  }
+
+  .el-message-box {
+    width: calc(100vw - 48px) !important;
+  }
+
+  .app-dialog .el-dialog__header,
+  .el-message-box__header {
+    padding: 23px 56px 13px 20px;
+  }
+
+  .app-dialog .el-dialog__title,
+  .el-message-box__title {
+    font-size: 24px;
+  }
+
+  .app-dialog .el-dialog__headerbtn,
+  .el-message-box__headerbtn {
+    top: 17px;
+    right: 17px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .app-dialog .el-dialog__body,
+  .el-message-box__content {
+    padding: 17px 20px;
+  }
+
+  .app-dialog .el-dialog__footer,
+  .el-message-box__btns {
+    gap: 14px;
+    padding: 14px 20px 20px;
+  }
+
+  .app-dialog .el-dialog__footer .btn,
+  .el-message-box__btns .el-button {
+    min-width: 0;
+    flex: 1 1 0;
+    margin: 0;
+  }
+
+  .el-message-box__container {
+    gap: 11px;
+  }
+
+  .el-message-box__status {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    padding: 7px;
+  }
+
+  .el-message-box__btns .el-button {
+    padding-inline: 12px;
+  }
+
+  .app-select-popper .el-select-dropdown__wrap {
+    max-height: min(250px, 42vh);
+  }
+
+  .el-message {
+    min-width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-dialog.el-dialog,
+  .el-message-box {
+    animation: none;
+  }
+}

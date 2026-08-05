@@ -1,0 +1,63 @@
+server:
+  port: 8080
+  # ── 高并发调优（目标：10000 并发连接）──
+  # 10000 并发连接 ≠ 10000 工作线程：NIO 连接器挂起大量 keep-alive 连接，
+  # 由少量工作线程处理活跃请求；配合 JWT 无状态鉴权 + Caffeine 本地缓存，单请求耗时极短。
+  tomcat:
+    threads:
+      max: 500                # 工作线程上限
+      min-spare: 50           # 常驻空闲线程
+    max-connections: 10000    # NIO 最大挂起连接数
+    accept-count: 1000        # 连接满后的等待队列长度
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/zhiyi_campus?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # ── HikariCP 连接池调优 ──
+    # 池不宜过大（MySQL 上下文切换反而变慢），靠"快进快出"支撑高并发
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 3000       # 3s 拿不到连接快速失败，避免请求线程无限堆积
+      max-lifetime: 1800000
+      keepalive-time: 300000
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 50MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true       # 驼峰转换：ban_until_time → banUntilTime
+    # ⚠️ 压测/生产前请注释掉下面一行：stdout 打 SQL 是同步 IO，高并发下是巨大瓶颈
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 打印 SQL（开发阶段开着）
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: isDeleted          # 全局逻辑删除字段
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath:mapper/*.xml   # XML 映射文件位置
+
+# 文件上传路径
+zhiyi:
+  upload-path: ./uploads                     # 图片存储目录
+  # JWT 配置
+  jwt:
+    secret: ${JWT_SECRET:JWT_SECRET_EXAMPLE_2026_ZHIYI_SCHOOL}
+    expiration: 86400000                     # 24小时（毫秒）
+  # AI 接口（通义千问 / 文心一言 等，按实际情况填写）
+  ai:
+    api-url: ${AI_API_URL:https://api.deepseek.com}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:deepseek-v4-pro}
+    timeout: 5000                            # 超时时间（毫秒）
+  # ── 模块一：认证与风控 ──
+  auth:
+    login-fail-limit: 5                      # 同一账号连续密码错误次数上限
+    login-fail-lock-seconds: 300             # 触发上限后锁定时长（秒）
+    user-state-cache-seconds: 60             # 用户状态（封禁/Token版本）本地缓存时长
