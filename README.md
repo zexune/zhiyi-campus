@@ -12,6 +12,7 @@
 - [API 与文档入口](#api-与文档入口)
 - [开发注意事项](#开发注意事项)
 - [开源许可](#开源许可)
+- [致谢](#致谢)
 
 ## 核心功能
 
@@ -240,3 +241,7 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 ## 开源许可
 
 本项目基于 [MIT License](LICENSE) 开源。你可以自由使用、复制、修改、合并、发布和分发本项目，但须保留原始版权声明及许可声明。
+
+## 致谢
+
+本项目由 [zhiyi-school](https://github.com/kwang888210/zhiyi-school) 进一步开发而来，感谢原项目及其贡献者提供的基础实现与实践经验。我们在此基础上持续完善功能、架构与用户体验。
