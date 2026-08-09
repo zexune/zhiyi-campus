@@ -92,7 +92,7 @@ mvn spring-boot:run
 | 环境变量 | 说明 | 默认值 |
 | --- | --- | --- |
 | `MYSQL_USERNAME` | MySQL 用户名 | `root` |
-| `MYSQL_PASSWORD` | MySQL 密码 | `password`（仅开发占位值） |
+| `MYSQL_PASSWORD` | MySQL 密码 | 无 |
 | `JWT_SECRET` | 必填；Base64 编码、解码后至少 32 字节的 JWT 签名密钥 | 无 |
 | `JWT_EXPIRATION` | Token 有效期，Spring Duration 格式 | `24h` |
 | `CORS_ALLOWED_ORIGINS` | 允许访问 API 的前端来源，多个值用逗号分隔 | `http://localhost:3000,http://127.0.0.1:3000` |
