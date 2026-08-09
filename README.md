@@ -31,7 +31,7 @@
 | 层级 | 技术 |
 | --- | --- |
 | 前端 | Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
-| 后端 | Java 25、Spring Boot 4.1.0、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.15 |
+| 后端 | Java 25、Spring Boot 4.1.0、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.x（推荐 3.9.15） |
 | 基础库 | Lombok 1.18.46、JJWT 0.13.0、Hutool 5.8.47、Jackson 3 |
 | 数据与安全 | MySQL 8、JWT（HS256 + issuer/audience/tokenVersion）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
 | 文件存储 | 本地文件系统，通过 `/uploads/**` 提供访问 |
@@ -52,7 +52,7 @@
 ### 1. 环境要求
 
 - JDK 25（构建会拒绝其他主版本）
-- Maven 3.9.15
+- Maven 3.9.x（最低 3.9.0，推荐 3.9.15）
 - Node.js 22.12 或更高版本，以及 npm
 - MySQL 8.0 或更高版本
 

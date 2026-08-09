@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <maven.version>3.9.15</maven.version>
+        <maven.minimum.version>3.9.0</maven.minimum.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -147,7 +147,7 @@
                                     <version>[25,26)</version>
                                 </requireJavaVersion>
                                 <requireMavenVersion>
-                                    <version>[${maven.version},3.9.16)</version>
+                                    <version>[${maven.minimum.version},4.0.0)</version>
                                 </requireMavenVersion>
                             </rules>
                         </configuration>
