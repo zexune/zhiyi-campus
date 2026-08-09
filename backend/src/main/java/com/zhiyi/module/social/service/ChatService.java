@@ -2,8 +2,8 @@ package com.zhiyi.module.social.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
@@ -49,7 +49,7 @@ public class ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final ItemMapper itemMapper;
     private final SysUserMapper userMapper;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
 
     public ChatStartVO startItemConversation(Long userId, ChatStartDTO dto) {
         Item item = itemMapper.selectById(dto.getItemId());
@@ -224,11 +224,11 @@ public class ChatService {
             }
         }
 
-        Map<Long, SysUser> users = userMapper.selectBatchIds(peerIds).stream()
+        Map<Long, SysUser> users = userMapper.selectByIds(peerIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, Function.identity()));
         Map<Long, Item> items = itemIds.isEmpty()
                 ? Map.of()
-                : itemMapper.selectBatchIds(itemIds).stream()
+                : itemMapper.selectByIds(itemIds).stream()
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
 
         List<ConversationVO> result = new ArrayList<>();
@@ -360,11 +360,11 @@ public class ChatService {
                 itemIds.add(message.getRelatedItemId());
             }
         }
-        Map<Long, SysUser> users = userMapper.selectBatchIds(peerIds).stream()
+        Map<Long, SysUser> users = userMapper.selectByIds(peerIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, Function.identity()));
         Map<Long, Item> items = itemIds.isEmpty()
                 ? Map.of()
-                : itemMapper.selectBatchIds(itemIds).stream()
+                : itemMapper.selectByIds(itemIds).stream()
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
 
         return messages.stream()

@@ -147,7 +147,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getWalletBalance, rechargeWallet, getWalletLogs } from '@/api/wallet'
 

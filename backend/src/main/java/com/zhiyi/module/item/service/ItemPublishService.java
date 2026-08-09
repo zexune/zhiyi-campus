@@ -1,7 +1,7 @@
 package com.zhiyi.module.item.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.common.BusinessException;
@@ -57,7 +57,7 @@ public class ItemPublishService {
     private final ViolationReportMapper violationReportMapper;
     private final MarketplaceService marketplaceService;
     private final SysUserMapper userMapper;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
     private final PlatformTransactionManager transactionManager;
     private final AiReviewService aiReviewService;
 
@@ -369,7 +369,7 @@ public class ItemPublishService {
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new BusinessException(ResultCode.SERVER_ERROR, "JSON 序列化失败");
         }
     }

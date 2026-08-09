@@ -102,7 +102,7 @@ class BanServiceTest {
         assertThrows(BusinessException.class,
                 () -> service.punish(punishment("UNKNOWN", null), 99L));
 
-        verify(violationLogMapper, never()).insert(any());
+        verify(violationLogMapper, never()).insert(any(ViolationLog.class));
         verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
@@ -115,7 +115,7 @@ class BanServiceTest {
 
         verify(userMapper, never()).updateById(any(SysUser.class));
         verify(userMapper, never()).bumpTokenVersion(any());
-        verify(violationLogMapper, never()).insert(any());
+        verify(violationLogMapper, never()).insert(any(ViolationLog.class));
         verify(eventPublisher, never()).publishEvent(any(Object.class));
         assertTrue(userStateCache.afterCommitInvalidations().isEmpty());
     }
@@ -129,7 +129,7 @@ class BanServiceTest {
         assertThrows(BusinessException.class,
                 () -> service.punish(punishment("WARNING", null), 99L));
 
-        verify(violationLogMapper, never()).insert(any());
+        verify(violationLogMapper, never()).insert(any(ViolationLog.class));
         verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 

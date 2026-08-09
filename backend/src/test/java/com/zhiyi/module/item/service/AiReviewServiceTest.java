@@ -1,6 +1,6 @@
 package com.zhiyi.module.item.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.module.item.dto.PublishItemDTO;
 import com.zhiyi.module.item.entity.Category;
 import org.junit.jupiter.api.Test;
@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiReviewServiceTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper objectMapper = JsonMapper.builder().build();
     private final AiReviewService service = new AiReviewService(
             objectMapper, "https://api.deepseek.com", "test-key", "deepseek-v4-pro", 5000);
 

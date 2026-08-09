@@ -1,6 +1,6 @@
 package com.zhiyi.module.social.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
@@ -54,7 +54,7 @@ class ChatServiceTest {
     @BeforeEach
     void setUp() {
         service = new ChatService(
-                chatMessageMapper, itemMapper, userMapper, new ObjectMapper());
+                chatMessageMapper, itemMapper, userMapper, JsonMapper.builder().build());
     }
 
     @Test
@@ -143,7 +143,7 @@ class ChatServiceTest {
         ChatMessage crossSchool = message(2L, 2L, 9L);
         when(chatMessageMapper.selectList(any())).thenReturn(List.of(crossSchool, sameSchool));
         when(userMapper.selectById(9L)).thenReturn(user(9L, 1L, "ADMIN"));
-        when(userMapper.selectBatchIds(any())).thenReturn(List.of(
+        when(userMapper.selectByIds(any())).thenReturn(List.of(
                 user(1L, 1L, "USER"),
                 user(2L, 2L, "USER")
         ));
@@ -161,7 +161,7 @@ class ChatServiceTest {
                 message(2L, 2L, 9L)
         ));
         when(userMapper.selectById(9L)).thenReturn(user(9L, 1L, "ADMIN"));
-        when(userMapper.selectBatchIds(any())).thenReturn(List.of(
+        when(userMapper.selectByIds(any())).thenReturn(List.of(
                 user(1L, 1L, "USER"),
                 user(2L, 2L, "USER")
         ));

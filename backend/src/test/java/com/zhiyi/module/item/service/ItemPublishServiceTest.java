@@ -1,6 +1,6 @@
 package com.zhiyi.module.item.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.dto.PublishItemDTO;
@@ -49,7 +49,7 @@ class ItemPublishServiceTest {
                 violationReportMapper,
                 marketplaceService,
                 userMapper,
-                new ObjectMapper(),
+                JsonMapper.builder().build(),
                 transactionManager,
                 aiReviewService
         );

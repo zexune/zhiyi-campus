@@ -48,7 +48,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import AiTagList from '@/components/common/AiTagList.vue'
 import PriceTag from '@/components/common/PriceTag.vue'

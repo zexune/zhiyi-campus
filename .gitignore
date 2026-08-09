@@ -1,40 +1,38 @@
-# ── AI 工具本地目录（不提交）──
+# AI 工具本地目录
 .claude/
 .codex/
 
-# ── 依赖 ──
+# 依赖
 node_modules/
 
-# ── 构建产物 ──
-target/            # Maven / Spring Boot 编译输出
-dist/              # 前端构建产物（含 frontend/dist）
+# 构建产物
+target/
+dist/
 
-# ── 运行时产物 ──
-uploads/           # 用户上传文件
+# 运行时产物
+uploads/
 *.log
 
-# ── 环境变量 / 密钥（切勿提交）──
+# 环境变量与密钥
 .env
 .env.*
 !.env.example
 
-# ── TypeScript 增量编译 ──
+# TypeScript 增量编译
 *.tsbuildinfo
 
-# ── IDE ──
+# IDE
 .idea/
 *.iml
 *.ipr
 *.iws
 .vscode/
 
-# ── 编辑器 / 系统临时文件 ──
+# 编辑器与系统临时文件
 *.swp
 *.swo
 *~
 Thumbs.db
 Desktop.ini
 ehthumbs.db
-
-# ── 操作系统 ──
 .DS_Store

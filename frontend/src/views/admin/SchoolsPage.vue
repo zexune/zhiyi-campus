@@ -142,7 +142,6 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
 

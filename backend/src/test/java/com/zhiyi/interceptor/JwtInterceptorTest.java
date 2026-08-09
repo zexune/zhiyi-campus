@@ -4,14 +4,11 @@ import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.UserAuthState;
 import com.zhiyi.module.user.support.UserStateCache;
 import com.zhiyi.utils.JwtUtils;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,7 +17,7 @@ import static org.mockito.Mockito.mock;
 
 class JwtInterceptorTest {
 
-    private static final String SECRET = "01234567890123456789012345678901";
+    private static final String SECRET = "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=";
 
     private final JwtInterceptor interceptor = new JwtInterceptor(null, null);
 
@@ -122,20 +119,19 @@ class JwtInterceptorTest {
     }
 
     @Test
-    void legacyTokenWithoutVersionIsAcceptedAtVersionZero() throws Exception {
+    void nullVersionIsNormalizedToInitialVersion() throws Exception {
         JwtInterceptor secured = new JwtInterceptor(
                 jwtUtils(),
                 new FixedUserStateCache(
                         new UserAuthState(42L, "USER", "ACTIVE", null, 0)));
 
-        assertTrue(secured.preHandle(
-                authenticatedRequest(legacyToken()),
-                new MockHttpServletResponse(),
-                new Object()));
+        String token = jwtUtils().generateToken(42L, "USER", null);
+
+        assertTrue(secured.preHandle(authenticatedRequest(token), new MockHttpServletResponse(), new Object()));
     }
 
     private JwtUtils jwtUtils() {
-        return new JwtUtils(SECRET, 60_000);
+        return new JwtUtils(SECRET, Duration.ofMinutes(1));
     }
 
     private MockHttpServletRequest authenticatedRequest(String token) {
@@ -147,18 +143,6 @@ class JwtInterceptorTest {
                 new MockHttpServletRequest("GET", path);
         request.addHeader("Authorization", "Bearer " + token);
         return request;
-    }
-
-    private String legacyToken() {
-        Date now = new Date();
-        return Jwts.builder()
-                .subject("42")
-                .claim("role", "USER")
-                .issuedAt(now)
-                .expiration(new Date(now.getTime() + 60_000))
-                .signWith(Keys.hmacShaKeyFor(
-                        SECRET.getBytes(StandardCharsets.UTF_8)))
-                .compact();
     }
 
     private static final class FixedUserStateCache extends UserStateCache {

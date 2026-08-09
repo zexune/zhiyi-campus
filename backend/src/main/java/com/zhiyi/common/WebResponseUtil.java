@@ -1,14 +1,17 @@
 package com.zhiyi.common;
 
 import jakarta.servlet.http.HttpServletResponse;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 在拦截器等无法返回 Result 的地方，手写统一格式的 JSON 响应
+ * 在拦截器等无法直接返回 {@link Result} 的位置写入统一 JSON 响应。
  */
 public final class WebResponseUtil {
+
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     private WebResponseUtil() {
     }
@@ -18,7 +21,6 @@ public final class WebResponseUtil {
         response.setStatus(httpStatus);
         response.setContentType("application/json;charset=UTF-8");
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        // message 只包含我们自己写的固定文案，无注入风险
-        response.getWriter().write("{\"code\":" + code + ",\"message\":\"" + message + "\",\"data\":null}");
+        response.getWriter().write(JSON_MAPPER.writeValueAsString(Result.fail(code, message)));
     }
 }

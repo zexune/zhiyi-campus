@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
@@ -56,7 +56,7 @@ public class MarketplaceService {
     private final CategoryMapper categoryMapper;
     private final ItemFavoriteMapper favoriteMapper;
     private final SysUserMapper userMapper;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
 
     public List<Category> listCategories() {
         return categoryMapper.selectList(new LambdaQueryWrapper<Category>()
@@ -254,7 +254,7 @@ public class MarketplaceService {
                 .map(ItemFavorite::getItemId)
                 .toList();
 
-        List<Item> items = itemIds.isEmpty() ? List.of() : itemMapper.selectBatchIds(itemIds);
+        List<Item> items = itemIds.isEmpty() ? List.of() : itemMapper.selectByIds(itemIds);
         Map<Long, Item> itemById = items.stream().collect(Collectors.toMap(Item::getId, Function.identity()));
         List<Item> ordered = itemIds.stream()
                 .map(itemById::get)
@@ -331,7 +331,7 @@ public class MarketplaceService {
         List<Long> rankedIds = new ArrayList<>(counts.keySet());
         Map<Long, Item> itemMap = rankedIds.isEmpty()
                 ? Map.of()
-                : itemMapper.selectBatchIds(rankedIds).stream()
+                : itemMapper.selectByIds(rankedIds).stream()
                 .filter(item -> "ON_SALE".equals(item.getStatus()))
                 .filter(item -> Objects.equals(item.getSchoolId(), schoolId))
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
@@ -627,13 +627,13 @@ public class MarketplaceService {
 
     private Map<Long, Category> selectCategoryMap(Set<Long> ids) {
         if (ids.isEmpty()) return Map.of();
-        return categoryMapper.selectBatchIds(ids).stream()
+        return categoryMapper.selectByIds(ids).stream()
                 .collect(Collectors.toMap(Category::getId, Function.identity()));
     }
 
     private Map<Long, SysUser> selectUserMap(Set<Long> ids) {
         if (ids.isEmpty()) return Map.of();
-        return userMapper.selectBatchIds(ids).stream()
+        return userMapper.selectByIds(ids).stream()
                 .collect(Collectors.toMap(SysUser::getId, Function.identity()));
     }
 

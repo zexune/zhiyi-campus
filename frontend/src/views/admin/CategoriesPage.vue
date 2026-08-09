@@ -70,7 +70,6 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { createCategory, deleteCategory, getAdminCategories, updateCategory } from '@/api/admin'
 

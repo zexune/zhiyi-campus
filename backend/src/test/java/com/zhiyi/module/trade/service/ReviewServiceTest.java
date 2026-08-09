@@ -82,7 +82,7 @@ class ReviewServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> reviewService.review(ORDER_ID, BUYER_ID, dto(5, true, null)));
         assertEquals(ResultCode.NOT_FOUND.getCode(), ex.getCode());
-        verify(reviewMapper, never()).insert(any());
+        verify(reviewMapper, never()).insert(any(TradeReview.class));
     }
 
     @Test
@@ -92,7 +92,7 @@ class ReviewServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> reviewService.review(ORDER_ID, SELLER_ID, dto(5, true, null)));
         assertEquals(ResultCode.FORBIDDEN.getCode(), ex.getCode());
-        verify(reviewMapper, never()).insert(any());
+        verify(reviewMapper, never()).insert(any(TradeReview.class));
     }
 
     @Test
@@ -104,7 +104,7 @@ class ReviewServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> reviewService.review(ORDER_ID, BUYER_ID, dto(5, true, null)));
         assertEquals(ResultCode.ORDER_STATUS_ERROR.getCode(), ex.getCode());
-        verify(reviewMapper, never()).insert(any());
+        verify(reviewMapper, never()).insert(any(TradeReview.class));
     }
 
     @Test
@@ -115,7 +115,7 @@ class ReviewServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> reviewService.review(ORDER_ID, BUYER_ID, dto(4, true, null)));
         assertEquals(ResultCode.ORDER_ALREADY_REVIEWED.getCode(), ex.getCode());
-        verify(reviewMapper, never()).insert(any());
+        verify(reviewMapper, never()).insert(any(TradeReview.class));
     }
 
     @Test

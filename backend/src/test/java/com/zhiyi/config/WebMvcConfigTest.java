@@ -18,7 +18,8 @@ class WebMvcConfigTest {
     void jwtInterceptorStillAppliesToNonGetItemRoute() {
         JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
         RoleInterceptor roleInterceptor = new RoleInterceptor();
-        WebMvcConfig config = new WebMvcConfig(jwtInterceptor, roleInterceptor);
+        WebMvcConfig config = new WebMvcConfig(
+                jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
         ExposedInterceptorRegistry registry = new ExposedInterceptorRegistry();
 
         config.addInterceptors(registry);
@@ -34,7 +35,8 @@ class WebMvcConfigTest {
     void trendingAiTagsRouteRequiresLogin() {
         JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
         RoleInterceptor roleInterceptor = new RoleInterceptor();
-        WebMvcConfig config = new WebMvcConfig(jwtInterceptor, roleInterceptor);
+        WebMvcConfig config = new WebMvcConfig(
+                jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
         ExposedInterceptorRegistry registry = new ExposedInterceptorRegistry();
 
         config.addInterceptors(registry);

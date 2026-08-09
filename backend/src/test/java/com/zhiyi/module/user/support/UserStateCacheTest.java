@@ -39,12 +39,12 @@ class UserStateCacheTest {
     @Test
     void invalidatesImmediatelyWithoutTransaction() {
         Fixture fixture = fixture("ACTIVE");
-        assertEquals("ACTIVE", fixture.cache().get(1L).getStatus());
+        assertEquals("ACTIVE", fixture.cache().get(1L).status());
         fixture.database().set(user("BANNED_PERM"));
 
         fixture.cache().invalidateAfterCommit(1L);
 
-        assertEquals("BANNED_PERM", fixture.cache().get(1L).getStatus());
+        assertEquals("BANNED_PERM", fixture.cache().get(1L).status());
     }
 
     @Test
@@ -55,11 +55,11 @@ class UserStateCacheTest {
         beginSynchronization();
 
         fixture.cache().invalidateAfterCommit(1L);
-        assertEquals("ACTIVE", fixture.cache().get(1L).getStatus());
+        assertEquals("ACTIVE", fixture.cache().get(1L).status());
 
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(TransactionSynchronization::afterCommit);
-        assertEquals("BANNED_PERM", fixture.cache().get(1L).getStatus());
+        assertEquals("BANNED_PERM", fixture.cache().get(1L).status());
     }
 
     @Test
@@ -74,7 +74,7 @@ class UserStateCacheTest {
                 sync -> sync.afterCompletion(
                         TransactionSynchronization.STATUS_ROLLED_BACK));
 
-        assertEquals("ACTIVE", fixture.cache().get(1L).getStatus());
+        assertEquals("ACTIVE", fixture.cache().get(1L).status());
     }
 
     private void beginSynchronization() {

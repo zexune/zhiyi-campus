@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getRole, getToken } from '@/utils/auth'
 
 /**
  * 路由表 —— 统一在此注册所有页面
@@ -164,18 +165,16 @@ const router = createRouter({
 })
 
 // ── 全局路由守卫：未登录跳登录（记住来路），非管理员跳首页 ──
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  const role = localStorage.getItem('role')
+router.beforeEach((to) => {
+  document.title = to.meta.title || '智易校园'
 
-  if (to.meta.requireAuth && !token) {
-    next({ path: '/login', query: { redirect: to.fullPath } })
-  } else if (to.meta.requireAdmin && role !== 'ADMIN') {
-    next('/')
-  } else {
-    document.title = to.meta.title || '智易校园'
-    next()
+  if (to.meta.requireAuth && !getToken()) {
+    return { name: 'Login', query: { redirect: to.fullPath } }
   }
+  if (to.meta.requireAdmin && getRole() !== 'ADMIN') {
+    return { name: 'Home' }
+  }
+  return true
 })
 
 export default router

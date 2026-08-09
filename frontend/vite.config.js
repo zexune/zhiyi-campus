@@ -1,19 +1,46 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+
+const elementPlusResolver = ElementPlusResolver({ importStyle: 'css' })
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    AutoImport({
+      imports: ['vue', 'vue-router', 'pinia'],
+      dirs: ['./src/stores'],
+      resolvers: [elementPlusResolver],
+      vueTemplate: true,
+      dts: false,
+    }),
+    Components({
+      dirs: ['./src/components'],
+      extensions: ['vue'],
+      deep: true,
+      resolvers: [elementPlusResolver],
+      dts: false,
+    }),
+  ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    target: 'es2022',
+    modulePreload: { polyfill: false },
+    cssCodeSplit: true,
+  },
   server: {
+    host: '127.0.0.1',
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',   // 后端 Spring Boot 地址
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/uploads': {

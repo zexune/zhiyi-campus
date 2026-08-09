@@ -1,6 +1,26 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
-import { clearAuth } from '@/utils/auth'
+import { clearAuth, getToken } from '@/utils/auth'
+
+const MAX_JSON_RESPONSE_SIZE = 5 * 1024 * 1024
+const BLOCKED_JSON_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+function parseApiJson(data) {
+  if (typeof data !== 'string' || data.length === 0) return data
+  if (data.length > MAX_JSON_RESPONSE_SIZE) {
+    throw new Error('响应数据过大')
+  }
+  return JSON.parse(data, (key, value) => BLOCKED_JSON_KEYS.has(key) ? undefined : value)
+}
+
+function isApiEnvelope(value) {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.hasOwn(value, 'code')
+    && Object.hasOwn(value, 'message')
+    && Object.hasOwn(value, 'data')
+    && Number.isInteger(value.code)
+}
 
 /**
  * 统一的 axios 实例 —— 所有 API 请求都通过它
@@ -9,13 +29,20 @@ import { clearAuth } from '@/utils/auth'
 const request = axios.create({
   baseURL: '/api',
   timeout: 10000,
+  adapter: 'fetch',
+  allowAbsoluteUrls: false,
+  withCredentials: false,
+  withXSRFToken: false,
+  maxContentLength: MAX_JSON_RESPONSE_SIZE,
+  transformResponse: [parseApiJson],
+  headers: { Accept: 'application/json' },
 })
 
 // 请求拦截器：自动带 Token
 request.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = getToken()
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.set('Authorization', `Bearer ${token}`)
   }
   return config
 })
@@ -32,12 +59,16 @@ request.interceptors.response.use(
   (response) => {
     const res = response.data
     // 后端统一返回 { code, message, data }
+    if (!isApiEnvelope(res)) {
+      ElMessage.error('服务器响应格式异常')
+      return Promise.reject(new Error('Invalid API response envelope'))
+    }
     if (res.code !== 200) {
       ElMessage.error(res.message || '请求失败')
       if (res.code === 401) {
         redirectToLogin()
       }
-      return Promise.reject(new Error(res.message))
+      return Promise.reject(new Error(res.message || '请求失败'))
     }
     return res
   },

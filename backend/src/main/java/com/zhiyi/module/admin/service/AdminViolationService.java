@@ -72,13 +72,13 @@ public class AdminViolationService {
                 .filter(id -> id != null).distinct().collect(Collectors.toList());
 
         Map<Long, SysUser> userMap = userIds.isEmpty() ? Map.of()
-                : sysUserMapper.selectBatchIds(userIds).stream()
+                : sysUserMapper.selectByIds(userIds).stream()
                         .collect(Collectors.toMap(SysUser::getId, u -> u));
         Map<Long, SysUser> handlerMap = handlerIds.isEmpty() ? Map.of()
-                : sysUserMapper.selectBatchIds(handlerIds).stream()
+                : sysUserMapper.selectByIds(handlerIds).stream()
                         .collect(Collectors.toMap(SysUser::getId, u -> u));
         Map<Long, Item> itemMap = itemIds.isEmpty() ? Map.of()
-                : itemMapper.selectBatchIds(itemIds).stream()
+                : itemMapper.selectByIds(itemIds).stream()
                         .collect(Collectors.toMap(Item::getId, i -> i));
 
         // 合并 handler 到 userMap（避免 key 冲突，用不同的 map 更安全）

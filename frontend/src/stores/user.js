@@ -38,4 +38,9 @@ export const useUserStore = defineStore('user', () => {
   }
 
   return { user, isLoggedIn, isAdmin, setLogin, fetchProfile, logout }
+}, {
+  persist: {
+    key: 'zhiyi-user',
+    pick: ['user.id', 'user.nickname', 'user.role'],
+  },
 })
