@@ -3,7 +3,7 @@ package com.zhiyi.module.user.service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.user.dto.UpdateProfileDTO;
@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -131,7 +132,7 @@ class UserServiceTest {
     void updateProfilePersistsTrustFields() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectById(42L)).thenReturn(cardUser());
-        when(userMapper.update(any(SysUser.class), any(Wrapper.class))).thenReturn(1);
+        when(userMapper.update(any(SysUser.class), any())).thenReturn(1);
         UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
@@ -142,7 +143,7 @@ class UserServiceTest {
         service.updateProfile(42L, dto);
 
         ArgumentCaptor<SysUser> patch = ArgumentCaptor.forClass(SysUser.class);
-        verify(userMapper).update(patch.capture(), any(Wrapper.class));
+        verify(userMapper).update(patch.capture(), any());
         assertEquals("宝山校区", patch.getValue().getCampus());
         assertEquals("计算机学院", patch.getValue().getCollege());
         assertEquals("2024级", patch.getValue().getGrade());
@@ -153,7 +154,7 @@ class UserServiceTest {
     void updateProfileExplicitlyClearsOptionalTrustFields() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectById(42L)).thenReturn(cardUser());
-        when(userMapper.update(any(SysUser.class), any(Wrapper.class))).thenReturn(1);
+        when(userMapper.update(any(SysUser.class), any())).thenReturn(1);
         UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
@@ -163,14 +164,15 @@ class UserServiceTest {
         dto.setDormitory("   ");
         service.updateProfile(42L, dto);
 
-        ArgumentCaptor<Wrapper> wrapper = ArgumentCaptor.forClass(Wrapper.class);
-        verify(userMapper).update(any(SysUser.class), wrapper.capture());
-        String sqlSet = ((com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<?>)
-                wrapper.getValue()).getSqlSet();
-        assertTrue(sqlSet.contains("campus="));
-        assertTrue(sqlSet.contains("college="));
-        assertTrue(sqlSet.contains("grade="));
-        assertTrue(sqlSet.contains("dormitory="));
+        verify(userMapper).update(any(SysUser.class), argThat(wrapper -> {
+            assertTrue(wrapper instanceof LambdaUpdateWrapper<?>);
+            String sqlSet = ((LambdaUpdateWrapper<?>) wrapper).getSqlSet();
+            assertTrue(sqlSet.contains("campus="));
+            assertTrue(sqlSet.contains("college="));
+            assertTrue(sqlSet.contains("grade="));
+            assertTrue(sqlSet.contains("dormitory="));
+            return true;
+        }));
     }
 
     @Test
@@ -181,7 +183,7 @@ class UserServiceTest {
         updated.setSchoolId(2L);
         updated.setSchoolEmail("student@dhu.edu.cn");
         when(userMapper.selectById(42L)).thenReturn(current, updated);
-        when(userMapper.update(any(SysUser.class), any(Wrapper.class))).thenReturn(1);
+        when(userMapper.update(any(SysUser.class), any())).thenReturn(1);
 
         SchoolMapper schoolMapper = mock(SchoolMapper.class);
         when(schoolMapper.selectById(2L)).thenReturn(school(2L, "东华大学", "@dhu.edu.cn"));
@@ -193,7 +195,7 @@ class UserServiceTest {
         UserVO result = service.updateProfile(42L, dto);
 
         ArgumentCaptor<SysUser> patch = ArgumentCaptor.forClass(SysUser.class);
-        verify(userMapper).update(patch.capture(), any(Wrapper.class));
+        verify(userMapper).update(patch.capture(), any());
         assertEquals(2L, patch.getValue().getSchoolId());
         assertEquals("student@dhu.edu.cn", patch.getValue().getSchoolEmail());
         assertEquals("东华大学", result.getSchoolName());

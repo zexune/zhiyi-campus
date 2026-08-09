@@ -1,6 +1,5 @@
 package com.zhiyi.module.trade.service;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.enums.OrderStatus;
 import com.zhiyi.common.ResultCode;

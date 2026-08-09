@@ -19,6 +19,7 @@ class RoleInterceptorTest {
         public void protectedAction() {
         }
 
+        @SuppressWarnings("unused") // 仅通过反射构造 HandlerMethod 调用
         public void publicAction() {
         }
     }
