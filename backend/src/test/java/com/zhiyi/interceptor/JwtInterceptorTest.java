@@ -47,7 +47,8 @@ class JwtInterceptorTest {
         JwtInterceptor secured = new JwtInterceptor(
                 utils,
                 new FixedUserStateCache(
-                        new UserAuthState(42L, "USER", "ACTIVE", null, 3)));
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)));
         MockHttpServletRequest request =
                 authenticatedRequest("/api/item/99", utils.generateToken(42L, "USER", 3));
 
@@ -93,7 +94,8 @@ class JwtInterceptorTest {
         JwtInterceptor secured = new JwtInterceptor(
                 utils,
                 new FixedUserStateCache(
-                        new UserAuthState(42L, "USER", "ACTIVE", null, 3)));
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)));
         MockHttpServletRequest request = authenticatedRequest(
                 utils.generateToken(42L, "USER", 3));
 
@@ -108,7 +110,8 @@ class JwtInterceptorTest {
         JwtInterceptor secured = new JwtInterceptor(
                 utils,
                 new FixedUserStateCache(
-                        new UserAuthState(42L, "USER", "ACTIVE", null, 4)));
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 4)));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         assertFalse(secured.preHandle(
@@ -123,7 +126,8 @@ class JwtInterceptorTest {
         JwtInterceptor secured = new JwtInterceptor(
                 jwtUtils(),
                 new FixedUserStateCache(
-                        new UserAuthState(42L, "USER", "ACTIVE", null, 0)));
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 0)));
 
         String token = jwtUtils().generateToken(42L, "USER", null);
 

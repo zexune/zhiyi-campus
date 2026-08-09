@@ -11,6 +11,11 @@ import com.zhiyi.module.admin.mapper.ViolationAppealMapper;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
+import com.zhiyi.common.enums.AppealStatus;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -41,6 +46,7 @@ class ViolationAppealServiceTest {
     @Mock private ItemMapper itemMapper;
     @Mock private SysUserMapper userMapper;
     @Mock private ReputationPenaltyService penaltyService;
+    @Mock private TagQueryService tagQueryService;
     private ViolationAppealService service;
 
     @BeforeAll
@@ -57,7 +63,8 @@ class ViolationAppealServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ViolationAppealService(appealMapper, reportMapper, itemMapper, userMapper, penaltyService);
+        service = new ViolationAppealService(appealMapper, reportMapper, itemMapper,
+                userMapper, penaltyService, tagQueryService);
     }
 
     @Test
@@ -76,7 +83,7 @@ class ViolationAppealServiceTest {
         assertEquals(20L, result.id());
         ArgumentCaptor<ViolationAppeal> captor = ArgumentCaptor.forClass(ViolationAppeal.class);
         verify(appealMapper).insert(captor.capture());
-        assertEquals("PENDING", captor.getValue().getStatus());
+        assertEquals(AppealStatus.PENDING, captor.getValue().getStatus());
         assertEquals(8L, captor.getValue().getReportId());
     }
 
@@ -108,12 +115,12 @@ class ViolationAppealServiceTest {
         appeal.setReportId(8L);
         appeal.setItemId(100L);
         appeal.setUserId(2L);
-        appeal.setStatus("PENDING");
+        appeal.setStatus(AppealStatus.PENDING);
         ViolationReport report = confirmedReport(LocalDateTime.now().minusDays(1));
         Item item = new Item();
         item.setId(100L);
-        item.setStatus("OFF_SHELF");
-        item.setModerationStatus("REJECTED");
+        item.setStatus(ItemStatus.OFF_SHELF);
+        item.setModerationStatus(ModerationStatus.REJECTED);
         when(appealMapper.selectById(20L)).thenReturn(appeal);
         when(appealMapper.update(isNull(), any())).thenReturn(1);
         when(reportMapper.selectById(8L)).thenReturn(report);
@@ -124,8 +131,8 @@ class ViolationAppealServiceTest {
         service.approve(20L, 99L, new HandleAppealDTO("复核后确认原判有误"));
 
         verify(penaltyService).revokePenalty(8L);
-        assertEquals("PASSED", item.getModerationStatus());
-        assertEquals("ON_SALE", item.getStatus());
+        assertEquals(ModerationStatus.PASSED, item.getModerationStatus());
+        assertEquals(ItemStatus.ON_SALE, item.getStatus());
         verify(itemMapper).updateById(item);
     }
 
@@ -136,11 +143,11 @@ class ViolationAppealServiceTest {
         appeal.setReportId(8L);
         appeal.setItemId(100L);
         appeal.setUserId(2L);
-        appeal.setStatus("PENDING");
+        appeal.setStatus(AppealStatus.PENDING);
         Item item = new Item();
         item.setId(100L);
-        item.setStatus("OFF_SHELF");
-        item.setModerationStatus("REJECTED");
+        item.setStatus(ItemStatus.OFF_SHELF);
+        item.setModerationStatus(ModerationStatus.REJECTED);
         when(appealMapper.selectById(20L)).thenReturn(appeal);
         when(appealMapper.update(isNull(), any())).thenReturn(1);
         when(reportMapper.selectById(8L)).thenReturn(confirmedReport(LocalDateTime.now().minusDays(1)));
@@ -151,8 +158,8 @@ class ViolationAppealServiceTest {
         service.approve(20L, 99L, new HandleAppealDTO("The old decision is incorrect"));
 
         verify(penaltyService).revokePenalty(8L);
-        assertEquals("REJECTED", item.getModerationStatus());
-        assertEquals("OFF_SHELF", item.getStatus());
+        assertEquals(ModerationStatus.REJECTED, item.getModerationStatus());
+        assertEquals(ItemStatus.OFF_SHELF, item.getStatus());
         verify(itemMapper, never()).updateById(any(Item.class));
     }
 
@@ -163,7 +170,7 @@ class ViolationAppealServiceTest {
         report.setUserId(2L);
         report.setOriginalTitle("测试商品");
         report.setViolationReason("原违规依据");
-        report.setStatus("CONFIRMED");
+        report.setStatus(ViolationStatus.CONFIRMED);
         report.setHandledAt(handledAt);
         return report;
     }

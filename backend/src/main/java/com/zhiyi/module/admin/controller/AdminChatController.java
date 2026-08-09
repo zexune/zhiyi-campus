@@ -28,7 +28,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@RoleRequired("ADMIN")
+@RoleRequired
 public class AdminChatController {
 
     private final AdminChatService adminChatService;

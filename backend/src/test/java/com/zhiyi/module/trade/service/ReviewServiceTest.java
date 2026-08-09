@@ -2,6 +2,7 @@ package com.zhiyi.module.trade.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.OrderStatus;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.module.trade.dto.ReviewDTO;
 import com.zhiyi.module.trade.entity.TradeOrder;
@@ -45,7 +46,7 @@ class ReviewServiceTest {
         order.setId(ORDER_ID);
         order.setBuyerId(BUYER_ID);
         order.setSellerId(SELLER_ID);
-        order.setStatus("COMPLETED");
+        order.setStatus(OrderStatus.COMPLETED);
         return order;
     }
 
@@ -98,7 +99,7 @@ class ReviewServiceTest {
     @Test
     void unfinishedOrderCannotBeReviewed() {
         TradeOrder waiting = completedOrder();
-        waiting.setStatus("WAITING_MEET");
+        waiting.setStatus(OrderStatus.WAITING_MEET);
         when(orderMapper.selectById(ORDER_ID)).thenReturn(waiting);
 
         BusinessException ex = assertThrows(BusinessException.class,

@@ -3,6 +3,7 @@ package com.zhiyi.module.trade.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.OrderStatus;
 import com.zhiyi.module.trade.dto.ReviewDTO;
 import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.entity.TradeReview;
@@ -39,7 +40,7 @@ public class ReviewService {
         if (!order.getBuyerId().equals(buyerId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "只有买家才能评价");
         }
-        if (!"COMPLETED".equals(order.getStatus())) {
+        if (order.getStatus() != OrderStatus.COMPLETED) {
             throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "订单未完成，暂不能评价");
         }
 

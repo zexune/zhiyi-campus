@@ -2,21 +2,23 @@ package com.zhiyi.module.trade.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ItemType;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.OrderStatus;
+import com.zhiyi.common.enums.WalletLogType;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.trade.dto.CreateOrderDTO;
 import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.entity.ItemReservation;
 import com.zhiyi.module.trade.mapper.ItemReservationMapper;
-import com.zhiyi.module.trade.entity.TradeReview;
 import com.zhiyi.module.trade.entity.WalletLog;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
-import com.zhiyi.module.trade.mapper.TradeReviewMapper;
 import com.zhiyi.module.trade.mapper.WalletLogMapper;
 import com.zhiyi.module.trade.vo.OrderVO;
 import com.zhiyi.module.user.entity.SysUser;
@@ -29,8 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 担保交易核心服务 —— 下单、确认收货、取消订单。
@@ -51,9 +51,10 @@ public class OrderService {
     private final ItemMapper itemMapper;
     private final TradeOrderMapper orderMapper;
     private final ItemReservationMapper reservationMapper;
-    private final TradeReviewMapper reviewMapper;
     private final WalletLogMapper walletLogMapper;
     private final UserGrowthService growthService;
+    private final OrderViewAssembler orderViewAssembler;
+    private final TagQueryService tagQueryService;
 
     // ================================================================
     // 下单
@@ -69,13 +70,13 @@ public class OrderService {
         if (item == null) {
             throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
         }
-        if (!"ON_SALE".equals(item.getStatus())) {
+        if (item.getStatus() != ItemStatus.ON_SALE) {
             throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
         }
-        if (!"PASSED".equals(item.getModerationStatus())) {
+        if (item.getModerationStatus() != ModerationStatus.PASSED) {
             throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
         }
-        if (!"SELL".equals(item.getType())) {
+        if (item.getType() != ItemType.SELL) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "仅支持购买出售类型的商品，求购请直接联系发布者");
         }
         if (item.getPublisherId().equals(buyerId)) {
@@ -126,7 +127,7 @@ public class OrderService {
         order.setBuyerId(buyerId);
         order.setSellerId(item.getPublisherId());
         order.setPrice(price);
-        order.setStatus("WAITING_MEET");
+        order.setStatus(OrderStatus.WAITING_MEET);
         orderMapper.insert(order);
 
         ItemReservation reservation = new ItemReservation();
@@ -137,7 +138,7 @@ public class OrderService {
         // 9. 买家支出流水
         WalletLog paymentLog = new WalletLog();
         paymentLog.setUserId(buyerId);
-        paymentLog.setType("PAYMENT");
+        paymentLog.setType(WalletLogType.PAYMENT);
         paymentLog.setAmount(price.negate());
         paymentLog.setBalanceAfter(buyerAfter.getWalletBalance());
         paymentLog.setOrderId(order.getId());
@@ -150,7 +151,8 @@ public class OrderService {
         log.info("订单创建成功 orderId={} buyer={} seller={} price={}",
                 order.getId(), buyerId, item.getPublisherId(), price);
 
-        return toVO(order, item, sellerNickname, null);
+        tagQueryService.invalidate(item.getSchoolId());
+        return orderViewAssembler.assemble(order, item, sellerNickname);
     }
 
     // ================================================================
@@ -176,15 +178,15 @@ public class OrderService {
         // 2. 原子更新订单状态 —— 只有 WAITING_MEET → COMPLETED 才生效
         LocalDateTime completedAt = LocalDateTime.now();
         LambdaUpdateWrapper<TradeOrder> completeWrapper = new LambdaUpdateWrapper<>();
-        completeWrapper.set(TradeOrder::getStatus, "COMPLETED")
+        completeWrapper.set(TradeOrder::getStatus, OrderStatus.COMPLETED)
                        .set(TradeOrder::getCompletedAt, completedAt)
                        .eq(TradeOrder::getId, orderId)
-                       .eq(TradeOrder::getStatus, "WAITING_MEET");
+                       .eq(TradeOrder::getStatus, OrderStatus.WAITING_MEET);
         if (orderMapper.update(null, completeWrapper) == 0) {
             throw new BusinessException(ResultCode.ORDER_STATUS_ERROR);
         }
         // 数据库使用原子 UPDATE，返回对象也同步成新状态，避免 API 响应仍显示 WAITING_MEET。
-        order.setStatus("COMPLETED");
+        order.setStatus(OrderStatus.COMPLETED);
         order.setCompletedAt(completedAt);
 
         BigDecimal price = order.getPrice();
@@ -200,7 +202,7 @@ public class OrderService {
         // 4. 卖家收入流水
         WalletLog incomeLog = new WalletLog();
         incomeLog.setUserId(order.getSellerId());
-        incomeLog.setType("INCOME");
+        incomeLog.setType(WalletLogType.INCOME);
         incomeLog.setAmount(price);
         incomeLog.setBalanceAfter(sellerAfter != null ? sellerAfter.getWalletBalance() : BigDecimal.ZERO);
         incomeLog.setOrderId(orderId);
@@ -210,8 +212,9 @@ public class OrderService {
         // 5. 商品标记已售出
         Item item = itemMapper.selectById(order.getItemId());
         if (item != null) {
-            item.setStatus("SOLD");
+            item.setStatus(ItemStatus.SOLD);
             itemMapper.updateById(item);
+            tagQueryService.invalidate(item.getSchoolId());
         }
         reservationMapper.deleteById(order.getItemId());
 
@@ -224,7 +227,7 @@ public class OrderService {
         log.info("订单确认收货 orderId={} seller={} amount={}", orderId, order.getSellerId(), price);
 
         String sellerNickname = sellerAfter != null ? sellerAfter.getNickname() : null;
-        return toVO(order, item, sellerNickname, null);
+        return orderViewAssembler.assemble(order, item, sellerNickname);
     }
 
     // ================================================================
@@ -252,14 +255,14 @@ public class OrderService {
         // 2. 原子更新订单状态 —— 只有 WAITING_MEET → CANCELLED 才生效
         LocalDateTime cancelledAt = LocalDateTime.now();
         LambdaUpdateWrapper<TradeOrder> cancelWrapper = new LambdaUpdateWrapper<>();
-        cancelWrapper.set(TradeOrder::getStatus, "CANCELLED")
+        cancelWrapper.set(TradeOrder::getStatus, OrderStatus.CANCELLED)
                      .set(TradeOrder::getCancelledAt, cancelledAt)
                      .eq(TradeOrder::getId, orderId)
-                     .eq(TradeOrder::getStatus, "WAITING_MEET");
+                     .eq(TradeOrder::getStatus, OrderStatus.WAITING_MEET);
         if (orderMapper.update(null, cancelWrapper) == 0) {
             throw new BusinessException(ResultCode.ORDER_STATUS_ERROR);
         }
-        order.setStatus("CANCELLED");
+        order.setStatus(OrderStatus.CANCELLED);
         order.setCancelledAt(cancelledAt);
 
         // 3. 买家退款（原子加余额）
@@ -273,7 +276,7 @@ public class OrderService {
         // 4. 退款流水
         WalletLog refundLog = new WalletLog();
         refundLog.setUserId(buyerId);
-        refundLog.setType("REFUND");
+        refundLog.setType(WalletLogType.REFUND);
         refundLog.setAmount(price);
         refundLog.setBalanceAfter(buyerAfter != null ? buyerAfter.getWalletBalance() : BigDecimal.ZERO);
         refundLog.setOrderId(orderId);
@@ -283,6 +286,7 @@ public class OrderService {
         // 5. 释放商品预占，商品交易状态不变
         Item item = itemMapper.selectById(order.getItemId());
         reservationMapper.deleteById(order.getItemId());
+        if (item != null) tagQueryService.invalidate(item.getSchoolId());
 
         // 6. 获取卖家昵称作为对方显示
         SysUser seller = sysUserMapper.selectById(order.getSellerId());
@@ -290,90 +294,7 @@ public class OrderService {
 
         log.info("订单取消 orderId={} buyer={} refund={}", orderId, buyerId, price);
 
-        return toVO(order, item, sellerNickname, null);
+        return orderViewAssembler.assemble(order, item, sellerNickname);
     }
 
-    // ================================================================
-    // 查询（供 4.3 使用）
-    // ================================================================
-
-    /** 我买的 */
-    public IPage<OrderVO> getBoughtOrders(Long userId, int page, int size, String status) {
-        LambdaQueryWrapper<TradeOrder> q = new LambdaQueryWrapper<TradeOrder>()
-                .eq(TradeOrder::getBuyerId, userId)
-                .eq(status != null && !status.isEmpty(), TradeOrder::getStatus, status)
-                .orderByDesc(TradeOrder::getCreatedAt);
-
-        Page<TradeOrder> p = new Page<>(page, size);
-        IPage<TradeOrder> result = orderMapper.selectPage(p, q);
-
-        return result.convert(order -> {
-            Item item = itemMapper.selectById(order.getItemId());
-            SysUser seller = sysUserMapper.selectById(order.getSellerId());
-            OrderVO vo = toVO(order, item, seller != null ? seller.getNickname() : null, null);
-            // 仅已完成订单需要评价入口：查一次是否已评，供前端控制按钮显隐
-            if ("COMPLETED".equals(order.getStatus())) {
-                Long reviewed = reviewMapper.selectCount(new LambdaQueryWrapper<TradeReview>()
-                        .eq(TradeReview::getOrderId, order.getId()));
-                vo.setReviewed(reviewed != null && reviewed > 0);
-            }
-            return vo;
-        });
-    }
-
-    /** 我卖的 */
-    public IPage<OrderVO> getSoldOrders(Long userId, int page, int size, String status) {
-        LambdaQueryWrapper<TradeOrder> q = new LambdaQueryWrapper<TradeOrder>()
-                .eq(TradeOrder::getSellerId, userId)
-                .eq(status != null && !status.isEmpty(), TradeOrder::getStatus, status)
-                .orderByDesc(TradeOrder::getCreatedAt);
-
-        Page<TradeOrder> p = new Page<>(page, size);
-        IPage<TradeOrder> result = orderMapper.selectPage(p, q);
-
-        return result.convert(order -> {
-            Item item = itemMapper.selectById(order.getItemId());
-            SysUser buyer = sysUserMapper.selectById(order.getBuyerId());
-            return toVO(order, item, null, buyer != null ? buyer.getNickname() : null);
-        });
-    }
-
-    // ================================================================
-    // 内部工具
-    // ================================================================
-
-    private OrderVO toVO(TradeOrder order, Item item, String peerNicknameForBuyer, String peerNicknameForSeller) {
-        OrderVO vo = new OrderVO();
-        vo.setId(order.getId());
-        vo.setItemId(order.getItemId());
-        vo.setBuyerId(order.getBuyerId());
-        vo.setSellerId(order.getSellerId());
-        vo.setPrice(order.getPrice());
-        vo.setStatus(order.getStatus());
-        vo.setCreatedAt(order.getCreatedAt());
-        vo.setCompletedAt(order.getCompletedAt());
-        vo.setCancelledAt(order.getCancelledAt());
-
-        if (item != null) {
-            vo.setItemTitle(item.getTitle());
-            // 提取首张图片作为封面
-            String images = item.getImages();
-            if (images != null && images.length() > 2) {
-                try {
-                    // images 是 JSON 数组字符串如 ["url1","url2"]
-                    String first = images.replaceAll("^\\[\\s*\"", "")
-                                        .replaceAll("\".*$", "");
-                    vo.setItemCover(first);
-                } catch (Exception ignored) {
-                    vo.setItemCover(null);
-                }
-            }
-        }
-
-        // peerNicknameForBuyer 是卖家昵称，peerNicknameForSeller 是买家昵称
-        // 调用方根据场景传入对应的对方昵称
-        vo.setPeerNickname(peerNicknameForBuyer != null ? peerNicknameForBuyer : peerNicknameForSeller);
-
-        return vo;
-    }
 }

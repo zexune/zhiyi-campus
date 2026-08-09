@@ -28,7 +28,7 @@
 
             <div class="item-row__body">
               <div class="item-row__title">
-                <span class="badge" :class="item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">
+                <span class="badge" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                   {{ itemTypeLabel(item.type) }}
                 </span>
                 <router-link :to="`/item/${item.id}`">{{ item.title }}</router-link>
@@ -42,7 +42,7 @@
                 <span v-if="item.appealStatus" class="badge" :class="appealBadge(item.appealStatus)">
                   {{ appealStatusText(item.appealStatus) }}
                 </span>
-                <span v-if="item.moderationStatus === 'REJECTED'" class="muted">已确认内容违规，可整改或申诉</span>
+                <span v-if="item.moderationStatus === MODERATION_STATUS.REJECTED" class="muted">已确认内容违规，可整改或申诉</span>
               </div>
             </div>
 
@@ -58,7 +58,7 @@
                 class="btn btn--sm btn--yellow edit-button"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                {{ item.moderationStatus === 'REJECTED' ? '整改' : '编辑' }}
+                {{ item.moderationStatus === MODERATION_STATUS.REJECTED ? '整改' : '编辑' }}
               </router-link>
               <button v-if="canOffShelf(item)" class="btn btn--sm" :disabled="acting" @click="handleOffShelf(item)">下架</button>
               <button v-if="canRelist(item)" class="btn btn--sm btn--green" :disabled="acting" @click="handleRelist(item)">重新上架</button>
@@ -122,17 +122,22 @@ import { onMounted, reactive, ref } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } from '@/api/item'
+import {
+  APPEAL_STATUS,
+  APPEAL_STATUS_LABELS,
+  ITEM_STATUS,
+  ITEM_STATUS_OPTIONS,
+  ITEM_TYPE,
+  ITEM_TYPE_LABELS,
+  MODERATION_STATUS,
+} from '@/constants/domain'
+import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
 import { buildMyItemsParams } from './myItemsQuery.js'
 
 const STATUS_TABS = [
   { label: '全部', value: '' },
-  { label: '在售中', value: 'ON_SALE' },
-  { label: '审核中', value: 'REVIEWING' },
-  { label: '已售出', value: 'SOLD' },
-  { label: '已下架', value: 'OFF_SHELF' },
+  ...ITEM_STATUS_OPTIONS,
 ]
-const STATUS_TEXT = { ON_SALE: '在售中', REVIEWING: '审核中', SOLD: '已售出', OFF_SHELF: '已下架' }
-const STATUS_BADGE = { ON_SALE: 'badge--ok', REVIEWING: 'badge--warn', SOLD: 'badge--muted', OFF_SHELF: 'badge--muted' }
 const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 
 const items = ref([])
@@ -144,28 +149,39 @@ const acting = ref(false)
 const loadError = ref('')
 const appealForm = reactive({ visible: false, item: null, reason: '', submitting: false })
 
-function displayStatus(item) { return item.moderationStatus === 'PENDING' ? 'REVIEWING' : item.status }
-function statusText(status) { return STATUS_TEXT[status] || status }
-function statusBadge(status) { return STATUS_BADGE[status] || 'badge--muted' }
+function displayStatus(item) {
+  return item.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.status
+}
+function statusText(status) { return itemStatusLabel(status) }
+function statusBadge(status) { return itemStatusBadge(status) }
 function phClass(id) { return PH[Number(id) % PH.length] }
 function formatDate(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : '' }
-function itemTypeLabel(type) { return { SELL: '出售', BUY: '求购', SWAP: '换物', ERRAND: '跑腿' }[type] || type }
-function appealStatusText(status) { return { PENDING: '申诉审核中', APPROVED: '申诉已通过', REJECTED: '申诉未通过' }[status] || status }
-function appealBadge(status) { return status === 'APPROVED' ? 'badge--ok' : status === 'PENDING' ? 'badge--warn' : 'badge--muted' }
-
-function mainImage(item) {
-  try {
-    const images = typeof item.images === 'string' ? JSON.parse(item.images) : item.images
-    return Array.isArray(images) && images.length ? images[0] : ''
-  } catch { return '' }
+function itemTypeLabel(type) { return ITEM_TYPE_LABELS[type] || type }
+function appealStatusText(status) { return APPEAL_STATUS_LABELS[status] || status }
+function appealBadge(status) {
+  return status === APPEAL_STATUS.APPROVED
+    ? 'badge--ok'
+    : status === APPEAL_STATUS.PENDING ? 'badge--warn' : 'badge--muted'
 }
+
+function mainImage(item) { return Array.isArray(item.images) ? item.images[0] || '' : '' }
 
 function canEdit(item) {
-  return ['ON_SALE', 'OFF_SHELF'].includes(item.status) && item.moderationStatus !== 'PENDING' && !item.reserved
+  return [ITEM_STATUS.ON_SALE, ITEM_STATUS.OFF_SHELF].includes(item.status)
+    && item.moderationStatus !== MODERATION_STATUS.PENDING && !item.reserved
 }
-function canOffShelf(item) { return item.status === 'ON_SALE' && item.moderationStatus === 'PASSED' && !item.reserved }
-function canRelist(item) { return item.status === 'OFF_SHELF' && item.moderationStatus === 'PASSED' && !item.reserved }
-function canDelete(item) { return ['ON_SALE', 'OFF_SHELF'].includes(item.status) && item.moderationStatus === 'PASSED' && !item.reserved }
+function canOffShelf(item) {
+  return item.status === ITEM_STATUS.ON_SALE
+    && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
+}
+function canRelist(item) {
+  return item.status === ITEM_STATUS.OFF_SHELF
+    && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
+}
+function canDelete(item) {
+  return [ITEM_STATUS.ON_SALE, ITEM_STATUS.OFF_SHELF].includes(item.status)
+    && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
+}
 function hasActions(item) { return canEdit(item) || canOffShelf(item) || canRelist(item) || canDelete(item) || item.appealable }
 
 async function fetchItems() {
@@ -204,7 +220,7 @@ async function handleRelist(item) {
   acting.value = true
   try {
     const res = await relistItem(item.id)
-    if (res.data?.moderationStatus === 'PENDING') ElMessage.warning('检测到风险内容，已提交管理员审核')
+    if (res.data?.moderationStatus === MODERATION_STATUS.PENDING) ElMessage.warning('检测到风险内容，已提交管理员审核')
     else ElMessage.success('检测通过，商品已重新上架')
     await fetchItems()
   } finally { acting.value = false }

@@ -6,6 +6,7 @@
 
 - [核心功能](#核心功能)
 - [技术栈](#技术栈)
+- [性能与数据模型](#性能与数据模型)
 - [快速开始](#快速开始)
 - [常用命令](#常用命令)
 - [项目目录结构](#项目目录结构)
@@ -35,6 +36,16 @@
 | 数据与安全 | MySQL 8、JWT（HS256 + issuer/audience/tokenVersion）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
 | 文件存储 | 本地文件系统，通过 `/uploads/**` 提供访问 |
 | 接口风格 | RESTful JSON，统一返回 `{ code, message, data }` |
+
+## 性能与数据模型
+
+- **大厅推荐不做全表随机排序**：商品发布时生成不可变 `feed_key`，默认推荐按 `(school_id, status, moderation_status, is_deleted, feed_key, id)` 复合索引稳定分页；同楼、同校区与全校商品采用分层计数和有界切片查询，不再执行 `ORDER BY RAND()` 或先加载全校用户 ID。
+- **列表读模型统一批量组装**：商品卡片、买入/卖出订单和违规申诉先分页，再按 ID 集合批量读取关联商品、用户、评价、举报与标签。订单页无论返回多少条记录，都不会为每一行追加数据库往返。
+- **标签完全规范化**：`tag` 保存标准标签，`item_tag` 保存多对多关系；筛选使用等值索引与 `EXISTS`，不再在 JSON/TEXT 上执行前缀通配符 `LIKE`。校级标签聚合使用 Caffeine 短缓存，商品内容或可见性变化后在事务提交成功时精准失效。
+- **统计在数据库完成**：交易日趋势、成交额和地点热力由聚合 SQL 直接返回小结果集，并以半开时间区间匹配索引，不再把全部订单加载到 JVM 后按日期计算。
+- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端状态码集中在 `src/constants/domain.js`；JSON 数组统一由 Jackson 3/MyBatis TypeHandler 映射为 `List<String>`，业务代码不使用正则或字符串兼容分支解析 JSON。
+
+初始化脚本中的复合索引与上述查询形状是一体设计。修改查询条件、排序字段或学校隔离规则时，应同步用 `EXPLAIN ANALYZE` 复核索引命中情况，而不是盲目新增单列索引。
 
 ## 快速开始
 
@@ -99,6 +110,7 @@ mvn spring-boot:run
 | `MODERATION_RULE_VERSION` | 本地违规规则集版本，写入每条系统检测记录 | `2026.1` |
 | `CONTENT_WARNING_POINTS` | 管理员确认内容违规时固定扣除的合规分 | `5` |
 | `APPEAL_WINDOW_DAYS` | 已确认违规允许申诉的天数 | `7` |
+| `TAG_CACHE_TTL` | 每个学校标签聚合缓存时长，Spring Duration 格式 | `60s` |
 
 如果 MySQL 不在 `localhost:3306`，请修改 [`backend/src/main/resources/application.yml`](backend/src/main/resources/application.yml) 中的数据源 URL。后端默认监听 `http://localhost:8080`。
 
@@ -169,6 +181,7 @@ zhiyi-campus/
 │   │   ├── api/                       # 按业务模块封装的 API 请求
 │   │   ├── assets/                    # 全局样式等静态资源
 │   │   ├── components/                # 通用、布局、用户和交易组件
+│   │   ├── constants/                 # API 领域状态码与统一展示映射
 │   │   ├── router/                    # 页面路由与访问守卫
 │   │   ├── stores/                    # Pinia 状态管理
 │   │   ├── utils/                     # 请求、鉴权、信誉与交易工具
@@ -248,6 +261,7 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 - Java 25 虚拟线程已开启，Tomcat 平台线程池参数不再使用；数据库吞吐仍受 HikariCP/MySQL 连接池上限约束。
 - API 统一响应和鉴权快照使用不可变 Record；后端 JSON 栈为 Jackson 3，不加载 Jackson 2 兼容层。
 - 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入，Pinia 仅持久化用户 ID、昵称和角色摘要。
+- 首页交易大厅将视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护；新增复杂页面应沿用“页面编排 + 组合函数/子组件”的边界，避免重新形成千行单文件组件。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。
 - 平台钱包是项目内部余额与流水机制，当前未接入第三方支付渠道。
 

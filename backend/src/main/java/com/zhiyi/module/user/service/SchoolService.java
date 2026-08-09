@@ -3,6 +3,7 @@ package com.zhiyi.module.user.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.vo.SchoolVO;
@@ -25,7 +26,7 @@ public class SchoolService {
     /** 全部启用中的学校（注册页和个人资料下拉，公开接口） */
     public List<SchoolVO> listActiveSchools() {
         return schoolMapper.selectList(Wrappers.<School>lambdaQuery()
-                        .eq(School::getStatus, "ACTIVE")
+                        .eq(School::getStatus, SchoolStatus.ACTIVE)
                         .orderByAsc(School::getId))
                 .stream()
                 .map(SchoolVO::from)
@@ -38,7 +39,7 @@ public class SchoolService {
             return null;
         }
         School school = schoolMapper.selectById(schoolId);
-        if (school == null || !"ACTIVE".equals(school.getStatus())) {
+        if (school == null || school.getStatus() != SchoolStatus.ACTIVE) {
             return null;
         }
         return school;

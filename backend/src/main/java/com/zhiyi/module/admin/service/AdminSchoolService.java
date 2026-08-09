@@ -3,6 +3,7 @@ package com.zhiyi.module.admin.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.module.admin.dto.SchoolDTO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
@@ -40,7 +41,7 @@ public class AdminSchoolService {
     public List<SchoolVO> listAll(String status) {
         var q = Wrappers.<School>lambdaQuery().orderByAsc(School::getId);
         if (status != null && !status.isBlank()) {
-            q.eq(School::getStatus, status.trim().toUpperCase());
+            q.eq(School::getStatus, parseStatus(status));
         }
         return schoolMapper.selectList(q).stream().map(SchoolVO::from).toList();
     }
@@ -59,7 +60,7 @@ public class AdminSchoolService {
         school.setName(dto.getName());
         school.setCode(dto.getCode().toUpperCase());
         school.setEmailDomain(dto.getEmailDomain());
-        school.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
+        school.setStatus(dto.getStatus() != null ? parseStatus(dto.getStatus()) : SchoolStatus.ACTIVE);
         schoolMapper.insert(school);
 
         log.info("管理员新增学校：{} ({})", school.getName(), school.getCode());
@@ -86,7 +87,7 @@ public class AdminSchoolService {
         school.setCode(dto.getCode().toUpperCase());
         school.setEmailDomain(dto.getEmailDomain());
         if (dto.getStatus() != null) {
-            school.setStatus(dto.getStatus());
+            school.setStatus(parseStatus(dto.getStatus()));
         }
         schoolMapper.updateById(school);
 
@@ -95,8 +96,7 @@ public class AdminSchoolService {
     }
 
     /**
-     * 软删除学校 —— 设置状态为 DELETED。
-     * 仅当没有用户/商品关联该学校时才允许删除；有数据时引导管理员先停用（DISABLED）。
+     * 删除空学校。存在用户或商品关联时只允许停用，避免悬空外键。
      */
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
@@ -104,11 +104,7 @@ public class AdminSchoolService {
         if (school == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "学校不存在");
         }
-        if ("DELETED".equals(school.getStatus())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学校已被删除");
-        }
-
-        // 检查依赖：有用户或商品归属时拒绝软删除，引导走 DISABLED
+        // 检查依赖：有用户或商品归属时拒绝删除，引导走 DISABLED
         boolean hasUsers = sysUserMapper.selectCount(
                 Wrappers.<SysUser>lambdaQuery()
                         .eq(SysUser::getSchoolId, id)) > 0;
@@ -124,8 +120,15 @@ public class AdminSchoolService {
                     "该学校下仍有商品记录，无法删除。如需停用请将状态设为 DISABLED");
         }
 
-        school.setStatus("DELETED");
-        schoolMapper.updateById(school);
-        log.info("管理员软删除学校：{} ({})", school.getName(), school.getCode());
+        schoolMapper.deleteById(id);
+        log.info("管理员删除空学校：{} ({})", school.getName(), school.getCode());
+    }
+
+    private SchoolStatus parseStatus(String value) {
+        try {
+            return SchoolStatus.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException invalidStatus) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学校状态仅支持 ACTIVE 或 DISABLED");
+        }
     }
 }

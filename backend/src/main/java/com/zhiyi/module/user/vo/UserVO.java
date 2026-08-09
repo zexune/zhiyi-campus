@@ -49,8 +49,8 @@ public class UserVO {
         vo.setStudentId(u.getStudentId());
         vo.setNickname(u.getNickname());
         vo.setPhone(u.getPhone());
-        vo.setRole(u.getRole());
-        vo.setStatus(u.getStatus());
+        vo.setRole(u.getRole().code());
+        vo.setStatus(u.getStatus().code());
         vo.setBanUntilTime(u.getBanUntilTime());
         vo.setLevel(u.getLevel());
         vo.setLevelTitle(LevelRule.titleOf(u.getLevel()));

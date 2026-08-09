@@ -8,9 +8,12 @@ E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\admin\service\ViolationAp
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\dto\PublishItemDTOValidationTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\ItemPublishServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\LocalContentAnalyzerTest.java
+E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\MarketplaceFeedServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\MarketplaceServiceTest.java
+E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\TagQueryServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\social\service\ChatServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\trade\service\OrderServiceTest.java
+E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\trade\service\OrderViewAssemblerTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\trade\service\ReviewServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\trade\service\WalletServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\user\service\AccountSecurityServiceTest.java

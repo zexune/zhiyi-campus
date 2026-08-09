@@ -3,8 +3,13 @@ package com.zhiyi.module.user.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.OrderStatus;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
 import com.zhiyi.module.user.dto.CancelAccountDTO;
@@ -33,6 +38,7 @@ public class AccountSecurityService {
     private final PasswordEncoder passwordEncoder;
     private final UserStateCache userStateCache;
     private final LoginAttemptService loginAttemptService;
+    private final TagQueryService tagQueryService;
 
     /**
      * 修改密码：验证原密码 + 新密码不得与原密码相同。
@@ -91,7 +97,7 @@ public class AccountSecurityService {
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
-        if ("ADMIN".equals(user.getRole())) {
+        if (user.getRole() == UserRole.ADMIN) {
             throw new BusinessException(ResultCode.FORBIDDEN, "管理员账户不允许注销");
         }
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
@@ -100,7 +106,7 @@ public class AccountSecurityService {
 
         // 边界：有进行中的订单（担保资金还挂在平台）禁止注销
         Long activeOrders = orderMapper.selectCount(Wrappers.<TradeOrder>lambdaQuery()
-                .eq(TradeOrder::getStatus, "WAITING_MEET")
+                .eq(TradeOrder::getStatus, OrderStatus.WAITING_MEET)
                 .and(w -> w.eq(TradeOrder::getBuyerId, userId).or().eq(TradeOrder::getSellerId, userId)));
         if (activeOrders > 0) {
             throw new BusinessException(ResultCode.CONFLICT,
@@ -109,14 +115,15 @@ public class AccountSecurityService {
 
         // 在售商品随注销自动下架，避免「幽灵商品」滞留大厅
         Item offShelf = new Item();
-        offShelf.setStatus("OFF_SHELF");
+        offShelf.setStatus(ItemStatus.OFF_SHELF);
         itemMapper.update(offShelf, Wrappers.<Item>lambdaUpdate()
                 .eq(Item::getPublisherId, userId)
-                .eq(Item::getStatus, "ON_SALE"));
+                .eq(Item::getStatus, ItemStatus.ON_SALE));
+        tagQueryService.invalidate(user.getSchoolId());
 
         SysUser patch = new SysUser();
         patch.setId(userId);
-        patch.setStatus("CANCELLED");
+        patch.setStatus(UserStatus.CANCELLED);
         userMapper.updateById(patch);
 
         int affected = userMapper.bumpTokenVersion(userId);

@@ -7,7 +7,7 @@ public record AdminLoginVO(String token, AdminUserVO user) {
 
     public static AdminLoginVO of(String token, SysUser admin) {
         return new AdminLoginVO(token, new AdminUserVO(
-                admin.getId(), admin.getStudentId(), admin.getNickname(), admin.getRole()));
+                admin.getId(), admin.getStudentId(), admin.getNickname(), admin.getRole().code()));
     }
 
     public record AdminUserVO(Long id, String username, String nickname, String role) {

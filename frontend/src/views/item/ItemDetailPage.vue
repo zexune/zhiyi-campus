@@ -16,7 +16,7 @@
           <div class="gallery">
             <div class="gallery__main" :class="phClass(item.id)">
               <img v-if="activeImage" :src="activeImage" :alt="item.title" />
-              <span class="badge gallery-state" :class="item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">
+              <span class="badge gallery-state" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                 {{ itemTypeLabel(item.type) }}
               </span>
               <button v-if="item.images?.length > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
@@ -38,7 +38,7 @@
 
           <div class="info-panel rise rise-1">
             <div class="info-head">
-              <span class="badge" :class="item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">
+              <span class="badge" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                 {{ itemTypeLabel(item.type) }}
               </span>
               <h1>{{ item.title }}</h1>
@@ -46,9 +46,9 @@
             </div>
 
             <div class="price-strip">
-              <strong v-if="item.type === 'SWAP'" class="price">以物换物</strong>
+              <strong v-if="item.type === ITEM_TYPE.SWAP" class="price">以物换物</strong>
               <PriceTag v-else :value="item.price" font-size="40px" />
-              <span class="escrow">{{ item.type === 'SELL' ? '平台担保 · 确认收货后打款' : '双方沟通后线下完成' }}</span>
+              <span class="escrow">{{ item.type === ITEM_TYPE.SELL ? '平台担保 · 确认收货后打款' : '双方沟通后线下完成' }}</span>
             </div>
 
             <div class="meta-grid">
@@ -64,10 +64,10 @@
                 </div>
                 <span v-else>暂无标签</span>
               </div>
-              <div v-if="item.type !== 'ERRAND'" class="meta-row">
+              <div v-if="item.type !== ITEM_TYPE.ERRAND" class="meta-row">
                 <span class="lab">交易地点</span><strong>{{ item.tradeLocation || '待沟通' }}</strong>
               </div>
-              <div v-if="item.type === 'ERRAND'" class="meta-row">
+              <div v-if="item.type === ITEM_TYPE.ERRAND" class="meta-row">
                 <span class="lab">取送路线</span><strong>{{ item.pickupLocation }} → {{ item.deliveryLocation }}</strong>
               </div>
               <div class="meta-row">
@@ -124,15 +124,15 @@
                 </button>
                 <button
                   class="btn"
-                  :class="item.type === 'BUY' ? 'btn--primary' : 'btn--green'"
-                  :disabled="displayStatus === 'REVIEWING' || chatLoading"
+                  :class="item.type === ITEM_TYPE.BUY ? 'btn--primary' : 'btn--green'"
+                  :disabled="displayStatus === ITEM_STATUS.REVIEWING || chatLoading"
                   @click="contactSeller"
                 >
                   <el-icon><ChatDotRound /></el-icon>
-                  {{ item.type === 'BUY' ? '我要出售' : '联系卖家' }}
+                  {{ item.type === ITEM_TYPE.BUY ? '我要出售' : '联系卖家' }}
                 </button>
                 <button
-              v-if="item.type === 'SELL'"
+              v-if="item.type === ITEM_TYPE.SELL"
                   class="btn btn--primary"
                   :disabled="!isTradable || buyLoading"
                   @click="handleBuy"
@@ -145,7 +145,7 @@
               </template>
             </div>
             <p class="muted escrow-note">
-              <template v-if="item.type === 'BUY'">点击「我要出售」与发布者联系，双方沟通后确认交易细节</template>
+              <template v-if="item.type === ITEM_TYPE.BUY">点击「我要出售」与发布者联系，双方沟通后确认交易细节</template>
               <template v-else>点击「立即购买」后货款将由平台托管，当面验货满意再确认收货</template>
             </p>
           </div>
@@ -244,11 +244,11 @@ import { getItemDetail, getItemLineage, reportItem, toggleFavorite } from '@/api
 import { getSellerDetail, getUserRelation, getUserReputation } from '@/api/auth'
 import { startItemConversation } from '@/api/chat'
 import { createOrder } from '@/api/order'
+import { ITEM_STATUS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
 import { getUserId, isLoggedIn } from '@/utils/auth'
 import { normalizeRelationTags } from '@/utils/relation'
+import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
 
-const STATUS_TEXT = { ON_SALE: '在售中', REVIEWING: '审核中', SOLD: '已售出', OFF_SHELF: '已下架' }
-const STATUS_BADGE = { ON_SALE: 'badge--ok', REVIEWING: 'badge--warn', SOLD: 'badge--muted', OFF_SHELF: 'badge--muted' }
 const REPORT_TYPE_OPTIONS = [
   { label: '价格欺诈', value: 'PRICE_FRAUD' },
   { label: '违禁物品', value: 'PROHIBITED_ITEM' },
@@ -280,10 +280,12 @@ const reportForm = reactive({ visible: false, type: 'PRICE_FRAUD', details: '', 
 
 const isOwner = computed(() => String(item.value?.publisherId || '') === String(getUserId() || ''))
 const canCompareSeller = computed(() => !!item.value?.publisherId && !isOwner.value && isLoggedIn())
-const displayStatus = computed(() => item.value?.moderationStatus === 'PENDING' ? 'REVIEWING' : item.value?.status)
+const displayStatus = computed(() => item.value?.moderationStatus === MODERATION_STATUS.PENDING
+  ? ITEM_STATUS.REVIEWING
+  : item.value?.status)
 const isTradable = computed(() => (
-  item.value?.status === 'ON_SALE'
-  && item.value?.moderationStatus === 'PASSED'
+  item.value?.status === ITEM_STATUS.ON_SALE
+  && item.value?.moderationStatus === MODERATION_STATUS.PASSED
   && !item.value?.reserved
 ))
 const activeImageIndex = computed(() => {
@@ -297,15 +299,15 @@ function phClass(id) {
 }
 
 function statusText(status) {
-  return STATUS_TEXT[status] || status
+  return itemStatusLabel(status)
 }
 
 function statusBadge(status) {
-  return STATUS_BADGE[status] || 'badge--muted'
+  return itemStatusBadge(status)
 }
 
 function itemTypeLabel(type) {
-  return { SELL: '出售', BUY: '求购', SWAP: '换物', ERRAND: '跑腿' }[type] || type
+  return ITEM_TYPE_LABELS[type] || type
 }
 
 function formatDate(value) {

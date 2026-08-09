@@ -1,5 +1,6 @@
 package com.zhiyi.module.item.service;
 
+import com.zhiyi.common.enums.ItemType;
 import com.zhiyi.module.item.dto.PublishItemDTO;
 import com.zhiyi.module.item.entity.Category;
 import org.springframework.beans.factory.annotation.Value;
@@ -101,12 +102,11 @@ public class LocalContentAnalyzer {
                 tags.add(value);
             }
         }
-        tags.add(switch (dto.getType()) {
-            case "SELL" -> "出售";
-            case "BUY" -> "求购";
-            case "SWAP" -> "以物换物";
-            case "ERRAND" -> "校园跑腿";
-            default -> dto.getType();
+        tags.add(switch (ItemType.from(dto.getType())) {
+            case SELL -> "出售";
+            case BUY -> "求购";
+            case SWAP -> "以物换物";
+            case ERRAND -> "校园跑腿";
         });
         return tags.stream().limit(6).toList();
     }

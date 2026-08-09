@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@RoleRequired("ADMIN")
+@RoleRequired
 public class AdminManageController {
 
     private final AdminManageService manageService;

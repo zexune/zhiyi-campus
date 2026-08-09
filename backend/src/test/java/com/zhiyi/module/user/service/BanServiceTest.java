@@ -1,6 +1,8 @@
 package com.zhiyi.module.user.service;
 
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
 import com.zhiyi.module.user.dto.BanUserDTO;
@@ -100,7 +102,7 @@ class BanServiceTest {
     @Test
     void administratorCannotBePunished() {
         SysUser admin = activeUser(2L);
-        admin.setRole("ADMIN");
+        admin.setRole(UserRole.ADMIN);
         when(userMapper.selectById(2L)).thenReturn(admin);
 
         assertThrows(BusinessException.class,
@@ -113,7 +115,7 @@ class BanServiceTest {
     @Test
     void unbanInvalidatesStateAfterCommit() {
         SysUser user = activeUser(2L);
-        user.setStatus("BANNED_PERM");
+        user.setStatus(UserStatus.BANNED_PERM);
         when(userMapper.selectById(2L)).thenReturn(user);
 
         service.unban(2L, 99L);
@@ -135,8 +137,8 @@ class BanServiceTest {
     private SysUser activeUser(Long id) {
         SysUser user = new SysUser();
         user.setId(id);
-        user.setRole("USER");
-        user.setStatus("ACTIVE");
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
         return user;
     }
 }

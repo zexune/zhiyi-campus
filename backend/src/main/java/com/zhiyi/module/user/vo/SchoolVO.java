@@ -19,6 +19,6 @@ public class SchoolVO {
     private String status;
 
     public static SchoolVO from(School s) {
-        return new SchoolVO(s.getId(), s.getName(), s.getCode(), s.getEmailDomain(), s.getStatus());
+        return new SchoolVO(s.getId(), s.getName(), s.getCode(), s.getEmailDomain(), s.getStatus().code());
     }
 }

@@ -39,7 +39,7 @@ test('orderStatusBadge returns correct CSS classes', () => {
 // ================================================================
 
 test('itemStatusLabel maps all known statuses', () => {
-  assert.equal(itemStatusLabel('ON_SALE'), '在售')
+  assert.equal(itemStatusLabel('ON_SALE'), '在售中')
   assert.equal(itemStatusLabel('REVIEWING'), '审核中')
   assert.equal(itemStatusLabel('SOLD'), '已售出')
   assert.equal(itemStatusLabel('OFF_SHELF'), '已下架')

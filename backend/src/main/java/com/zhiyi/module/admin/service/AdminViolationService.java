@@ -6,6 +6,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.BanActionType;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.ViolationSource;
+import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.admin.dto.ConfirmViolationDTO;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.entity.ViolationReport;
@@ -15,6 +20,7 @@ import com.zhiyi.module.admin.vo.PenaltyStatsVO;
 import com.zhiyi.module.admin.vo.ViolationVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
@@ -45,13 +51,12 @@ public class AdminViolationService {
     private final ItemMapper itemMapper;
     private final ViolationLogMapper violationLogMapper;
     private final ReputationPenaltyService reputationPenaltyService;
+    private final TagQueryService tagQueryService;
 
     public IPage<ViolationVO> getViolations(int page, int size, String status) {
         IPage<ViolationReport> result = violationReportMapper.selectPage(
                 new Page<>(Math.max(1, page), Math.max(1, Math.min(size, 50))),
-                new LambdaQueryWrapper<ViolationReport>()
-                        .eq(StringUtils.hasText(status), ViolationReport::getStatus, status)
-                        .orderByDesc(ViolationReport::getCreatedAt));
+                violationQuery(status));
         List<ViolationReport> records = result.getRecords();
         if (records.isEmpty()) {
             return result.convert(report -> toVO(report, Map.of(), Map.of()));
@@ -80,8 +85,8 @@ public class AdminViolationService {
         LocalDateTime now = LocalDateTime.now();
         if (violationReportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
                 .eq(ViolationReport::getId, reportId)
-                .eq(ViolationReport::getStatus, "PENDING")
-                .set(ViolationReport::getStatus, "CONFIRMED")
+                .eq(ViolationReport::getStatus, ViolationStatus.PENDING)
+                .set(ViolationReport::getStatus, ViolationStatus.CONFIRMED)
                 .set(ViolationReport::getHandlerId, adminId)
                 .set(ViolationReport::getHandleNote, trimToNull(dto.getHandleNote()))
                 .set(ViolationReport::getHandledAt, now)) == 0) {
@@ -90,11 +95,12 @@ public class AdminViolationService {
 
         Item item = report.getItemId() == null ? null : itemMapper.selectById(report.getItemId());
         if (item != null) {
-            item.setModerationStatus("REJECTED");
-            if (!"SOLD".equals(item.getStatus())) {
-                item.setStatus("OFF_SHELF");
+            item.setModerationStatus(ModerationStatus.REJECTED);
+            if (item.getStatus() != ItemStatus.SOLD) {
+                item.setStatus(ItemStatus.OFF_SHELF);
             }
             itemMapper.updateById(item);
+            tagQueryService.invalidate(item.getSchoolId());
         }
         reputationPenaltyService.recordContentWarning(
                 reportId, report.getUserId(), adminId, dto.getReason().trim());
@@ -106,20 +112,21 @@ public class AdminViolationService {
         ViolationReport report = requirePending(reportId);
         if (violationReportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
                 .eq(ViolationReport::getId, reportId)
-                .eq(ViolationReport::getStatus, "PENDING")
-                .set(ViolationReport::getStatus, "DISMISSED")
+                .eq(ViolationReport::getStatus, ViolationStatus.PENDING)
+                .set(ViolationReport::getStatus, ViolationStatus.DISMISSED)
                 .set(ViolationReport::getHandlerId, adminId)
                 .set(ViolationReport::getHandleNote, "审核未发现违规，予以放行")
                 .set(ViolationReport::getHandledAt, LocalDateTime.now())) == 0) {
             throw new BusinessException(ResultCode.CONFLICT, "该记录已被其他管理员处理");
         }
 
-        if (!"USER_REPORT".equals(report.getSource()) && report.getItemId() != null) {
+        if (report.getSource() != ViolationSource.USER_REPORT && report.getItemId() != null) {
             Item item = itemMapper.selectById(report.getItemId());
-            if (item != null && !"SOLD".equals(item.getStatus())) {
-                item.setModerationStatus("PASSED");
-                item.setStatus("ON_SALE");
+            if (item != null && item.getStatus() != ItemStatus.SOLD) {
+                item.setModerationStatus(ModerationStatus.PASSED);
+                item.setStatus(ItemStatus.ON_SALE);
                 itemMapper.updateById(item);
+                tagQueryService.invalidate(item.getSchoolId());
             }
         }
         log.info("管理员 {} 放行内容审核 reportId={}", adminId, reportId);
@@ -131,12 +138,12 @@ public class AdminViolationService {
         vo.setConfirmedViolations(violationReportMapper.selectCount(
                 new LambdaQueryWrapper<ViolationReport>()
                         .eq(ViolationReport::getUserId, userId)
-                        .eq(ViolationReport::getStatus, "CONFIRMED")));
+                        .eq(ViolationReport::getStatus, ViolationStatus.CONFIRMED)));
         vo.setWarningCount(reputationPenaltyService.activeWarningCount(userId));
         vo.setBanCount(violationLogMapper.selectCount(
                 new LambdaQueryWrapper<ViolationLog>()
                         .eq(ViolationLog::getUserId, userId)
-                        .in(ViolationLog::getType, "BAN_TEMP", "BAN_PERM")));
+                        .in(ViolationLog::getType, BanActionType.BAN_TEMP, BanActionType.BAN_PERM)));
         vo.setPenaltyScore(reputationPenaltyService.complianceScore(userId));
         return vo;
     }
@@ -146,7 +153,7 @@ public class AdminViolationService {
         if (report == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "审核记录不存在");
         }
-        if (!"PENDING".equals(report.getStatus())) {
+        if (report.getStatus() != ViolationStatus.PENDING) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该审核记录已处理");
         }
         return report;
@@ -163,18 +170,18 @@ public class AdminViolationService {
         vo.setReporterName(nameOf(users.get(report.getReporterId()), null));
         vo.setOriginalTitle(report.getOriginalTitle());
         vo.setOriginalDescription(report.getOriginalDescription());
-        vo.setSource(report.getSource());
+        vo.setSource(report.getSource().code());
         vo.setViolationType(report.getViolationType());
         vo.setViolationReason(report.getViolationReason());
         vo.setMatchedRules(report.getMatchedRules());
         vo.setRuleVersion(report.getRuleVersion());
-        vo.setStatus(report.getStatus());
+        vo.setStatus(report.getStatus().code());
         vo.setHandlerId(report.getHandlerId());
         vo.setHandlerName(nameOf(users.get(report.getHandlerId()), null));
         vo.setHandleNote(report.getHandleNote());
         vo.setItemId(report.getItemId());
         Item item = items.get(report.getItemId());
-        vo.setItemStatus(item == null ? null : item.getStatus());
+        vo.setItemStatus(item == null ? null : item.getStatus().code());
         vo.setCreatedAt(report.getCreatedAt());
         vo.setHandledAt(report.getHandledAt());
         return vo;
@@ -186,5 +193,19 @@ public class AdminViolationService {
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private LambdaQueryWrapper<ViolationReport> violationQuery(String status) {
+        LambdaQueryWrapper<ViolationReport> query = new LambdaQueryWrapper<ViolationReport>()
+                .orderByDesc(ViolationReport::getCreatedAt)
+                .orderByDesc(ViolationReport::getId);
+        if (StringUtils.hasText(status)) {
+            try {
+                query.eq(ViolationReport::getStatus, ViolationStatus.fromNullable(status));
+            } catch (IllegalArgumentException invalidStatus) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "审核状态不合法");
+            }
+        }
+        return query;
     }
 }

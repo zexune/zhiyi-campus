@@ -3,6 +3,8 @@ package com.zhiyi.module.admin.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.admin.vo.AdminLoginVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -32,18 +34,18 @@ public class AdminAuthService {
 
         SysUser admin = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getStudentId, canonicalUsername)
-                .eq(SysUser::getRole, "ADMIN"));
-        if (admin == null || !"ADMIN".equals(admin.getRole())
+                .eq(SysUser::getRole, UserRole.ADMIN));
+        if (admin == null || admin.getRole() != UserRole.ADMIN
                 || !passwordEncoder.matches(password, admin.getPassword())) {
             loginAttemptService.recordFailure(loginKey);
             throw new BusinessException(ResultCode.PASSWORD_ERROR, "管理员账号或密码错误");
         }
-        if (!"ACTIVE".equals(admin.getStatus())) {
+        if (admin.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException(ResultCode.FORBIDDEN, "管理员账号不可用");
         }
 
         loginAttemptService.reset(loginKey);
-        String token = jwtUtils.generateToken(admin.getId(), "ADMIN", admin.getTokenVersion());
+        String token = jwtUtils.generateToken(admin.getId(), UserRole.ADMIN.code(), admin.getTokenVersion());
         return AdminLoginVO.of(token, admin);
     }
 }

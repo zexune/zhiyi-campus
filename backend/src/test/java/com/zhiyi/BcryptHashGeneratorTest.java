@@ -1,11 +1,13 @@
 package com.zhiyi;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 public class BcryptHashGeneratorTest {
 
     @Test
+    @Disabled("仅在人工生成初始化密码哈希时运行，不属于自动化测试")
     public void generateHashes() {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         String[] passwords = {"123456"};

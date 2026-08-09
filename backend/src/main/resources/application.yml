@@ -52,6 +52,8 @@ zhiyi:
     rule-version: ${MODERATION_RULE_VERSION:2026.1}
     warning-points: ${CONTENT_WARNING_POINTS:5}
     appeal-window-days: ${APPEAL_WINDOW_DAYS:7}
+  marketplace:
+    tag-cache-ttl: ${TAG_CACHE_TTL:60s}
   auth:
     login-fail-limit: 5
     login-fail-lock-seconds: 300

@@ -5,9 +5,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.module.admin.vo.AdminItemVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -41,6 +44,7 @@ public class AdminManageService {
     private final ItemReservationMapper reservationMapper;
     private final PasswordEncoder passwordEncoder;
     private final UserStateCache userStateCache;
+    private final TagQueryService tagQueryService;
 
     /**
      * 管理员商品检索 —— 4.7 强制下架前选择商品用
@@ -62,7 +66,11 @@ public class AdminManageService {
             }
         }
         if (StringUtils.hasText(status)) {
-            wrapper.eq(Item::getStatus, status);
+            try {
+                wrapper.eq(Item::getStatus, ItemStatus.valueOf(status.trim().toUpperCase()));
+            } catch (IllegalArgumentException invalidStatus) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "商品状态不合法");
+            }
         }
         wrapper.orderByDesc(Item::getId);
 
@@ -84,9 +92,9 @@ public class AdminManageService {
         AdminItemVO vo = new AdminItemVO();
         vo.setId(item.getId());
         vo.setTitle(item.getTitle());
-        vo.setType(item.getType());
+        vo.setType(item.getType().code());
         vo.setPrice(item.getPrice());
-        vo.setStatus(item.getStatus());
+        vo.setStatus(item.getStatus().code());
         vo.setPublisherId(item.getPublisherId());
         SysUser publisher = userMap.get(item.getPublisherId());
         vo.setPublisherNickname(publisher == null ? null : publisher.getNickname());
@@ -103,18 +111,19 @@ public class AdminManageService {
         if (item == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品不存在");
         }
-        if ("OFF_SHELF".equals(item.getStatus())) {
+        if (item.getStatus() == ItemStatus.OFF_SHELF) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该商品已处于下架状态");
         }
-        if ("SOLD".equals(item.getStatus())) {
+        if (item.getStatus() == ItemStatus.SOLD) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "已售出商品不能下架");
         }
         if (reservationMapper.selectById(itemId) != null) {
             throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，不能强制下架");
         }
 
-        item.setStatus("OFF_SHELF");
+        item.setStatus(ItemStatus.OFF_SHELF);
         itemMapper.updateById(item);
+        tagQueryService.invalidate(item.getSchoolId());
 
         log.info("管理员 {} 强制下架商品 itemId={} title={} publisherId={}",
                 adminId, itemId, item.getTitle(), item.getPublisherId());
@@ -129,7 +138,7 @@ public class AdminManageService {
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
-        if ("ADMIN".equals(user.getRole())) {
+        if (user.getRole() == UserRole.ADMIN) {
             throw new BusinessException(ResultCode.FORBIDDEN, "不能重置管理员密码");
         }
 

@@ -2,11 +2,11 @@ package com.zhiyi.module.social.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.dto.ChatSendDTO;
@@ -49,7 +49,6 @@ public class ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final ItemMapper itemMapper;
     private final SysUserMapper userMapper;
-    private final JsonMapper objectMapper;
 
     public ChatStartVO startItemConversation(Long userId, ChatStartDTO dto) {
         Item item = itemMapper.selectById(dto.getItemId());
@@ -325,7 +324,7 @@ public class ChatService {
             return;
         }
         // 用户联系平台客服允许跨校；管理员跨校回复必须走 /api/admin/chat/send。
-        if ("ADMIN".equals(receiver.getRole())) {
+        if (receiver.getRole() == UserRole.ADMIN) {
             return;
         }
         SchoolScopeGuard.requireSame(
@@ -399,7 +398,7 @@ public class ChatService {
                     && Objects.equals(currentUser.getSchoolId(), peer.getSchoolId())
                     && Objects.equals(currentUser.getSchoolId(), relatedItem.getSchoolId());
         }
-        if ("ADMIN".equals(peer.getRole())) {
+        if (peer.getRole() == UserRole.ADMIN) {
             return true;
         }
         return currentUser.getSchoolId() != null
@@ -450,8 +449,8 @@ public class ChatService {
 
     private SysUser findAdmin() {
         SysUser admin = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getRole, "ADMIN")
-                .eq(SysUser::getStatus, "ACTIVE")
+                .eq(SysUser::getRole, UserRole.ADMIN)
+                .eq(SysUser::getStatus, UserStatus.ACTIVE)
                 .orderByAsc(SysUser::getId)
                 .last("LIMIT 1"));
         if (admin == null) {
@@ -476,8 +475,9 @@ public class ChatService {
         vo.setId(item.getId());
         vo.setTitle(item.getTitle());
         vo.setPrice(item.getPrice());
-        vo.setCoverImage(firstImage(item.getImages()));
-        vo.setStatus(item.getStatus());
+        List<String> images = item.getImages();
+        vo.setCoverImage(images == null || images.isEmpty() ? "" : images.getFirst());
+        vo.setStatus(item.getStatus().code());
         return vo;
     }
 
@@ -495,15 +495,4 @@ public class ChatService {
         return vo;
     }
 
-    private String firstImage(String raw) {
-        if (!StringUtils.hasText(raw)) {
-            return "";
-        }
-        try {
-            List<String> images = objectMapper.readValue(raw, new TypeReference<>() {});
-            return images == null || images.isEmpty() ? "" : images.get(0);
-        } catch (Exception ignored) {
-            return "";
-        }
-    }
 }

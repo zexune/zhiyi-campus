@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@RoleRequired("ADMIN")
+@RoleRequired
 public class AdminDashboardController {
 
     private final AdminDashboardService dashboardService;

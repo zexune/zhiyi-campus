@@ -1,6 +1,7 @@
 package com.zhiyi.interceptor;
 
 import com.zhiyi.common.WebResponseUtil;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.support.UserAuthState;
 import com.zhiyi.module.user.support.UserStateCache;
 import com.zhiyi.utils.JwtUtils;
@@ -88,21 +89,21 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
         int currentVersion = state.tokenVersion() == null ? 0 : state.tokenVersion();
         String issuedRole = claims.get(JwtUtils.ROLE_CLAIM, String.class);
-        if (issuedVersion != currentVersion || !Objects.equals(issuedRole, state.role())) {
+        if (issuedVersion != currentVersion || !Objects.equals(issuedRole, state.role().code())) {
             WebResponseUtil.writeJson(response, 401, 401, "登录状态已失效，请重新登录");
             return false;
         }
 
         // 封禁/注销校验：永久封禁与已注销直接拒绝；临时封禁未到期拒绝（到期由登录流程恢复 ACTIVE）
-        if ("CANCELLED".equals(state.status())) {
+        if (state.status() == UserStatus.CANCELLED) {
             WebResponseUtil.writeJson(response, 401, 1008, "该账户已注销");
             return false;
         }
-        if ("BANNED_PERM".equals(state.status())) {
+        if (state.status() == UserStatus.BANNED_PERM) {
             WebResponseUtil.writeJson(response, 403, 1003, "该账户已被永久封禁");
             return false;
         }
-        if ("BANNED_TEMP".equals(state.status())
+        if (state.status() == UserStatus.BANNED_TEMP
                 && state.banUntilTime() != null
                 && state.banUntilTime().isAfter(LocalDateTime.now())) {
             WebResponseUtil.writeJson(response, 403, 1003, "账户已被封禁");
@@ -111,7 +112,7 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         // 把 userId 和 role 放入 request attribute，Controller 里直接取
         request.setAttribute("userId", userId);
-        request.setAttribute("role", state.role());
+        request.setAttribute("role", state.role().code());
         return true;
     }
 

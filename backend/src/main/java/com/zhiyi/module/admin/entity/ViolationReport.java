@@ -1,11 +1,15 @@
 package com.zhiyi.module.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.zhiyi.common.enums.ViolationSource;
+import com.zhiyi.common.enums.ViolationStatus;
+import com.zhiyi.common.mybatis.StringListJsonTypeHandler;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
-@TableName("violation_report")
+@TableName(value = "violation_report", autoResultMap = true)
 public class ViolationReport {
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -15,14 +19,15 @@ public class ViolationReport {
     private String originalTitle;
     private String originalDescription;
     /** LOCAL_RULE / USER_REPORT / CORRECTION */
-    private String source;
+    private ViolationSource source;
     private String violationType;
     private String violationReason;
     /** 命中的本地规则编号（JSON 数组）。 */
-    private String matchedRules;
+    @TableField(typeHandler = StringListJsonTypeHandler.class)
+    private List<String> matchedRules;
     private String ruleVersion;
     private Long itemId;
-    private String status;          // PENDING / CONFIRMED / DISMISSED / OVERTURNED
+    private ViolationStatus status;
     private Long handlerId;
     private String handleNote;
 

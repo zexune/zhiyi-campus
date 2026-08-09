@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.zhiyi.common.enums.PenaltyStatus;
+import com.zhiyi.common.enums.PenaltyType;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -21,10 +23,10 @@ public class ReputationPenalty {
     private Long reportId;
     private Long userId;
     private Long adminId;
-    private String type;
+    private PenaltyType type;
     private Integer points;
     private String reason;
-    private String status;
+    private PenaltyStatus status;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

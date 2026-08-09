@@ -89,7 +89,7 @@
             <button
               v-if="itemForm.selected"
               class="btn btn--sm btn--danger"
-              :disabled="itemForm.submitting || itemForm.selected.status === 'OFF_SHELF'"
+              :disabled="itemForm.submitting || itemForm.selected.status === ITEM_STATUS.OFF_SHELF"
               @click="handleForceOffShelf"
             >
               {{ itemForm.submitting ? '处理中' : '确认下架' }}
@@ -183,7 +183,7 @@
                 <span class="avatar avatar--s" :class="avatarColor(user.id)">{{ (user.nickname || '?')[0] }}</span>
                 <div><div class="user-item__name">{{ user.nickname }}</div><div class="user-item__id muted">{{ user.studentId }}</div></div>
               </div>
-              <span class="badge" :class="user.status === 'ACTIVE' ? 'badge--ok' : 'badge--danger'">{{ userStatusLabel(user.status) }}</span>
+              <span class="badge" :class="user.status === USER_STATUS.ACTIVE ? 'badge--ok' : 'badge--danger'">{{ userStatusLabel(user.status) }}</span>
             </div>
           </div>
           <div v-else-if="banForm.searched" class="muted" style="font-size:13px;margin-top:8px">未找到用户</div>
@@ -195,10 +195,10 @@
               <div v-if="banForm.selected.banUntilTime" class="preview-row"><span class="muted">封禁至：</span>{{ formatDateTime(banForm.selected.banUntilTime) }}</div>
             </div>
 
-            <template v-if="banForm.selected.status === 'ACTIVE'">
+            <template v-if="banForm.selected.status === USER_STATUS.ACTIVE">
               <div class="form-pair ban-options">
                 <div class="field"><label>封禁方式</label><AppSelect v-model="banForm.type" :options="BAN_TYPE_OPTIONS" /></div>
-                <div v-if="banForm.type === 'BAN_TEMP'" class="field"><label>封禁天数</label><input v-model.number="banForm.banDays" class="input" type="number" min="1" max="365"></div>
+                <div v-if="banForm.type === BAN_ACTION.TEMPORARY" class="field"><label>封禁天数</label><input v-model.number="banForm.banDays" class="input" type="number" min="1" max="365"></div>
               </div>
               <div class="field"><label>封禁原因</label><textarea v-model.trim="banForm.reason" class="textarea" maxlength="500" placeholder="请填写独立、可追溯的账号封禁原因"></textarea></div>
               <div class="tool-card__actions"><button class="btn btn--sm btn--danger" :disabled="banForm.submitting" @click="handleBanUser">确认封禁</button></div>
@@ -286,14 +286,20 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { banUser, createEventTopic, deleteEventTopic, forceOffShelf, getEventTopics, resetUserPassword, searchUsers, searchAdminItems, getItemLineage, unbanUser, updateEventTopic } from '@/api/admin'
 import { getCategories } from '@/api/item'
+import {
+  BAN_ACTION,
+  ITEM_STATUS,
+  ITEM_STATUS_OPTIONS,
+  ITEM_TYPE_OPTIONS,
+  USER_STATUS,
+  USER_STATUS_LABELS,
+} from '@/constants/domain'
+import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
 
-const TOPIC_TYPE_OPTIONS = [
-  { label: '全部类型', value: '' }, { label: '出售', value: 'SELL' }, { label: '求购', value: 'BUY' },
-  { label: '以物换物', value: 'SWAP' }, { label: '帮带跑腿', value: 'ERRAND' },
-]
+const TOPIC_TYPE_OPTIONS = ITEM_TYPE_OPTIONS
 const BAN_TYPE_OPTIONS = [
-  { label: '限时封禁', value: 'BAN_TEMP' },
-  { label: '永久封禁', value: 'BAN_PERM' },
+  { label: '限时封禁', value: BAN_ACTION.TEMPORARY },
+  { label: '永久封禁', value: BAN_ACTION.PERMANENT },
 ]
 const topicCategories = ref([])
 const topicCategoryOptions = computed(() => [{ label: '全部分类', value: '' }, ...topicCategories.value.map(c => ({ label: c.name, value: c.id }))])
@@ -331,9 +337,7 @@ onMounted(async () => {
 // ---- 强制下架 ----
 const STATUS_FILTER_OPTIONS = [
   { label: '全部状态', value: '' },
-  { label: '在售', value: 'ON_SALE' },
-  { label: '已下架', value: 'OFF_SHELF' },
-  { label: '已售出', value: 'SOLD' },
+  ...ITEM_STATUS_OPTIONS.filter(({ value }) => value !== ITEM_STATUS.REVIEWING),
 ]
 
 const itemForm = reactive({
@@ -381,17 +385,11 @@ function selectItem(it) {
 }
 
 function statusBadge(status) {
-  return status === 'ON_SALE' ? 'badge--ok'
-    : status === 'OFF_SHELF' ? 'badge--muted'
-    : status === 'SOLD' ? 'badge--warn'
-    : 'badge--warn'
+  return itemStatusBadge(status)
 }
 
 function statusLabel(status) {
-  return status === 'ON_SALE' ? '在售'
-    : status === 'OFF_SHELF' ? '已下架'
-    : status === 'SOLD' ? '已售出'
-    : status || '未知'
+  return itemStatusLabel(status)
 }
 
 function formatTime(dt) {
@@ -418,10 +416,10 @@ async function handleForceOffShelf() {
     await forceOffShelf(it.id)
     itemForm.result = '✅ 商品已强制下架，未对卖家账号执行处罚'
     itemForm.resultType = 'success'
-    itemForm.selected.status = 'OFF_SHELF'
+    itemForm.selected.status = ITEM_STATUS.OFF_SHELF
     // 同步更新列表中同商品状态
     const inList = itemForm.items.find(i => i.id === it.id)
-    if (inList) inList.status = 'OFF_SHELF'
+    if (inList) inList.status = ITEM_STATUS.OFF_SHELF
   } catch (e) {
     itemForm.result = '❌ ' + (e.response?.data?.message || '操作失败')
     itemForm.resultType = 'error'
@@ -513,13 +511,15 @@ async function handleResetPassword() {
 // ---- 用户封禁（与商品内容处理完全独立） ----
 const banForm = reactive({
   keyword: '', searching: false, searched: false, users: [], selectedId: null, selected: null,
-  type: 'BAN_TEMP', banDays: 7, reason: '', submitting: false, result: '', resultType: '',
+  type: BAN_ACTION.TEMPORARY, banDays: 7, reason: '', submitting: false, result: '', resultType: '',
 })
 
 function userStatusLabel(status) {
-  return { ACTIVE: '正常', BANNED_TEMP: '限时封禁', BANNED_PERM: '永久封禁', CANCELLED: '已注销' }[status] || status
+  return USER_STATUS_LABELS[status] || status
 }
-function isBanned(user) { return ['BANNED_TEMP', 'BANNED_PERM'].includes(user?.status) }
+function isBanned(user) {
+  return [USER_STATUS.BANNED_TEMP, USER_STATUS.BANNED_PERM].includes(user?.status)
+}
 
 async function searchBanUsers() {
   const keyword = banForm.keyword.trim()
@@ -540,7 +540,7 @@ async function searchBanUsers() {
 function selectBanUser(user) {
   banForm.selected = user
   banForm.selectedId = user.id
-  banForm.type = 'BAN_TEMP'
+  banForm.type = BAN_ACTION.TEMPORARY
   banForm.banDays = 7
   banForm.reason = ''
   banForm.result = ''
@@ -548,17 +548,17 @@ function selectBanUser(user) {
 
 async function handleBanUser() {
   if (!banForm.reason) { ElMessage.warning('请填写封禁原因'); return }
-  if (banForm.type === 'BAN_TEMP' && (!Number.isInteger(banForm.banDays) || banForm.banDays < 1 || banForm.banDays > 365)) {
+  if (banForm.type === BAN_ACTION.TEMPORARY && (!Number.isInteger(banForm.banDays) || banForm.banDays < 1 || banForm.banDays > 365)) {
     ElMessage.warning('封禁天数须为 1-365 天')
     return
   }
   try {
-    await ElMessageBox.confirm(`确认${banForm.type === 'BAN_TEMP' ? `封禁 ${banForm.banDays} 天` : '永久封禁'}用户「${banForm.selected.nickname}」？`, '账号封禁', { type: 'warning' })
+    await ElMessageBox.confirm(`确认${banForm.type === BAN_ACTION.TEMPORARY ? `封禁 ${banForm.banDays} 天` : '永久封禁'}用户「${banForm.selected.nickname}」？`, '账号封禁', { type: 'warning' })
   } catch { return }
   banForm.submitting = true
   try {
-    await banUser({ userId: banForm.selected.id, type: banForm.type, reason: banForm.reason, banDays: banForm.type === 'BAN_TEMP' ? banForm.banDays : null })
-    banForm.selected.status = banForm.type === 'BAN_TEMP' ? 'BANNED_TEMP' : 'BANNED_PERM'
+    await banUser({ userId: banForm.selected.id, type: banForm.type, reason: banForm.reason, banDays: banForm.type === BAN_ACTION.TEMPORARY ? banForm.banDays : null })
+    banForm.selected.status = banForm.type === BAN_ACTION.TEMPORARY ? USER_STATUS.BANNED_TEMP : USER_STATUS.BANNED_PERM
     banForm.result = '✅ 用户已封禁，现有登录令牌已失效'
     banForm.resultType = 'success'
   } catch (error) {
@@ -574,7 +574,7 @@ async function handleUnbanUser() {
   banForm.submitting = true
   try {
     await unbanUser({ userId: banForm.selected.id })
-    banForm.selected.status = 'ACTIVE'
+    banForm.selected.status = USER_STATUS.ACTIVE
     banForm.selected.banUntilTime = null
     banForm.result = '✅ 用户封禁已解除'
     banForm.resultType = 'success'

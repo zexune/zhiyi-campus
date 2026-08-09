@@ -71,7 +71,7 @@
               <strong>处理备注：</strong>{{ review.handleNote }}
             </div>
 
-            <div v-if="review.status === 'PENDING'" class="review-card__actions">
+            <div v-if="review.status === VIOLATION_STATUS.PENDING" class="review-card__actions">
               <button class="btn btn--green" :disabled="acting" @click="dismissReview(review)">核实无违规，放行</button>
               <button class="btn btn--danger" :disabled="acting" @click="openConfirmDialog(review)">确认内容违规</button>
             </div>
@@ -127,7 +127,7 @@
               <span v-if="appeal.handlerName"> · {{ appeal.handlerName }} · {{ formatDate(appeal.handledAt) }}</span>
             </div>
 
-            <div v-if="appeal.status === 'PENDING'" class="review-card__actions">
+            <div v-if="appeal.status === APPEAL_STATUS.PENDING" class="review-card__actions">
               <button class="btn btn--danger" :disabled="acting" @click="openAppealHandle(appeal, 'reject')">驳回申诉</button>
               <button class="btn btn--green" :disabled="acting" @click="openAppealHandle(appeal, 'approve')">通过并撤销扣分</button>
             </div>
@@ -212,17 +212,19 @@ import {
   getViolations,
   rejectAppeal,
 } from '@/api/admin'
+import { APPEAL_STATUS, VIOLATION_STATUS } from '@/constants/domain'
+import { itemStatusLabel } from '@/utils/trade'
 
 const REVIEW_STATUS_TABS = [
-  { label: '待审核', value: 'PENDING' },
-  { label: '已确认违规', value: 'CONFIRMED' },
-  { label: '已放行', value: 'DISMISSED' },
-  { label: '申诉撤销', value: 'OVERTURNED' },
+  { label: '待审核', value: VIOLATION_STATUS.PENDING },
+  { label: '已确认违规', value: VIOLATION_STATUS.CONFIRMED },
+  { label: '已放行', value: VIOLATION_STATUS.DISMISSED },
+  { label: '申诉撤销', value: VIOLATION_STATUS.OVERTURNED },
 ]
 const APPEAL_STATUS_TABS = [
-  { label: '待复核', value: 'PENDING' },
-  { label: '已通过', value: 'APPROVED' },
-  { label: '已驳回', value: 'REJECTED' },
+  { label: '待复核', value: APPEAL_STATUS.PENDING },
+  { label: '已通过', value: APPEAL_STATUS.APPROVED },
+  { label: '已驳回', value: APPEAL_STATUS.REJECTED },
 ]
 
 const pageSize = 10
@@ -232,11 +234,11 @@ const acting = ref(false)
 const reviews = ref([])
 const reviewPage = ref(1)
 const reviewTotal = ref(0)
-const reviewStatus = ref('PENDING')
+const reviewStatus = ref(VIOLATION_STATUS.PENDING)
 const appeals = ref([])
 const appealPage = ref(1)
 const appealTotal = ref(0)
-const appealStatus = ref('PENDING')
+const appealStatus = ref(APPEAL_STATUS.PENDING)
 const pendingReviewCount = ref(0)
 const pendingAppealCount = ref(0)
 const confirmForm = reactive({ visible: false, review: null, reason: '', handleNote: '', submitting: false })
@@ -251,31 +253,29 @@ function sourceMeta(source) {
 }
 function reviewStatusMeta(status) {
   return {
-    PENDING: { label: '待审核', badge: 'badge--warn' },
-    CONFIRMED: { label: '已确认违规', badge: 'badge--danger' },
-    DISMISSED: { label: '已放行', badge: 'badge--ok' },
-    OVERTURNED: { label: '申诉已撤销', badge: 'badge--ok' },
+    [VIOLATION_STATUS.PENDING]: { label: '待审核', badge: 'badge--warn' },
+    [VIOLATION_STATUS.CONFIRMED]: { label: '已确认违规', badge: 'badge--danger' },
+    [VIOLATION_STATUS.DISMISSED]: { label: '已放行', badge: 'badge--ok' },
+    [VIOLATION_STATUS.OVERTURNED]: { label: '申诉已撤销', badge: 'badge--ok' },
   }[status] || { label: status, badge: 'badge--muted' }
 }
 function appealStatusMeta(status) {
   return {
-    PENDING: { label: '待复核', badge: 'badge--warn' },
-    APPROVED: { label: '已通过', badge: 'badge--ok' },
-    REJECTED: { label: '已驳回', badge: 'badge--muted' },
+    [APPEAL_STATUS.PENDING]: { label: '待复核', badge: 'badge--warn' },
+    [APPEAL_STATUS.APPROVED]: { label: '已通过', badge: 'badge--ok' },
+    [APPEAL_STATUS.REJECTED]: { label: '已驳回', badge: 'badge--muted' },
   }[status] || { label: status, badge: 'badge--muted' }
 }
-function itemStatusText(status) { return { ON_SALE: '在售中', OFF_SHELF: '已下架', SOLD: '已售出' }[status] || status || '未知' }
+function itemStatusText(status) { return itemStatusLabel(status) }
 function formatDate(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : '' }
 function matchedRules(review) {
-  if (!review.matchedRules) return []
-  if (Array.isArray(review.matchedRules)) return review.matchedRules
-  try { return JSON.parse(review.matchedRules) || [] } catch { return [review.matchedRules] }
+  return Array.isArray(review.matchedRules) ? review.matchedRules : []
 }
 
 async function fetchCounts() {
   const [reviewResult, appealResult] = await Promise.allSettled([
-    getViolations({ page: 1, size: 1, status: 'PENDING' }),
-    getAppeals({ page: 1, size: 1, status: 'PENDING' }),
+    getViolations({ page: 1, size: 1, status: VIOLATION_STATUS.PENDING }),
+    getAppeals({ page: 1, size: 1, status: APPEAL_STATUS.PENDING }),
   ])
   pendingReviewCount.value = reviewResult.status === 'fulfilled' ? Number(reviewResult.value.data?.total || 0) : 0
   pendingAppealCount.value = appealResult.status === 'fulfilled' ? Number(appealResult.value.data?.total || 0) : 0

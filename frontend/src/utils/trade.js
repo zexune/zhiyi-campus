@@ -2,68 +2,43 @@
  * 交易模块工具函数 —— 纯函数，可独立测试，不依赖浏览器环境。
  */
 
+import {
+  ITEM_STATUS_BADGES,
+  ITEM_STATUS_LABELS,
+  ORDER_STATUS_BADGES,
+  ORDER_STATUS_LABELS,
+  VIOLATION_STATUS_LABELS,
+  WALLET_LOG_TYPE_LABELS,
+} from '../constants/domain.js'
+
 /** 订单状态 → 中文标签 */
 export function orderStatusLabel(status) {
-  const map = {
-    WAITING_MEET: '待见面',
-    COMPLETED: '已完成',
-    CANCELLED: '已取消',
-  }
-  return map[status] || status || '未知'
+  return ORDER_STATUS_LABELS[status] || status || '未知'
 }
 
 /** 订单状态 → CSS 类名 */
 export function orderStatusBadge(status) {
-  const map = {
-    WAITING_MEET: 'badge--warn',
-    COMPLETED: 'badge--ok',
-    CANCELLED: 'badge--muted',
-  }
-  return map[status] || 'badge--muted'
+  return ORDER_STATUS_BADGES[status] || 'badge--muted'
 }
 
 /** 商品状态 → 中文标签 */
 export function itemStatusLabel(status) {
-  const map = {
-    ON_SALE: '在售',
-    REVIEWING: '审核中',
-    SOLD: '已售出',
-    OFF_SHELF: '已下架',
-  }
-  return map[status] || status || '未知'
+  return ITEM_STATUS_LABELS[status] || status || '未知'
 }
 
 /** 商品状态 → CSS 类名 */
 export function itemStatusBadge(status) {
-  const map = {
-    ON_SALE: 'badge--ok',
-    REVIEWING: 'badge--warn',
-    SOLD: 'badge--muted',
-    OFF_SHELF: 'badge--muted',
-  }
-  return map[status] || 'badge--muted'
+  return ITEM_STATUS_BADGES[status] || 'badge--muted'
 }
 
 /** 违规状态 → 中文标签 */
 export function violationStatusLabel(status) {
-  const map = {
-    PENDING: '待处理',
-    CONFIRMED: '已确认',
-    DISMISSED: '已放行',
-    OVERTURNED: '申诉撤销',
-  }
-  return map[status] || status || '未知'
+  return VIOLATION_STATUS_LABELS[status] || status || '未知'
 }
 
 /** 钱包流水类型 → 中文标签 */
 export function walletLogTypeLabel(type) {
-  const map = {
-    RECHARGE: '充值',
-    PAYMENT: '支付',
-    REFUND: '退款',
-    INCOME: '收入',
-  }
-  return map[type] || type || '未知'
+  return WALLET_LOG_TYPE_LABELS[type] || type || '未知'
 }
 
 /** 金额格式化（保留两位小数，千分位） */

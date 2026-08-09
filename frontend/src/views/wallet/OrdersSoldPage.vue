@@ -73,13 +73,13 @@
           <div class="order-actions">
             <span class="badge" :class="statusBadge(o.status)">{{ statusLabel(o.status) }}</span>
 
-            <div v-if="o.status === 'WAITING_MEET'" class="order-hint muted">
+            <div v-if="o.status === ORDER_STATUS.WAITING_MEET" class="order-hint muted">
               等待买家确认收货
             </div>
-            <div v-else-if="o.status === 'COMPLETED'" class="order-hint" style="color:var(--green-deep);font-weight:700;">
+            <div v-else-if="o.status === ORDER_STATUS.COMPLETED" class="order-hint" style="color:var(--green-deep);font-weight:700;">
               {{ fmtTime(o.completedAt) }} 已收款 ✓
             </div>
-            <div v-else-if="o.status === 'CANCELLED'" class="order-hint muted">
+            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-hint muted">
               {{ fmtTime(o.cancelledAt) }} 订单已取消
             </div>
           </div>
@@ -105,13 +105,13 @@
 import { ref, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getSoldOrders } from '@/api/order'
+import { ORDER_STATUS, ORDER_STATUS_OPTIONS } from '@/constants/domain'
+import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
 
 // ---- 筛选 ----
 const filters = [
   { label: '全部', value: '' },
-  { label: '待见面', value: 'WAITING_MEET' },
-  { label: '已完成', value: 'COMPLETED' },
-  { label: '已取消', value: 'CANCELLED' },
+  ...ORDER_STATUS_OPTIONS,
 ]
 const currentFilter = ref('')
 
@@ -157,18 +157,12 @@ function fmtTime(val) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const STATUS_MAP = {
-  WAITING_MEET: { label: '待见面', cls: 'badge--warn' },
-  COMPLETED:    { label: '已完成', cls: 'badge--ok' },
-  CANCELLED:    { label: '已取消', cls: 'badge--muted' },
-}
-
 function statusLabel(s) {
-  return STATUS_MAP[s]?.label || s
+  return orderStatusLabel(s)
 }
 
 function statusBadge(s) {
-  return STATUS_MAP[s]?.cls || 'badge--muted'
+  return orderStatusBadge(s)
 }
 
 function phClass(id) {

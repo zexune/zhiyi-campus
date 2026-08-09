@@ -2,6 +2,7 @@ package com.zhiyi.interceptor;
 
 import com.zhiyi.common.WebResponseUtil;
 import com.zhiyi.common.annotation.RoleRequired;
+import com.zhiyi.common.enums.UserRole;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -33,11 +34,11 @@ public class RoleInterceptor implements HandlerInterceptor {
         String role = roleAttribute == null ? null : roleAttribute.toString();
         boolean adminApi = path.equals("/api/admin") || path.startsWith("/api/admin/");
 
-        if ("ADMIN".equals(role) && !adminApi) {
+        if (UserRole.ADMIN.code().equals(role) && !adminApi) {
             WebResponseUtil.writeJson(response, 403, 403, "管理员账号仅可访问管理后台");
             return false;
         }
-        if (adminApi && role != null && !"ADMIN".equals(role)) {
+        if (adminApi && role != null && !UserRole.ADMIN.code().equals(role)) {
             WebResponseUtil.writeJson(response, 403, 403, "普通用户无权访问管理后台");
             return false;
         }
@@ -50,7 +51,7 @@ public class RoleInterceptor implements HandlerInterceptor {
             return true; // 未标注注解的接口不做角色限制
         }
 
-        if (role == null || !required.value().equals(role)) {
+        if (role == null || !required.value().code().equals(role)) {
             WebResponseUtil.writeJson(response, 403, 403, "权限不足");
             return false;
         }

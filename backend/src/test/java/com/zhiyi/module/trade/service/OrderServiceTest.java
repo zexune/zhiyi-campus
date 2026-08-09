@@ -4,8 +4,14 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ItemType;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.OrderStatus;
+import com.zhiyi.common.enums.WalletLogType;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.trade.dto.CreateOrderDTO;
 import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.entity.WalletLog;
@@ -48,6 +54,7 @@ class OrderServiceTest {
     @Mock private TradeReviewMapper reviewMapper;
     @Mock private WalletLogMapper walletLogMapper;
     @Mock private UserGrowthService growthService;
+    @Mock private TagQueryService tagQueryService;
 
     private OrderService orderService;
 
@@ -72,16 +79,17 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         orderService = new OrderService(sysUserMapper, itemMapper,
-                orderMapper, reservationMapper, reviewMapper, walletLogMapper, growthService);
+                orderMapper, reservationMapper, walletLogMapper, growthService,
+                new OrderViewAssembler(itemMapper, sysUserMapper, reviewMapper), tagQueryService);
     }
 
     /** 构造一个在售的 SELL 商品 */
     private Item onSaleItem() {
         Item item = new Item();
         item.setId(ITEM_ID);
-        item.setType("SELL");
-        item.setStatus("ON_SALE");
-        item.setModerationStatus("PASSED");
+        item.setType(ItemType.SELL);
+        item.setStatus(ItemStatus.ON_SALE);
+        item.setModerationStatus(ModerationStatus.PASSED);
         item.setPrice(PRICE);
         item.setPublisherId(SELLER_ID);
         item.setSchoolId(1L);
@@ -143,7 +151,7 @@ class OrderServiceTest {
             assertEquals(SELLER_ID, vo.getSellerId());
             assertEquals("WAITING_MEET", vo.getStatus());
             assertEquals(s.getNickname(), vo.getPeerNickname());
-            assertEquals("ON_SALE", item.getStatus(), "下单不应把订单状态写入商品状态");
+            assertEquals(ItemStatus.ON_SALE, item.getStatus(), "下单不应把订单状态写入商品状态");
             verify(itemMapper, never()).updateById(any(Item.class));
             verify(reservationMapper).updateById(argThat((com.zhiyi.module.trade.entity.ItemReservation reservation) ->
                     ITEM_ID.equals(reservation.getItemId()) && Long.valueOf(1L).equals(reservation.getOrderId())));
@@ -152,14 +160,14 @@ class OrderServiceTest {
             ArgumentCaptor<WalletLog> logCaptor = ArgumentCaptor.forClass(WalletLog.class);
             verify(walletLogMapper).insert(logCaptor.capture());
             WalletLog payment = logCaptor.getValue();
-            assertEquals("PAYMENT", payment.getType());
+            assertEquals(WalletLogType.PAYMENT, payment.getType());
             assertEquals(PRICE.negate(), payment.getAmount());
         }
 
         @Test
         void shouldRejectBuyType() {
             Item item = onSaleItem();
-            item.setType("BUY");
+            item.setType(ItemType.BUY);
             CreateOrderDTO dto = new CreateOrderDTO();
             dto.setItemId(ITEM_ID);
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
@@ -184,7 +192,7 @@ class OrderServiceTest {
         @Test
         void shouldRejectOffShelfItem() {
             Item item = onSaleItem();
-            item.setStatus("OFF_SHELF");
+            item.setStatus(ItemStatus.OFF_SHELF);
             CreateOrderDTO dto = new CreateOrderDTO();
             dto.setItemId(ITEM_ID);
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
@@ -196,7 +204,7 @@ class OrderServiceTest {
         @Test
         void shouldRejectItemStillUnderModeration() {
             Item item = onSaleItem();
-            item.setModerationStatus("PENDING");
+            item.setModerationStatus(ModerationStatus.PENDING);
             CreateOrderDTO dto = new CreateOrderDTO();
             dto.setItemId(ITEM_ID);
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
@@ -301,7 +309,7 @@ class OrderServiceTest {
             order.setBuyerId(BUYER_ID);
             order.setSellerId(SELLER_ID);
             order.setPrice(PRICE);
-            order.setStatus("WAITING_MEET");
+            order.setStatus(OrderStatus.WAITING_MEET);
             return order;
         }
 
@@ -327,7 +335,7 @@ class OrderServiceTest {
             // 卖家收入流水
             ArgumentCaptor<WalletLog> logCaptor = ArgumentCaptor.forClass(WalletLog.class);
             verify(walletLogMapper).insert(logCaptor.capture());
-            assertEquals("INCOME", logCaptor.getValue().getType());
+            assertEquals(WalletLogType.INCOME, logCaptor.getValue().getType());
 
             // 双方加经验
             verify(growthService).addExp(eq(BUYER_ID), eq(UserGrowthService.EXP_ORDER_COMPLETED), anyString());
@@ -369,7 +377,7 @@ class OrderServiceTest {
             order.setBuyerId(BUYER_ID);
             order.setSellerId(SELLER_ID);
             order.setPrice(PRICE);
-            order.setStatus("WAITING_MEET");
+            order.setStatus(OrderStatus.WAITING_MEET);
             return order;
         }
 
@@ -397,7 +405,7 @@ class OrderServiceTest {
             // 退款流水
             ArgumentCaptor<WalletLog> logCaptor = ArgumentCaptor.forClass(WalletLog.class);
             verify(walletLogMapper).insert(logCaptor.capture());
-            assertEquals("REFUND", logCaptor.getValue().getType());
+            assertEquals(WalletLogType.REFUND, logCaptor.getValue().getType());
             assertEquals(PRICE, logCaptor.getValue().getAmount());
             verify(reservationMapper).deleteById(ITEM_ID);
         }

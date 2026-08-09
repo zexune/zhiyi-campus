@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.Result;
 import com.zhiyi.common.annotation.RoleRequired;
+import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
 import com.zhiyi.module.user.dto.BanUserDTO;
@@ -32,7 +33,7 @@ import java.util.stream.Collectors;
  * GET  /api/admin/violation-logs  处罚记录（可追溯）
  */
 @Validated
-@RoleRequired("ADMIN")
+@RoleRequired
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -52,7 +53,7 @@ public class BanController {
                         .select(SysUser::getId, SysUser::getStudentId, SysUser::getNickname,
                                 SysUser::getRole, SysUser::getStatus, SysUser::getBanUntilTime,
                                 SysUser::getLevel, SysUser::getExp, SysUser::getCreatedAt)
-                        .eq(SysUser::getRole, "USER")
+                        .eq(SysUser::getRole, UserRole.USER)
                         .and(keyword != null && !keyword.isBlank(), w -> w
                                 .like(SysUser::getStudentId, keyword).or()
                                 .like(SysUser::getNickname, keyword))

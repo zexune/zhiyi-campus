@@ -2,6 +2,7 @@ package com.zhiyi.module.item.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zhiyi.common.Result;
+import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.module.admin.service.AdminLineageService;
 import com.zhiyi.module.admin.service.ViolationAppealService;
 import com.zhiyi.module.admin.dto.SubmitAppealDTO;
@@ -14,6 +15,7 @@ import com.zhiyi.module.item.service.MarketplaceService;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.item.vo.TagTrendVO;
+import com.zhiyi.module.item.vo.TagGroupVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/item")
@@ -98,7 +99,7 @@ public class ItemController {
     }
 
     @GetMapping("/tags")
-    public Result<List<Map<String, Object>>> allTags(@RequestAttribute("userId") Long userId) {
+    public Result<List<TagGroupVO>> allTags(@RequestAttribute("userId") Long userId) {
         return Result.ok(marketplaceService.getAllTags(userId));
     }
 
@@ -169,7 +170,7 @@ public class ItemController {
     public Result<ItemCardVO> relist(@RequestAttribute("userId") Long userId,
                                      @PathVariable Long id) {
         ItemCardVO item = itemPublishService.relist(userId, id);
-        String message = "PENDING".equals(item.getModerationStatus())
+        String message = ModerationStatus.PENDING.code().equals(item.getModerationStatus())
                 ? "检测到风险内容，已提交管理员审核"
                 : "已重新上架";
         return Result.ok(message, item);

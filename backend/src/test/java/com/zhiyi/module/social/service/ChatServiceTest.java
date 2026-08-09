@@ -1,9 +1,10 @@
 package com.zhiyi.module.social.service;
 
-import tools.jackson.databind.json.JsonMapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.dto.ChatSendDTO;
@@ -53,8 +54,7 @@ class ChatServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ChatService(
-                chatMessageMapper, itemMapper, userMapper, JsonMapper.builder().build());
+        service = new ChatService(chatMessageMapper, itemMapper, userMapper);
     }
 
     @Test
@@ -190,7 +190,7 @@ class ChatServiceTest {
         SysUser user = new SysUser();
         user.setId(id);
         user.setSchoolId(schoolId);
-        user.setRole(role);
+        user.setRole(UserRole.valueOf(role));
         user.setNickname("用户" + id);
         user.setLevel(1);
         return user;
@@ -215,6 +215,8 @@ class ChatServiceTest {
         item.setPublisherId(publisherId);
         item.setSchoolId(schoolId);
         item.setTitle("测试商品");
+        item.setStatus(ItemStatus.ON_SALE);
+        item.setImages(List.of());
         return item;
     }
 }

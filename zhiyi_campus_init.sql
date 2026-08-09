@@ -36,7 +36,8 @@ CREATE TABLE school (
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
 
     PRIMARY KEY (id),
-    UNIQUE KEY uk_code (code)
+    UNIQUE KEY uk_code (code),
+    CONSTRAINT chk_school_status CHECK (status IN ('ACTIVE', 'DISABLED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学校字典表';
 
 
@@ -55,6 +56,8 @@ CREATE TABLE sys_user (
     college         VARCHAR(50)     DEFAULT NULL             COMMENT '学院（个人中心自愿补全，信任标签用）',
     grade           VARCHAR(10)     DEFAULT NULL             COMMENT '年级（个人中心自愿补全，信任标签用）',
     dormitory       VARCHAR(50)     DEFAULT NULL             COMMENT '宿舍楼（个人中心自愿补全，信任标签用）',
+    campus_key      VARCHAR(50) GENERATED ALWAYS AS (LOWER(REPLACE(TRIM(campus), ' ', ''))) STORED COMMENT '校区规范化索引键',
+    dormitory_key   VARCHAR(50) GENERATED ALWAYS AS (LOWER(REPLACE(TRIM(dormitory), ' ', ''))) STORED COMMENT '宿舍楼规范化索引键',
     role            VARCHAR(20)     NOT NULL DEFAULT 'USER'  COMMENT '角色：USER/ADMIN',
     status          VARCHAR(20)     NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/BANNED_TEMP/BANNED_PERM/CANCELLED（已注销）',
     ban_until_time  DATETIME        DEFAULT NULL             COMMENT '封禁截止时间（临时封禁）',
@@ -69,10 +72,13 @@ CREATE TABLE sys_user (
 
     PRIMARY KEY (id),
     UNIQUE KEY  uk_school_student (school_id, student_id),
-    INDEX       idx_status (status),
-    INDEX       idx_role (role),
-    INDEX       idx_school (school_id),
-    CONSTRAINT  fk_user_school FOREIGN KEY (school_id) REFERENCES school(id)
+    INDEX       idx_user_role_status (role, status, id),
+    INDEX       idx_user_status_ban (status, ban_until_time, id),
+    INDEX       idx_user_school_campus (school_id, campus_key, id),
+    INDEX       idx_user_school_dormitory (school_id, dormitory_key, id),
+    CONSTRAINT  fk_user_school FOREIGN KEY (school_id) REFERENCES school(id),
+    CONSTRAINT  chk_user_role CHECK (role IN ('USER', 'ADMIN')),
+    CONSTRAINT  chk_user_status CHECK (status IN ('ACTIVE', 'BANNED_TEMP', 'BANNED_PERM', 'CANCELLED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 
@@ -103,32 +109,51 @@ CREATE TABLE item (
     description     TEXT            NOT NULL                 COMMENT '商品描述',
     category_id     BIGINT          NOT NULL                 COMMENT '所属大类ID',
     price           DECIMAL(10,2)   DEFAULT NULL             COMMENT '价格/跑腿悬赏；SWAP为空',
-    images          TEXT            NOT NULL                 COMMENT '图片URL列表（JSON数组）',
-    tags            TEXT            DEFAULT NULL             COMMENT '本地生成的普通商品标签（JSON数组）',
+    images          JSON            NOT NULL                 COMMENT '图片URL列表（JSON数组）',
     moderation_status VARCHAR(20)   NOT NULL DEFAULT 'PENDING' COMMENT '内容审核状态：PASSED/PENDING/REJECTED',
     trade_location  VARCHAR(255)    DEFAULT NULL             COMMENT '交易地点',
     pickup_location VARCHAR(255)    DEFAULT NULL             COMMENT '跑腿取件地点',
     delivery_location VARCHAR(255)  DEFAULT NULL             COMMENT '跑腿送达地点',
     status          VARCHAR(20)     NOT NULL DEFAULT 'ON_SALE' COMMENT '商品状态：ON_SALE/SOLD/OFF_SHELF；订单状态独立存储',
+    feed_key        BIGINT UNSIGNED NOT NULL                 COMMENT '稳定随机推荐序键，发布时生成',
     view_count      INT             NOT NULL DEFAULT 0       COMMENT '浏览次数',
     is_deleted      TINYINT(1)      NOT NULL DEFAULT 0       COMMENT '软删除标记：0正常/1已删除',
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
     updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
 
     PRIMARY KEY (id),
-    INDEX idx_status (status),
-    INDEX idx_moderation_status (moderation_status),
-    INDEX idx_category (category_id),
-    INDEX idx_publisher (publisher_id),
-    INDEX idx_school (school_id),
-    INDEX idx_type (type),
-    INDEX idx_created (created_at),
-    INDEX idx_school_type_created (school_id, type, created_at),
-    INDEX idx_market_visibility (school_id, status, moderation_status, created_at),
+    INDEX idx_item_market_latest (school_id, status, moderation_status, is_deleted, created_at DESC, id DESC),
+    INDEX idx_item_market_feed (school_id, status, moderation_status, is_deleted, feed_key, id),
+    INDEX idx_item_market_price (school_id, status, moderation_status, is_deleted, price, created_at DESC, id DESC),
+    INDEX idx_item_category_latest (school_id, category_id, status, moderation_status, is_deleted, created_at DESC, id DESC),
+    INDEX idx_item_type_latest (school_id, type, status, moderation_status, is_deleted, created_at DESC, id DESC),
+    INDEX idx_item_publisher_created (publisher_id, created_at DESC, id DESC),
     CONSTRAINT fk_item_publisher  FOREIGN KEY (publisher_id) REFERENCES sys_user(id),
     CONSTRAINT fk_item_school     FOREIGN KEY (school_id)    REFERENCES school(id),
-    CONSTRAINT fk_item_category   FOREIGN KEY (category_id)  REFERENCES category(id)
+    CONSTRAINT fk_item_category   FOREIGN KEY (category_id)  REFERENCES category(id),
+    CONSTRAINT chk_item_type CHECK (type IN ('SELL', 'BUY', 'SWAP', 'ERRAND')),
+    CONSTRAINT chk_item_status CHECK (status IN ('ON_SALE', 'SOLD', 'OFF_SHELF')),
+    CONSTRAINT chk_item_moderation CHECK (moderation_status IN ('PASSED', 'PENDING', 'REJECTED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品/需求表';
+
+-- 标签规范化存储：标签筛选通过等值索引与关联表完成，不再扫描 JSON/TEXT。
+CREATE TABLE tag (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    name            VARCHAR(50)  NOT NULL COMMENT '展示名称',
+    normalized_name VARCHAR(50)  NOT NULL COMMENT 'NFKC + 小写后的唯一检索键',
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tag_normalized_name (normalized_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='标准标签表';
+
+CREATE TABLE item_tag (
+    item_id BIGINT NOT NULL,
+    tag_id  BIGINT NOT NULL,
+    PRIMARY KEY (item_id, tag_id),
+    INDEX idx_item_tag_tag_item (tag_id, item_id),
+    CONSTRAINT fk_item_tag_item FOREIGN KEY (item_id) REFERENCES item(id),
+    CONSTRAINT fk_item_tag_tag FOREIGN KEY (tag_id) REFERENCES tag(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品标签关联表';
 
 CREATE TABLE event_topic (
     id BIGINT NOT NULL AUTO_INCREMENT COMMENT '专题ID',
@@ -146,7 +171,8 @@ CREATE TABLE event_topic (
     PRIMARY KEY (id),
     INDEX idx_topic_active (enabled, start_time, end_time),
     CONSTRAINT fk_topic_category FOREIGN KEY (filter_category_id) REFERENCES category(id),
-    CONSTRAINT fk_topic_creator FOREIGN KEY (created_by) REFERENCES sys_user(id)
+    CONSTRAINT fk_topic_creator FOREIGN KEY (created_by) REFERENCES sys_user(id),
+    CONSTRAINT chk_topic_filter_type CHECK (filter_type IS NULL OR filter_type IN ('SELL', 'BUY', 'SWAP', 'ERRAND'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='大事件专题配置';
 
 
@@ -182,13 +208,16 @@ CREATE TABLE trade_order (
     cancelled_at    DATETIME        DEFAULT NULL             COMMENT '取消时间',
 
     PRIMARY KEY (id),
-    INDEX idx_buyer (buyer_id),
-    INDEX idx_seller (seller_id),
-    INDEX idx_status (status),
-    INDEX idx_item (item_id),
+    INDEX idx_order_buyer_created (buyer_id, created_at DESC, id DESC),
+    INDEX idx_order_buyer_status_created (buyer_id, status, created_at DESC, id DESC),
+    INDEX idx_order_seller_created (seller_id, created_at DESC, id DESC),
+    INDEX idx_order_seller_status_created (seller_id, status, created_at DESC, id DESC),
+    INDEX idx_order_status_completed_item (status, completed_at, item_id, price),
+    INDEX idx_order_item_status (item_id, status, id),
     CONSTRAINT fk_order_item   FOREIGN KEY (item_id)   REFERENCES item(id),
     CONSTRAINT fk_order_buyer  FOREIGN KEY (buyer_id)  REFERENCES sys_user(id),
-    CONSTRAINT fk_order_seller FOREIGN KEY (seller_id) REFERENCES sys_user(id)
+    CONSTRAINT fk_order_seller FOREIGN KEY (seller_id) REFERENCES sys_user(id),
+    CONSTRAINT chk_order_status CHECK (status IN ('WAITING_MEET', 'COMPLETED', 'CANCELLED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='交易订单表';
 
 
@@ -224,12 +253,12 @@ CREATE TABLE wallet_log (
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '变动时间',
 
     PRIMARY KEY (id),
-    INDEX idx_user (user_id),
+    INDEX idx_wallet_user_created (user_id, created_at DESC, id DESC),
     INDEX idx_order (order_id),
-    INDEX idx_type (type),
-    INDEX idx_created (created_at),
+    INDEX idx_wallet_type_created (type, created_at DESC, id DESC),
     CONSTRAINT fk_wallet_user  FOREIGN KEY (user_id)  REFERENCES sys_user(id),
-    CONSTRAINT fk_wallet_order FOREIGN KEY (order_id) REFERENCES trade_order(id)
+    CONSTRAINT fk_wallet_order FOREIGN KEY (order_id) REFERENCES trade_order(id),
+    CONSTRAINT chk_wallet_type CHECK (type IN ('RECHARGE', 'PAYMENT', 'REFUND', 'INCOME'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='钱包资金变动流水表';
 
 
@@ -248,8 +277,8 @@ CREATE TABLE chat_message (
 
     PRIMARY KEY (id),
     INDEX idx_conversation (conversation_id, created_at),
-    INDEX idx_receiver_unread (receiver_id, is_read),
-    INDEX idx_sender (sender_id),
+    INDEX idx_receiver_unread (receiver_id, is_read, created_at DESC, id DESC),
+    INDEX idx_sender_created (sender_id, created_at DESC, id DESC),
     CONSTRAINT fk_chat_sender   FOREIGN KEY (sender_id)       REFERENCES sys_user(id),
     CONSTRAINT fk_chat_receiver FOREIGN KEY (receiver_id)     REFERENCES sys_user(id),
     CONSTRAINT fk_chat_item     FOREIGN KEY (related_item_id) REFERENCES item(id)
@@ -268,7 +297,7 @@ CREATE TABLE violation_report (
     source                  VARCHAR(30)     NOT NULL                 COMMENT '来源：LOCAL_RULE/USER_REPORT/CORRECTION',
     violation_type          VARCHAR(50)     NOT NULL                 COMMENT '风险或举报类型',
     violation_reason        TEXT            NOT NULL                 COMMENT '本地检测依据或用户举报说明',
-    matched_rules           TEXT            DEFAULT NULL             COMMENT '命中的本地规则编号（JSON数组）',
+    matched_rules           JSON            DEFAULT NULL             COMMENT '命中的本地规则编号（JSON数组）',
     rule_version            VARCHAR(30)     DEFAULT NULL             COMMENT '本地规则集版本',
     status                  VARCHAR(20)     NOT NULL DEFAULT 'PENDING' COMMENT '处理状态：PENDING/CONFIRMED/DISMISSED/OVERTURNED',
     handler_id              BIGINT          DEFAULT NULL             COMMENT '处理的管理员ID',
@@ -278,14 +307,17 @@ CREATE TABLE violation_report (
     handled_at              DATETIME        DEFAULT NULL             COMMENT '处理时间',
 
     PRIMARY KEY (id),
-    INDEX idx_status (status),
-    INDEX idx_source_status (source, status),
-    INDEX idx_user (user_id),
-    INDEX idx_item_id (item_id),
+    INDEX idx_violation_status_created (status, created_at DESC, id DESC),
+    INDEX idx_violation_source_status_created (source, status, created_at DESC, id DESC),
+    INDEX idx_violation_user_status_created (user_id, status, created_at DESC, id DESC),
+    INDEX idx_violation_item_status_handled (item_id, status, handled_at DESC, id DESC),
+    INDEX idx_violation_reporter_item_status (reporter_id, item_id, status),
     CONSTRAINT fk_vr_user    FOREIGN KEY (user_id)    REFERENCES sys_user(id),
     CONSTRAINT fk_vr_reporter FOREIGN KEY (reporter_id) REFERENCES sys_user(id),
     CONSTRAINT fk_vr_item    FOREIGN KEY (item_id)    REFERENCES item(id),
-    CONSTRAINT fk_vr_handler FOREIGN KEY (handler_id) REFERENCES sys_user(id)
+    CONSTRAINT fk_vr_handler FOREIGN KEY (handler_id) REFERENCES sys_user(id),
+    CONSTRAINT chk_violation_source CHECK (source IN ('LOCAL_RULE', 'USER_REPORT', 'CORRECTION')),
+    CONSTRAINT chk_violation_status CHECK (status IN ('PENDING', 'CONFIRMED', 'DISMISSED', 'OVERTURNED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='本地规则、用户举报与整改复核记录表';
 
 
@@ -305,7 +337,8 @@ CREATE TABLE violation_log (
     INDEX idx_user (user_id),
     INDEX idx_admin (admin_id),
     CONSTRAINT fk_vl_user  FOREIGN KEY (user_id)  REFERENCES sys_user(id),
-    CONSTRAINT fk_vl_admin FOREIGN KEY (admin_id) REFERENCES sys_user(id)
+    CONSTRAINT fk_vl_admin FOREIGN KEY (admin_id) REFERENCES sys_user(id),
+    CONSTRAINT chk_violation_log_type CHECK (type IN ('BAN_TEMP', 'BAN_PERM'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='违规处罚日志表';
 
 
@@ -329,7 +362,9 @@ CREATE TABLE reputation_penalty (
     INDEX idx_reputation_penalty_user_status (user_id, status),
     CONSTRAINT fk_rp_report FOREIGN KEY (report_id) REFERENCES violation_report(id),
     CONSTRAINT fk_rp_user   FOREIGN KEY (user_id)   REFERENCES sys_user(id),
-    CONSTRAINT fk_rp_admin  FOREIGN KEY (admin_id)  REFERENCES sys_user(id)
+    CONSTRAINT fk_rp_admin  FOREIGN KEY (admin_id)  REFERENCES sys_user(id),
+    CONSTRAINT chk_penalty_type CHECK (type IN ('CONTENT_WARNING')),
+    CONSTRAINT chk_penalty_status CHECK (status IN ('ACTIVE', 'REVOKED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='独立信誉处罚记录表';
 
 
@@ -351,11 +386,12 @@ CREATE TABLE violation_appeal (
     PRIMARY KEY (id),
     UNIQUE KEY uk_appeal_report (report_id),
     INDEX idx_appeal_status_created (status, created_at),
-    INDEX idx_appeal_user (user_id),
+    INDEX idx_appeal_user_created (user_id, created_at DESC, id DESC),
     CONSTRAINT fk_appeal_report  FOREIGN KEY (report_id)  REFERENCES violation_report(id),
     CONSTRAINT fk_appeal_item    FOREIGN KEY (item_id)    REFERENCES item(id),
     CONSTRAINT fk_appeal_user    FOREIGN KEY (user_id)    REFERENCES sys_user(id),
-    CONSTRAINT fk_appeal_handler FOREIGN KEY (handler_id) REFERENCES sys_user(id)
+    CONSTRAINT fk_appeal_handler FOREIGN KEY (handler_id) REFERENCES sys_user(id),
+    CONSTRAINT chk_appeal_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品内容违规申诉表';
 
 
@@ -372,7 +408,7 @@ CREATE TABLE exp_log (
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '变动时间',
 
     PRIMARY KEY (id),
-    INDEX idx_user (user_id),
+    INDEX idx_exp_user_created (user_id, created_at DESC, id DESC),
     CONSTRAINT fk_exp_user FOREIGN KEY (user_id) REFERENCES sys_user(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='经验值变动记录表';
 
@@ -392,7 +428,8 @@ CREATE TABLE trade_review (
 
     PRIMARY KEY (id),
     UNIQUE KEY uk_order (order_id),
-    INDEX idx_target (target_id),
+    INDEX idx_review_target_created (target_id, created_at DESC, id DESC),
+    CONSTRAINT chk_review_rating CHECK (rating BETWEEN 1 AND 5),
     CONSTRAINT fk_review_order    FOREIGN KEY (order_id)    REFERENCES trade_order(id),
     CONSTRAINT fk_review_reviewer FOREIGN KEY (reviewer_id) REFERENCES sys_user(id),
     CONSTRAINT fk_review_target   FOREIGN KEY (target_id)   REFERENCES sys_user(id)

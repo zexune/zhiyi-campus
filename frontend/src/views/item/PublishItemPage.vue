@@ -13,19 +13,19 @@
         <el-form ref="formRef" class="card pub-card rise rise-1" :model="form" :rules="rules">
           <el-form-item prop="type" class="type-form-item">
             <div class="type-switch" role="radiogroup" aria-label="发布类型">
-              <button class="type-option" :class="{ selected: form.type === 'SELL' }" type="button" role="radio" :aria-checked="form.type === 'SELL'" @click="setType('SELL')">
+              <button class="type-option" :class="{ selected: form.type === ITEM_TYPE.SELL }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.SELL" @click="setType(ITEM_TYPE.SELL)">
                 <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg></span>
                 <span class="type-copy"><b>我要出闲置</b><small>卖掉宿舍吃灰的宝贝</small></span>
               </button>
-              <button class="type-option type-option--buy" :class="{ selected: form.type === 'BUY' }" type="button" role="radio" :aria-checked="form.type === 'BUY'" @click="setType('BUY')">
+              <button class="type-option type-option--buy" :class="{ selected: form.type === ITEM_TYPE.BUY }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.BUY" @click="setType(ITEM_TYPE.BUY)">
                 <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></svg></span>
                 <span class="type-copy"><b>我要求购</b><small>发布需求，等卖家找上门</small></span>
               </button>
-              <button class="type-option type-option--swap" :class="{ selected: form.type === 'SWAP' }" type="button" role="radio" :aria-checked="form.type === 'SWAP'" @click="setType('SWAP')">
+              <button class="type-option type-option--swap" :class="{ selected: form.type === ITEM_TYPE.SWAP }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.SWAP" @click="setType(ITEM_TYPE.SWAP)">
                 <span class="t-icon">🔄</span>
                 <span class="type-copy"><b>以物换物</b><small>用闲置交换另一件好物</small></span>
               </button>
-              <button class="type-option type-option--errand" :class="{ selected: form.type === 'ERRAND' }" type="button" role="radio" :aria-checked="form.type === 'ERRAND'" @click="setType('ERRAND')">
+              <button class="type-option type-option--errand" :class="{ selected: form.type === ITEM_TYPE.ERRAND }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.ERRAND" @click="setType(ITEM_TYPE.ERRAND)">
                 <span class="t-icon">🏃</span>
                 <span class="type-copy"><b>帮带跑腿</b><small>发布校内取送任务</small></span>
               </button>
@@ -57,10 +57,10 @@
               <p class="hint">系统会根据分类与文本在本地生成普通商品标签</p>
             </el-form-item>
             <el-form-item prop="price" class="field">
-              <label for="publish-price">{{ form.type === 'ERRAND' ? '悬赏' : '价格' }}（元）<span v-if="form.type !== 'SWAP'" class="req">*</span></label>
-              <input v-if="form.type !== 'SWAP'" id="publish-price" v-model.number="form.price" class="input price-input" type="number" step="0.01" :min="form.type === 'ERRAND' ? 1 : 0.01" :max="form.type === 'ERRAND' ? 20 : undefined">
+              <label for="publish-price">{{ form.type === ITEM_TYPE.ERRAND ? '悬赏' : '价格' }}（元）<span v-if="form.type !== ITEM_TYPE.SWAP" class="req">*</span></label>
+              <input v-if="form.type !== ITEM_TYPE.SWAP" id="publish-price" v-model.number="form.price" class="input price-input" type="number" step="0.01" :min="form.type === ITEM_TYPE.ERRAND ? 1 : 0.01" :max="form.type === ITEM_TYPE.ERRAND ? 20 : undefined">
               <div v-else class="input disabled-price">换物不涉及钱包结算</div>
-              <p class="hint">{{ form.type === 'ERRAND' ? '悬赏范围 ¥1–20' : form.type === 'SWAP' ? '价格将保存为空' : '精确到分，最低 ¥0.01' }}</p>
+              <p class="hint">{{ form.type === ITEM_TYPE.ERRAND ? '悬赏范围 ¥1–20' : form.type === ITEM_TYPE.SWAP ? '价格将保存为空' : '精确到分，最低 ¥0.01' }}</p>
             </el-form-item>
           </div>
 
@@ -82,7 +82,7 @@
             <p class="hint">支持 jpg / png / webp，单张 ≤ 5MB，最多 9 张；首张自动作为封面</p>
           </el-form-item>
 
-          <el-form-item v-if="form.type !== 'ERRAND'" prop="tradeLocation" class="field">
+          <el-form-item v-if="form.type !== ITEM_TYPE.ERRAND" prop="tradeLocation" class="field">
             <label for="publish-location">交易地点 <span class="req">*</span></label>
             <input id="publish-location" v-model.trim="form.tradeLocation" class="input" maxlength="255" placeholder="如：图书馆门口、食堂三楼">
             <div class="location-tags">
@@ -90,7 +90,7 @@
             </div>
           </el-form-item>
 
-          <div v-if="form.type === 'ERRAND'" class="form-pair">
+          <div v-if="form.type === ITEM_TYPE.ERRAND" class="form-pair">
             <el-form-item prop="pickupLocation" class="field">
               <label for="pickup-location">取件地点 <span class="req">*</span></label>
               <input id="pickup-location" v-model.trim="form.pickupLocation" class="input" maxlength="255" placeholder="如：南门快递站">
@@ -139,6 +139,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getCategories, getOwnItem, publishItem, updateItem, uploadItemImage } from '@/api/item'
+import { ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -160,7 +161,7 @@ const categoryOptions = computed(() =>
 const uploading = ref(false)
 const submitting = ref(false)
 const pageLoading = ref(false)
-const form = reactive({ type: 'SELL', title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
+const form = reactive({ type: ITEM_TYPE.SELL, title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
 const editMode = computed(() => Boolean(route.params.id))
 const submitButtonText = computed(() => {
   if (uploading.value) return '图片上传中'
@@ -182,13 +183,13 @@ const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }, { min: 2, max: 50, message: '标题需为2-50字', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择所属大类', trigger: 'change' }],
   price: [{ validator: (_rule, value, callback) => {
-    if (form.type === 'SWAP') return callback()
-    if (typeof value !== 'number' || value < (form.type === 'ERRAND' ? 1 : 0.01) || (form.type === 'ERRAND' && value > 20)) return callback(new Error(form.type === 'ERRAND' ? '悬赏须在 ¥1–20 之间' : '请输入有效价格'))
+      if (form.type === ITEM_TYPE.SWAP) return callback()
+      if (typeof value !== 'number' || value < (form.type === ITEM_TYPE.ERRAND ? 1 : 0.01) || (form.type === ITEM_TYPE.ERRAND && value > 20)) return callback(new Error(form.type === ITEM_TYPE.ERRAND ? '悬赏须在 ¥1–20 之间' : '请输入有效价格'))
     callback()
   }, trigger: 'change' }],
-  tradeLocation: [{ validator: (_rule, value, callback) => form.type === 'ERRAND' || value ? callback() : callback(new Error('请输入交易地点')), trigger: 'blur' }],
-  pickupLocation: [{ validator: (_rule, value, callback) => form.type !== 'ERRAND' || value ? callback() : callback(new Error('请输入取件地点')), trigger: 'blur' }],
-  deliveryLocation: [{ validator: (_rule, value, callback) => form.type !== 'ERRAND' || value ? callback() : callback(new Error('请输入送达地点')), trigger: 'blur' }],
+    tradeLocation: [{ validator: (_rule, value, callback) => form.type === ITEM_TYPE.ERRAND || value ? callback() : callback(new Error('请输入交易地点')), trigger: 'blur' }],
+    pickupLocation: [{ validator: (_rule, value, callback) => form.type !== ITEM_TYPE.ERRAND || value ? callback() : callback(new Error('请输入取件地点')), trigger: 'blur' }],
+    deliveryLocation: [{ validator: (_rule, value, callback) => form.type !== ITEM_TYPE.ERRAND || value ? callback() : callback(new Error('请输入送达地点')), trigger: 'blur' }],
   description: [{ required: true, message: '请输入商品描述', trigger: 'blur' }, { max: 500, message: '描述不能超过500字', trigger: 'blur' }],
   images: [{ type: 'array', required: true, min: 1, message: '请至少上传1张图片', trigger: 'change' }],
 }
@@ -214,8 +215,8 @@ async function fetchOwnItem() {
 }
 function setType(type) {
   form.type = type
-  if (type === 'SWAP') form.price = null
-  else if (type === 'ERRAND' && (!form.price || form.price > 20)) form.price = 5
+    if (type === ITEM_TYPE.SWAP) form.price = null
+    else if (type === ITEM_TYPE.ERRAND && (!form.price || form.price > 20)) form.price = 5
   else if (form.price == null) form.price = 1
   formRef.value?.clearValidate(['price', 'tradeLocation', 'pickupLocation', 'deliveryLocation'])
   formRef.value?.validateField('type')
@@ -252,7 +253,7 @@ async function handleSubmit() {
       categoryId: form.categoryId,
       price: form.price,
       images: form.images,
-      tradeLocation: form.type === 'ERRAND' ? null : form.tradeLocation,
+        tradeLocation: form.type === ITEM_TYPE.ERRAND ? null : form.tradeLocation,
       pickupLocation: form.pickupLocation,
       deliveryLocation: form.deliveryLocation,
     }
@@ -260,7 +261,7 @@ async function handleSubmit() {
       ? await updateItem(route.params.id, payload)
       : await publishItem(payload)
     if (!editMode.value) localStorage.removeItem('zhiyi-publish-draft')
-    if (res.data?.moderationStatus === 'PENDING') {
+      if (res.data?.moderationStatus === MODERATION_STATUS.PENDING) {
       ElMessage.warning(editMode.value ? '修改已提交，正在等待管理员复核' : '检测到风险内容，已提交管理员审核')
       router.push('/user/my-items')
     } else {

@@ -3,6 +3,8 @@ package com.zhiyi.module.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.module.user.entity.ReputationPenalty;
+import com.zhiyi.common.enums.PenaltyStatus;
+import com.zhiyi.common.enums.PenaltyType;
 import com.zhiyi.module.user.mapper.ReputationPenaltyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,10 +19,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ReputationPenaltyService {
-
-    public static final String STATUS_ACTIVE = "ACTIVE";
-    public static final String STATUS_REVOKED = "REVOKED";
-    public static final String TYPE_CONTENT_WARNING = "CONTENT_WARNING";
 
     private final ReputationPenaltyMapper penaltyMapper;
 
@@ -41,10 +39,10 @@ public class ReputationPenaltyService {
         penalty.setReportId(reportId);
         penalty.setUserId(userId);
         penalty.setAdminId(adminId);
-        penalty.setType(TYPE_CONTENT_WARNING);
+        penalty.setType(PenaltyType.CONTENT_WARNING);
         penalty.setPoints(Math.max(1, warningPoints));
         penalty.setReason(reason);
-        penalty.setStatus(STATUS_ACTIVE);
+        penalty.setStatus(PenaltyStatus.ACTIVE);
         penaltyMapper.insert(penalty);
         return penalty;
     }
@@ -53,8 +51,8 @@ public class ReputationPenaltyService {
     public boolean revokePenalty(Long reportId) {
         int updated = penaltyMapper.update(null, new LambdaUpdateWrapper<ReputationPenalty>()
                 .eq(ReputationPenalty::getReportId, reportId)
-                .eq(ReputationPenalty::getStatus, STATUS_ACTIVE)
-                .set(ReputationPenalty::getStatus, STATUS_REVOKED)
+                .eq(ReputationPenalty::getStatus, PenaltyStatus.ACTIVE)
+                .set(ReputationPenalty::getStatus, PenaltyStatus.REVOKED)
                 .set(ReputationPenalty::getRevokedAt, LocalDateTime.now()));
         return updated > 0;
     }
@@ -62,8 +60,8 @@ public class ReputationPenaltyService {
     public long activeWarningCount(Long userId) {
         return penaltyMapper.selectCount(new LambdaQueryWrapper<ReputationPenalty>()
                 .eq(ReputationPenalty::getUserId, userId)
-                .eq(ReputationPenalty::getType, TYPE_CONTENT_WARNING)
-                .eq(ReputationPenalty::getStatus, STATUS_ACTIVE));
+                .eq(ReputationPenalty::getType, PenaltyType.CONTENT_WARNING)
+                .eq(ReputationPenalty::getStatus, PenaltyStatus.ACTIVE));
     }
 
     /** 当前有效处罚的累计扣分。 */
@@ -71,7 +69,7 @@ public class ReputationPenaltyService {
         List<ReputationPenalty> penalties = penaltyMapper.selectList(
                 new LambdaQueryWrapper<ReputationPenalty>()
                         .eq(ReputationPenalty::getUserId, userId)
-                        .eq(ReputationPenalty::getStatus, STATUS_ACTIVE));
+                        .eq(ReputationPenalty::getStatus, PenaltyStatus.ACTIVE));
         long total = penalties.stream()
                 .map(ReputationPenalty::getPoints)
                 .filter(points -> points != null && points > 0)

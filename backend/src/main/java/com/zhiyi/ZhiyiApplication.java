@@ -9,6 +9,5 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ZhiyiApplication {
     public static void main(String[] args) {
         SpringApplication.run(ZhiyiApplication.class, args);
-        System.out.println("🎓 智易校园启动成功！http://localhost:8080");
     }
 }
