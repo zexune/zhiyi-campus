@@ -1,5 +1,5 @@
 <template>
-  <DefaultLayout>
+  <AdminLayout>
     <div class="dashboard-page rise">
       <!-- 页面标题 -->
       <div class="page-title">
@@ -10,7 +10,7 @@
       <!-- 导航标签 -->
       <div class="nav-tabs">
         <span class="nav-tab active">📊 数据大盘</span>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 违规审核</router-link>
+        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
         <router-link to="/admin/chat" class="nav-tab">💬 客服收件箱</router-link>
         <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
         <router-link to="/admin/schools" class="nav-tab">🏫 学校管理</router-link>
@@ -61,7 +61,7 @@
             :class="{ 'stat-card--alert': data.pendingViolations > 0 }">
             <div class="stat-card__icon">⚠️</div>
             <div class="stat-card__num">{{ data.pendingViolations }}</div>
-            <div class="stat-card__label muted">待审核违规</div>
+            <div class="stat-card__label muted">待审核内容</div>
           </router-link>
         </div>
 
@@ -258,12 +258,12 @@
         </div>
       </template>
     </div>
-  </DefaultLayout>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getDashboard, getSchools, getTradeHeatmap } from '@/api/admin'
 
 // ---- 学校选择（D2：多校大盘） ----

@@ -10,7 +10,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * 角色权限拦截器 —— 在 JwtInterceptor 之后执行。
- * 读取 Controller 方法/类上的 @RoleRequired 注解，与 JWT 中的角色比对。
+ * 除校验 {@link RoleRequired} 外，还强制隔离管理员与普通用户的 API 命名空间：
+ * 管理员只能访问 {@code /api/admin/**}，普通用户不能访问管理接口。
  */
 @Component
 public class RoleInterceptor implements HandlerInterceptor {
@@ -22,6 +23,25 @@ public class RoleInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        String path = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (!contextPath.isEmpty() && path.startsWith(contextPath)) {
+            path = path.substring(contextPath.length());
+        }
+
+        Object roleAttribute = request.getAttribute("role");
+        String role = roleAttribute == null ? null : roleAttribute.toString();
+        boolean adminApi = path.equals("/api/admin") || path.startsWith("/api/admin/");
+
+        if ("ADMIN".equals(role) && !adminApi) {
+            WebResponseUtil.writeJson(response, 403, 403, "管理员账号仅可访问管理后台");
+            return false;
+        }
+        if (adminApi && role != null && !"ADMIN".equals(role)) {
+            WebResponseUtil.writeJson(response, 403, 403, "普通用户无权访问管理后台");
+            return false;
+        }
+
         RoleRequired required = handlerMethod.getMethodAnnotation(RoleRequired.class);
         if (required == null) {
             required = handlerMethod.getBeanType().getAnnotation(RoleRequired.class);
@@ -30,8 +50,7 @@ public class RoleInterceptor implements HandlerInterceptor {
             return true; // 未标注注解的接口不做角色限制
         }
 
-        Object role = request.getAttribute("role");
-        if (role == null || !required.value().equals(role.toString())) {
+        if (role == null || !required.value().equals(role)) {
             WebResponseUtil.writeJson(response, 403, 403, "权限不足");
             return false;
         }

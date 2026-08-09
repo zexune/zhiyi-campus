@@ -28,9 +28,9 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8 11h6M11 8v6"/></svg>
           </span>
           <div>
-            <span class="trending-panel__eyebrow">AI TAG TOP 10</span>
+            <span class="trending-panel__eyebrow">TAG TOP 10</span>
             <h2 id="trending-title">热门搜索</h2>
-            <p>统计本校在售商品的高频 AI 标签</p>
+            <p>统计本校在售商品的高频商品标签</p>
           </div>
         </div>
         <div v-if="trendingTags.length" class="trending-tags">
@@ -48,7 +48,7 @@
             <small>{{ item.count }} 件</small>
           </button>
         </div>
-        <p v-else class="trending-panel__empty">暂无可统计的 AI 标签</p>
+        <p v-else class="trending-panel__empty">暂无可统计的商品标签</p>
       </section>
 
       <template v-if="!loading && ranking.length">
@@ -78,7 +78,7 @@
             <div class="podium-card__body">
               <span class="badge" :class="entry.item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">{{ entry.item.type === 'BUY' ? '求购' : '出售' }}</span>
               <h2>{{ entry.item.title }}</h2>
-              <AiTagList :tags="entry.item.aiTags" :limit="3" @select="goTag" />
+              <TagList :tags="entry.item.tags" :limit="3" @select="goTag" />
               <div class="podium-card__meta">
                 <PriceTag :value="entry.item.price" font-size="25px" />
                 <span class="favorite-count">
@@ -121,7 +121,7 @@
                   <span v-if="item.publisherVerified" class="inline-verified">已认证</span>
                   · 浏览 {{ item.viewCount || 0 }}
                 </small>
-                <AiTagList :tags="item.aiTags" :limit="2" compact @select="goTag" />
+                <TagList :tags="item.tags" :limit="2" compact @select="goTag" />
               </span>
               <PriceTag :value="item.price" font-size="21px" />
               <span class="ranking-row__favorites">
@@ -152,10 +152,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import AiTagList from '@/components/common/AiTagList.vue'
+import TagList from '@/components/common/TagList.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
-import { getItemRanking, getTrendingAiTags, toggleFavorite } from '@/api/item'
+import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
 import { isLoggedIn } from '@/utils/auth'
 
 const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
@@ -181,7 +181,7 @@ async function fetchRanking() {
   try {
     const [rankingRes, tagsRes] = await Promise.all([
       getItemRanking({ limit: 20 }),
-      getTrendingAiTags({ limit: 10 }),
+      getTrendingTags({ limit: 10 }),
     ])
     ranking.value = rankingRes.data || []
     trendingTags.value = tagsRes.data || []

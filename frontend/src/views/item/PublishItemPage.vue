@@ -3,8 +3,8 @@
     <div class="publish-page">
       <header class="publish-head rise">
         <div>
-          <h1 class="page-title">{{ editMode ? '编辑商品信息' : '发布一件好物' }} <span class="stamp">{{ editMode ? '重新审核' : 'AI 秒审' }}</span></h1>
-          <p class="muted">{{ editMode ? '修改后重新进行内容审核，商品状态保持不变' : '填好信息一键提交，AI 自动审核并打上智能标签' }}</p>
+          <h1 class="page-title">{{ editMode ? '编辑商品信息' : '发布一件好物' }} <span class="stamp">{{ editMode ? '重新检测' : '本地检测' }}</span></h1>
+          <p class="muted">{{ editMode ? '修改后重新执行本地合规检测；违规整改会交由管理员复核' : '提交后在本机服务内完成规则检测与标签生成，命中风险再转人工审核' }}</p>
         </div>
         <router-link to="/user/my-items" class="btn">{{ editMode ? '返回我的发布' : '我的发布' }}</router-link>
       </header>
@@ -40,7 +40,7 @@
 
           <el-form-item prop="description" class="field">
             <label for="publish-description">商品描述 <span class="req">*</span></label>
-            <textarea id="publish-description" v-model.trim="form.description" class="textarea" maxlength="500" placeholder="讲讲它的故事：入手渠道、成色、使用时长、配件情况……描述越详细，AI 打的标签越准，买家也更放心" />
+            <textarea id="publish-description" v-model.trim="form.description" class="textarea" maxlength="500" placeholder="讲讲它的故事：入手渠道、成色、使用时长、配件情况……描述越详细，买家越容易了解" />
             <div class="char-count">{{ form.description.length }} / 500</div>
           </el-form-item>
 
@@ -54,7 +54,7 @@
                 placeholder="选择一个大类"
                 aria-label="所属大类"
               />
-              <p class="hint">小分类不用选，AI 会自动打标签</p>
+              <p class="hint">系统会根据分类与文本在本地生成普通商品标签</p>
             </el-form-item>
             <el-form-item prop="price" class="field">
               <label for="publish-price">{{ form.type === 'ERRAND' ? '悬赏' : '价格' }}（元）<span v-if="form.type !== 'SWAP'" class="req">*</span></label>
@@ -101,18 +101,6 @@
             </el-form-item>
           </div>
 
-          <el-form-item prop="deadlineTime" class="field">
-            <label for="deadline-time">{{ form.type === 'ERRAND' ? '跑腿截止时间' : '期望出手截止时间' }} <span v-if="form.type === 'ERRAND'" class="req">*</span></label>
-            <AppDateTimePicker
-              id="deadline-time"
-              v-model="form.deadlineTime"
-              :min="minimumDeadline"
-              :placeholder="form.type === 'ERRAND' ? '选择跑腿截止日期与时间' : '选择期望出手日期与时间'"
-              aria-label="截止日期与时间"
-            />
-            <p class="hint">{{ form.type === 'ERRAND' ? '跑腿任务必须填写未来的截止时间' : '可选；临近截止时商品卡片会显示倒计时提醒' }}</p>
-          </el-form-item>
-
           <div class="submit-bar">
             <span class="submit-note" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="#2F9E62" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>{{ submitNote }}</span>
             <div class="submit-actions">
@@ -127,15 +115,15 @@
           </div>
         </el-form>
 
-        <aside class="card ai-panel rise rise-2">
-          <h2><span class="bot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>AI 审核员在岗</h2>
-          <div class="ai-flow">
-            <div v-for="(step, index) in aiSteps" :key="step.title" class="ai-step">
-              <div class="ai-step__rail"><span class="ai-step__dot">{{ index + 1 }}</span><span v-if="index < aiSteps.length - 1" class="ai-step__line" /></div>
-              <div class="ai-step__body"><b>{{ step.title }}</b><p>{{ step.description }}</p></div>
+        <aside class="card review-panel rise rise-2">
+          <h2><span class="review-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>本地合规检测</h2>
+          <div class="review-flow">
+            <div v-for="(step, index) in reviewSteps" :key="step.title" class="review-step">
+              <div class="review-step__rail"><span class="review-step__dot">{{ index + 1 }}</span><span v-if="index < reviewSteps.length - 1" class="review-step__line" /></div>
+              <div class="review-step__body"><b>{{ step.title }}</b><p>{{ step.description }}</p></div>
             </div>
           </div>
-          <div class="ai-demo"><p>「{{ form.title || '99新苹果平板 iPad Air5，考研结束出' }}」<br>AI 可能生成的标签 ↓</p><div><span v-for="tag in previewTags" :key="tag" class="tag">{{ tag }}</span></div></div>
+          <div class="tag-demo"><p>「{{ form.title || '99新苹果平板 iPad Air5，考研结束出' }}」<br>可能生成的商品标签 ↓</p><div><span v-for="tag in previewTags" :key="tag" class="tag">{{ tag }}</span></div></div>
           <ul class="rule-list">
             <li v-for="rule in rulesText" :key="rule"><svg viewBox="0 0 24 24" fill="none" stroke="#E23B3B" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m4.9 4.9 14.2 14.2"/></svg>{{ rule }}</li>
           </ul>
@@ -148,7 +136,6 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getCategories, getOwnItem, publishItem, updateItem, uploadItemImage } from '@/api/item'
@@ -156,12 +143,12 @@ import { getCategories, getOwnItem, publishItem, updateItem, uploadItemImage } f
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const locations = ['图书馆门口', '一食堂', '南门快递站', '体育馆']
-const aiSteps = [
-  { title: '合规审查', description: '自动识别违禁品、代考代写、人身攻击、虚假信息等内容' },
-  { title: '智能打标', description: '从描述中提取关键标签，让买家更容易搜到你' },
-  { title: '即刻上架', description: '审核通过立即出现在交易大厅，异常内容自动转人工复核' },
+const reviewSteps = [
+  { title: '规则检测', description: '使用确定性的本地规则识别违禁品、代考代写等风险内容' },
+  { title: '生成标签', description: '从分类、标题与描述中提取普通标签，便于搜索和发现' },
+  { title: '分流处理', description: '未命中风险直接上架，命中风险则隐藏并交由管理员复核' },
 ]
-const rulesText = ['违禁品、管制物品一律拦截并记录', '代写论文、代考等学术不端服务不允许发布', '明显价格欺诈或虚假信息将视为违规']
+const rulesText = ['违禁品、管制物品会转入人工审核', '代写论文、代考等学术不端服务不允许发布', '价格、图片等无法由文本规则确认的问题通过用户举报核实']
 
 const router = useRouter()
 const route = useRoute()
@@ -173,23 +160,18 @@ const categoryOptions = computed(() =>
 const uploading = ref(false)
 const submitting = ref(false)
 const pageLoading = ref(false)
-const form = reactive({ type: 'SELL', title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '', deadlineTime: '' })
-const minimumDeadline = computed(() => {
-  const d = new Date(Date.now() + 60 * 1000)
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-  return d.toISOString().slice(0, 16)
-})
+const form = reactive({ type: 'SELL', title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
 const editMode = computed(() => Boolean(route.params.id))
 const submitButtonText = computed(() => {
   if (uploading.value) return '图片上传中'
-  if (submitting.value) return editMode.value ? 'AI 复审中' : 'AI 审核中'
+  if (submitting.value) return editMode.value ? '重新检测中' : '检测中'
   if (pageLoading.value) return '数据加载中'
   return editMode.value ? '保存修改' : '提交发布'
 })
 const submitNote = computed(() => {
   if (uploading.value) return '图片正在上传，完成后即可提交'
-  if (submitting.value) return 'AI 正在审核内容并生成标签，请稍候'
-  return editMode.value ? '保存后将重新完成合规审核' : '提交后 AI 将快速完成合规审核'
+  if (submitting.value) return '正在执行本地规则检测并生成商品标签，请稍候'
+  return editMode.value ? '保存后将重新执行本地合规检测' : '提交后将在服务端本地完成合规检测'
 })
 const previewTags = computed(() => {
   const words = form.title.match(/[A-Za-z][A-Za-z0-9]*|[\u4e00-\u9fa5]{2,4}/g) || []
@@ -207,11 +189,6 @@ const rules = {
   tradeLocation: [{ validator: (_rule, value, callback) => form.type === 'ERRAND' || value ? callback() : callback(new Error('请输入交易地点')), trigger: 'blur' }],
   pickupLocation: [{ validator: (_rule, value, callback) => form.type !== 'ERRAND' || value ? callback() : callback(new Error('请输入取件地点')), trigger: 'blur' }],
   deliveryLocation: [{ validator: (_rule, value, callback) => form.type !== 'ERRAND' || value ? callback() : callback(new Error('请输入送达地点')), trigger: 'blur' }],
-  deadlineTime: [{ validator: (_rule, value, callback) => {
-    if (form.type === 'ERRAND' && !value) return callback(new Error('请选择跑腿截止时间'))
-    if (value && new Date(value) <= new Date()) return callback(new Error('截止时间必须晚于当前时间'))
-    callback()
-  }, trigger: 'change' }],
   description: [{ required: true, message: '请输入商品描述', trigger: 'blur' }, { max: 500, message: '描述不能超过500字', trigger: 'blur' }],
   images: [{ type: 'array', required: true, min: 1, message: '请至少上传1张图片', trigger: 'change' }],
 }
@@ -232,7 +209,6 @@ async function fetchOwnItem() {
       tradeLocation: item.tradeLocation || '',
       pickupLocation: item.pickupLocation || '',
       deliveryLocation: item.deliveryLocation || '',
-      deadlineTime: item.deadlineTime ? item.deadlineTime.slice(0, 16) : '',
     })
   } finally { pageLoading.value = false }
 }
@@ -241,7 +217,7 @@ function setType(type) {
   if (type === 'SWAP') form.price = null
   else if (type === 'ERRAND' && (!form.price || form.price > 20)) form.price = 5
   else if (form.price == null) form.price = 1
-  formRef.value?.clearValidate(['price', 'tradeLocation', 'pickupLocation', 'deliveryLocation', 'deadlineTime'])
+  formRef.value?.clearValidate(['price', 'tradeLocation', 'pickupLocation', 'deliveryLocation'])
   formRef.value?.validateField('type')
 }
 function validateImage(file) {
@@ -270,16 +246,27 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const payload = {
-      ...form,
+      type: form.type,
+      title: form.title,
+      description: form.description,
+      categoryId: form.categoryId,
+      price: form.price,
+      images: form.images,
       tradeLocation: form.type === 'ERRAND' ? null : form.tradeLocation,
-      deadlineTime: form.deadlineTime || null,
+      pickupLocation: form.pickupLocation,
+      deliveryLocation: form.deliveryLocation,
     }
     const res = editMode.value
       ? await updateItem(route.params.id, payload)
       : await publishItem(payload)
     if (!editMode.value) localStorage.removeItem('zhiyi-publish-draft')
-    ElMessage.success(editMode.value ? '修改成功' : '发布成功，已进入商品大厅')
-    router.push(`/item/${res.data.id}`)
+    if (res.data?.moderationStatus === 'PENDING') {
+      ElMessage.warning(editMode.value ? '修改已提交，正在等待管理员复核' : '检测到风险内容，已提交管理员审核')
+      router.push('/user/my-items')
+    } else {
+      ElMessage.success(editMode.value ? '修改成功，商品已通过本地检测' : '发布成功，商品已进入交易大厅')
+      router.push(`/item/${res.data.id}`)
+    }
   } catch {
     // 具体错误由统一请求拦截器提示。
   } finally { submitting.value = false }
@@ -291,7 +278,16 @@ onMounted(async () => {
     return
   }
   const draft = localStorage.getItem('zhiyi-publish-draft')
-  if (draft) { try { Object.assign(form, JSON.parse(draft)) } catch { localStorage.removeItem('zhiyi-publish-draft') } }
+  if (draft) {
+    try {
+      const saved = JSON.parse(draft)
+      Object.keys(form).forEach((key) => {
+        if (Object.hasOwn(saved, key)) form[key] = saved[key]
+      })
+    } catch {
+      localStorage.removeItem('zhiyi-publish-draft')
+    }
+  }
 })
 </script>
 
@@ -347,29 +343,29 @@ onMounted(async () => {
 .submit-button { min-width: 146px; }
 .submit-spinner { animation: submit-spin .8s linear infinite; }
 @keyframes submit-spin { to { transform: rotate(360deg); } }
-.ai-panel { padding: 24px; position: sticky; top: 84px; }
-.ai-panel h2 { font-family: var(--font-display); font-size: 21px; display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
-.bot { width: 34px; height: 34px; border: var(--bw) solid var(--ink); border-radius: var(--r-s); background: var(--yellow); display: grid; place-items: center; transform: rotate(-5deg); box-shadow: 2px 2px 0 var(--ink); }
-.bot svg { width: 20px; height: 20px; }
-.ai-flow { display: flex; flex-direction: column; }
-.ai-step { display: flex; gap: 12px; }
-.ai-step__rail { display: flex; flex-direction: column; align-items: center; }
-.ai-step__dot { width: 30px; height: 30px; flex: 0 0 30px; border: var(--bw) solid var(--ink); border-radius: 50%; display: grid; place-items: center; background: var(--white); font-weight: 900; font-family: var(--font-display); }
-.ai-step:nth-child(1) .ai-step__dot { background: var(--yellow); }
-.ai-step:nth-child(2) .ai-step__dot { background: #CBE8FF; }
-.ai-step:nth-child(3) .ai-step__dot { background: #D6F2DF; }
-.ai-step__line { width: 2px; flex: 1; min-height: 18px; background: var(--ink); opacity: .3; }
-.ai-step__body { padding-bottom: 18px; }
-.ai-step__body b { font-size: 14.5px; }
-.ai-step__body p { margin-top: 2px; color: var(--ink-soft); font-size: 12.5px; }
-.ai-demo { margin-top: 8px; border: 1.5px dashed var(--ink); border-radius: var(--r-s); background: var(--paper-deep); padding: 14px 16px; }
-.ai-demo p { color: var(--ink-soft); font-size: 12.5px; }
-.ai-demo div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.ai-demo .tag { animation: pop-tag .4s both; }
+.review-panel { padding: 24px; position: sticky; top: 84px; }
+.review-panel h2 { font-family: var(--font-display); font-size: 21px; display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
+.review-mark { width: 34px; height: 34px; border: var(--bw) solid var(--ink); border-radius: var(--r-s); background: var(--yellow); display: grid; place-items: center; transform: rotate(-5deg); box-shadow: 2px 2px 0 var(--ink); }
+.review-mark svg { width: 20px; height: 20px; }
+.review-flow { display: flex; flex-direction: column; }
+.review-step { display: flex; gap: 12px; }
+.review-step__rail { display: flex; flex-direction: column; align-items: center; }
+.review-step__dot { width: 30px; height: 30px; flex: 0 0 30px; border: var(--bw) solid var(--ink); border-radius: 50%; display: grid; place-items: center; background: var(--white); font-weight: 900; font-family: var(--font-display); }
+.review-step:nth-child(1) .review-step__dot { background: var(--yellow); }
+.review-step:nth-child(2) .review-step__dot { background: #CBE8FF; }
+.review-step:nth-child(3) .review-step__dot { background: #D6F2DF; }
+.review-step__line { width: 2px; flex: 1; min-height: 18px; background: var(--ink); opacity: .3; }
+.review-step__body { padding-bottom: 18px; }
+.review-step__body b { font-size: 14.5px; }
+.review-step__body p { margin-top: 2px; color: var(--ink-soft); font-size: 12.5px; }
+.tag-demo { margin-top: 8px; border: 1.5px dashed var(--ink); border-radius: var(--r-s); background: var(--paper-deep); padding: 14px 16px; }
+.tag-demo p { color: var(--ink-soft); font-size: 12.5px; }
+.tag-demo div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tag-demo .tag { animation: pop-tag .4s both; }
 @keyframes pop-tag { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
 .rule-list { margin-top: 16px; color: var(--ink-soft); font-size: 12.5px; }
 .rule-list li { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; list-style: none; }
 .rule-list svg { width: 15px; height: 15px; flex: 0 0 15px; margin-top: 3px; }
-@media (max-width: 1000px) { .pub-wrap { grid-template-columns: 1fr; } .ai-panel { position: static; } }
+@media (max-width: 1000px) { .pub-wrap { grid-template-columns: 1fr; } .review-panel { position: static; } }
 @media (max-width: 700px) { .pub-card { padding: 22px 18px; } .publish-head { align-items: stretch; flex-direction: column; } .type-switch, .form-pair { grid-template-columns: 1fr; } .submit-actions { width: 100%; } .submit-actions .btn--primary { flex: 1; } }
 </style>

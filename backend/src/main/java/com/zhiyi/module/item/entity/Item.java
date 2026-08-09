@@ -19,13 +19,12 @@ public class Item {
     private Long categoryId;
     private BigDecimal price;
     private String images;          // JSON 数组
-    private String aiTags;          // JSON 数组
-    private Boolean aiReviewed;
+    private String tags;            // 本地算法生成的普通标签（JSON 数组）
+    private String moderationStatus; // PASSED / PENDING / REJECTED
     private String tradeLocation;
     private String pickupLocation;
     private String deliveryLocation;
-    private LocalDateTime deadlineTime;
-    private String status;          // ON_SALE / PENDING / SOLD / OFF_SHELF
+    private String status;          // ON_SALE / SOLD / OFF_SHELF
     private Integer viewCount;
     @TableLogic
     private Boolean isDeleted;

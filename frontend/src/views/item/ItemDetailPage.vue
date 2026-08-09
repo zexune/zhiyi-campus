@@ -17,7 +17,7 @@
             <div class="gallery__main" :class="phClass(item.id)">
               <img v-if="activeImage" :src="activeImage" :alt="item.title" />
               <span class="badge gallery-state" :class="item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">
-                {{ itemTypeLabel(item.type) }} <span v-if="item.deadlineLabel">{{ item.deadlineLabel }}</span>
+                {{ itemTypeLabel(item.type) }}
               </span>
               <button v-if="item.images?.length > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
               <button v-if="item.images?.length > 1" class="gallery__nav gallery__nav--next" aria-label="下一张" @click="switchImage(1)">›</button>
@@ -42,7 +42,7 @@
                 {{ itemTypeLabel(item.type) }}
               </span>
               <h1>{{ item.title }}</h1>
-              <span class="badge" :class="statusBadge(item.status)">{{ statusText(item.status) }}</span>
+              <span class="badge" :class="statusBadge(displayStatus)">{{ statusText(displayStatus) }}</span>
             </div>
 
             <div class="price-strip">
@@ -53,10 +53,10 @@
 
             <div class="meta-grid">
               <div class="meta-row">
-                <span class="lab">智能标签</span>
-                <div v-if="item.aiTags?.length" class="ai-tags">
+                <span class="lab">商品标签</span>
+                <div v-if="item.tags?.length" class="item-tags">
                   <button
-                    v-for="tag in item.aiTags"
+                    v-for="tag in item.tags"
                     :key="tag"
                     class="tag"
                     @click="goTag(tag)"
@@ -69,9 +69,6 @@
               </div>
               <div v-if="item.type === 'ERRAND'" class="meta-row">
                 <span class="lab">取送路线</span><strong>{{ item.pickupLocation }} → {{ item.deliveryLocation }}</strong>
-              </div>
-              <div v-if="item.deadlineTime" class="meta-row">
-                <span class="lab">截止时间</span><strong>{{ formatDate(item.deadlineTime) }} {{ item.deadlineLabel || '' }}</strong>
               </div>
               <div class="meta-row">
                 <span class="lab">发布时间</span><span>{{ formatDate(item.createdAt) }}</span>
@@ -112,19 +109,23 @@
               <p>{{ item.description }}</p>
             </div>
 
+            <p v-if="item.reserved" class="reservation-note">
+              该商品已有进行中的订单，订单取消前不会接受新的购买或商品变更。
+            </p>
+
             <div class="action-bar">
               <template v-if="isOwner">
                 <router-link to="/user/my-items" class="btn">管理我的发布</router-link>
               </template>
               <template v-else>
-                <button class="btn" :disabled="item.status !== 'ON_SALE' || favoriteLoading" @click="handleFavorite">
+                <button class="btn" :disabled="!isTradable || favoriteLoading" @click="handleFavorite">
                   <el-icon><StarFilled v-if="favorite" /><Star v-else /></el-icon>
                   {{ favorite ? '已收藏' : '收藏' }}
                 </button>
                 <button
                   class="btn"
                   :class="item.type === 'BUY' ? 'btn--primary' : 'btn--green'"
-                  :disabled="item.status !== 'ON_SALE' || chatLoading"
+                  :disabled="displayStatus === 'REVIEWING' || chatLoading"
                   @click="contactSeller"
                 >
                   <el-icon><ChatDotRound /></el-icon>
@@ -133,10 +134,13 @@
                 <button
               v-if="item.type === 'SELL'"
                   class="btn btn--primary"
-                  :disabled="item.status !== 'ON_SALE' || buyLoading"
+                  :disabled="!isTradable || buyLoading"
                   @click="handleBuy"
                 >
                   {{ buyLoading ? '下单中...' : '立即购买' }}
+                </button>
+                <button class="btn btn--danger" :disabled="reportForm.submitting" @click="openReportDialog">
+                  举报
                 </button>
               </template>
             </div>
@@ -190,12 +194,44 @@
         @close="closeSellerDetail"
         @retry="loadSellerDetail"
       />
+
+      <el-dialog
+        v-model="reportForm.visible"
+        title="举报商品"
+        width="min(520px, 92vw)"
+        :close-on-click-modal="!reportForm.submitting"
+      >
+        <div class="report-form">
+          <p class="muted">举报不会自动下架商品，管理员核实后再处理，防止恶意举报影响正常交易。</p>
+          <label>
+            <span>举报类型</span>
+            <AppSelect v-model="reportForm.type" :options="REPORT_TYPE_OPTIONS" />
+          </label>
+          <label>
+            <span>补充说明</span>
+            <el-input
+              v-model="reportForm.details"
+              type="textarea"
+              :rows="4"
+              maxlength="500"
+              show-word-limit
+              placeholder="请说明具体问题；选择“其他”时必填"
+            />
+          </label>
+        </div>
+        <template #footer>
+          <button class="btn" :disabled="reportForm.submitting" @click="reportForm.visible = false">取消</button>
+          <button class="btn btn--danger" :disabled="reportForm.submitting" @click="submitReport">
+            {{ reportForm.submitting ? '提交中...' : '提交举报' }}
+          </button>
+        </template>
+      </el-dialog>
     </div>
   </DefaultLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
@@ -203,15 +239,23 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import SellerDetailDialog from '@/components/user/SellerDetailDialog.vue'
-import { getItemDetail, getItemLineage, toggleFavorite } from '@/api/item'
+import AppSelect from '@/components/common/AppSelect.vue'
+import { getItemDetail, getItemLineage, reportItem, toggleFavorite } from '@/api/item'
 import { getSellerDetail, getUserRelation, getUserReputation } from '@/api/auth'
 import { startItemConversation } from '@/api/chat'
 import { createOrder } from '@/api/order'
 import { getUserId, isLoggedIn } from '@/utils/auth'
 import { normalizeRelationTags } from '@/utils/relation'
 
-const STATUS_TEXT = { ON_SALE: '在售中', PENDING: '交易中', SOLD: '已售出', OFF_SHELF: '已下架' }
-const STATUS_BADGE = { ON_SALE: 'badge--ok', PENDING: 'badge--warn', SOLD: 'badge--muted', OFF_SHELF: 'badge--muted' }
+const STATUS_TEXT = { ON_SALE: '在售中', REVIEWING: '审核中', SOLD: '已售出', OFF_SHELF: '已下架' }
+const STATUS_BADGE = { ON_SALE: 'badge--ok', REVIEWING: 'badge--warn', SOLD: 'badge--muted', OFF_SHELF: 'badge--muted' }
+const REPORT_TYPE_OPTIONS = [
+  { label: '价格欺诈', value: 'PRICE_FRAUD' },
+  { label: '违禁物品', value: 'PROHIBITED_ITEM' },
+  { label: '图片违规', value: 'IMAGE_VIOLATION' },
+  { label: '广告引流', value: 'ADVERTISING' },
+  { label: '其他问题', value: 'OTHER' },
+]
 const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 
 const route = useRoute()
@@ -232,9 +276,16 @@ const sellerReputation = ref(null)
 const sellerRelations = ref([])
 const lineage = ref(null)
 const lineageLoading = ref(false)
+const reportForm = reactive({ visible: false, type: 'PRICE_FRAUD', details: '', submitting: false })
 
 const isOwner = computed(() => String(item.value?.publisherId || '') === String(getUserId() || ''))
 const canCompareSeller = computed(() => !!item.value?.publisherId && !isOwner.value && isLoggedIn())
+const displayStatus = computed(() => item.value?.moderationStatus === 'PENDING' ? 'REVIEWING' : item.value?.status)
+const isTradable = computed(() => (
+  item.value?.status === 'ON_SALE'
+  && item.value?.moderationStatus === 'PASSED'
+  && !item.value?.reserved
+))
 const activeImageIndex = computed(() => {
   const images = item.value?.images || []
   const index = images.indexOf(activeImage.value)
@@ -414,6 +465,29 @@ async function handleBuy() {
     // 错误已在拦截器提示
   } finally {
     buyLoading.value = false
+  }
+}
+
+function openReportDialog() {
+  if (!requireLogin()) return
+  reportForm.type = 'PRICE_FRAUD'
+  reportForm.details = ''
+  reportForm.visible = true
+}
+
+async function submitReport() {
+  const details = reportForm.details.trim()
+  if (reportForm.type === 'OTHER' && !details) {
+    ElMessage.warning('选择“其他问题”时请填写补充说明')
+    return
+  }
+  reportForm.submitting = true
+  try {
+    await reportItem(item.value.id, { type: reportForm.type, details: details || null })
+    reportForm.visible = false
+    ElMessage.success('举报已提交，管理员核实前不会影响商品展示')
+  } finally {
+    reportForm.submitting = false
   }
 }
 
@@ -625,11 +699,25 @@ onMounted(() => {
   min-width: 68px;
 }
 
-.ai-tags {
+.item-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.reservation-note {
+  margin: -8px 0 18px;
+  padding: 10px 14px;
+  border: 1.5px solid #C88719;
+  border-radius: var(--r-s);
+  background: #FFF4CE;
+  color: #6A4700;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-form { display: flex; flex-direction: column; gap: 18px; }
+.report-form label { display: flex; flex-direction: column; gap: 7px; font-weight: 800; }
 
 .seller-card {
   display: flex;

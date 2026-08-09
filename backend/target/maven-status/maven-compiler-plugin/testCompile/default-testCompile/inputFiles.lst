@@ -2,11 +2,12 @@ E:\zhiyi-campus\backend\src\test\java\com\zhiyi\BcryptHashGeneratorTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\config\WebMvcConfigTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\interceptor\JwtInterceptorTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\interceptor\RoleInterceptorTest.java
+E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\admin\service\AdminAuthServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\admin\service\AdminServiceTest.java
+E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\admin\service\ViolationAppealServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\dto\PublishItemDTOValidationTest.java
-E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\AiReviewServiceTest.java
-E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\DeadlineLabelTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\ItemPublishServiceTest.java
+E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\LocalContentAnalyzerTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\item\service\MarketplaceServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\social\service\ChatServiceTest.java
 E:\zhiyi-campus\backend\src\test\java\com\zhiyi\module\trade\service\OrderServiceTest.java

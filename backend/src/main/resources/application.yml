@@ -46,13 +46,12 @@ zhiyi:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   jwt:
-    secret: ${JWT_SECRET:RandomKeyForDemonstrationOnlyForZhiyiCampus}
+    secret: ${JWT_SECRET:RandomKeyForDemonstrateOnlyZhiyiCampus2026}
     expiration: ${JWT_EXPIRATION:24h}
-  ai:
-    api-url: ${AI_API_URL:https://api.deepseek.com}
-    api-key: ${AI_API_KEY:}
-    model: ${AI_MODEL:deepseek-v4-pro}
-    timeout: 5000
+  moderation:
+    rule-version: ${MODERATION_RULE_VERSION:2026.1}
+    warning-points: ${CONTENT_WARNING_POINTS:5}
+    appeal-window-days: ${APPEAL_WINDOW_DAYS:7}
   auth:
     login-fail-limit: 5
     login-fail-lock-seconds: 300

@@ -15,7 +15,7 @@
     <artifactId>zhiyi-campus</artifactId>
     <version>1.0.0</version>
     <name>智易校园</name>
-    <description>基于 AI 辅助审核与闭环生态的校园交易平台</description>
+    <description>基于本地内容治理与闭环生态的校园交易平台</description>
 
     <properties>
         <java.version>25</java.version>
@@ -34,12 +34,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
-        </dependency>
-
-        <!-- Spring Boot 4 模块化同步 HTTP 客户端（AI 审核） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-restclient</artifactId>
         </dependency>
 
         <dependency>

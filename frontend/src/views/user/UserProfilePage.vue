@@ -36,7 +36,7 @@
               <div class="level-progress__track">
                 <div class="level-progress__fill" :style="{ width: progressPercent + '%' }"></div>
               </div>
-              <p class="hint">完成一笔订单（买/卖）+50 EXP；商品被强制下架 -30 EXP</p>
+              <p class="hint">完成一笔订单（买/卖）+50 EXP；内容违规仅影响独立的合规分</p>
             </div>
 
             <hr class="doodle-hr" />

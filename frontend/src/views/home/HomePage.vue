@@ -17,7 +17,7 @@
           </div>
 
           <h1 class="rise">校园里的好东西<br>都在<span class="hl">这块布告栏</span>上</h1>
-          <p class="sub rise rise-1">AI 智能审核 · 平台担保交易 · 当面验货，放心买卖</p>
+          <p class="sub rise rise-1">本地合规检测 · 平台担保交易 · 当面验货，放心买卖</p>
 
           <form class="searchbar rise rise-2" role="search" @submit.prevent="handleSearch">
             <span class="searchbar__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
@@ -162,12 +162,12 @@
               <div class="goods-card__img" :class="phClass(item.id)">
                 <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
                 <span class="badge goods-card__type" :class="item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">
-                  {{ itemTypeLabel(item.type) }} <span v-if="item.deadlineLabel">{{ item.deadlineLabel }}</span>
+                  {{ itemTypeLabel(item.type) }}
                 </span>
               </div>
               <div class="goods-card__body">
                 <h2 class="goods-card__title">{{ item.title }}</h2>
-                <AiTagList :tags="item.aiTags" :limit="3" @select="searchByTag" />
+                <TagList :tags="item.tags" :limit="3" @select="searchByTag" />
                 <div class="goods-card__relations">
                   <span v-if="item.dormitoryRelation === 'SAME_BUILDING'" class="neighbor-badge">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -268,7 +268,7 @@
 
             <div class="publish-cta sticker-tilt">
               <h4>宿舍角落在吃灰？</h4>
-              <p>发布 30 秒搞定，AI 自动打标签</p>
+              <p>发布 30 秒搞定，本地自动生成标签</p>
               <router-link to="/publish" class="btn btn--yellow">去发布闲置</router-link>
             </div>
           </div>
@@ -282,7 +282,7 @@
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppSelect from '@/components/common/AppSelect.vue'
-import AiTagList from '@/components/common/AiTagList.vue'
+import TagList from '@/components/common/TagList.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import CategoryIcon from '@/components/common/CategoryIcon.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'

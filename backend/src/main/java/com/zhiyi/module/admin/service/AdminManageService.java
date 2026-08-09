@@ -5,14 +5,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
-import com.zhiyi.module.admin.entity.ViolationLog;
-import com.zhiyi.module.admin.mapper.ViolationLogMapper;
 import com.zhiyi.module.admin.vo.AdminItemVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import com.zhiyi.module.user.service.UserGrowthService;
 import com.zhiyi.module.user.support.UserStateCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * 超管内容强制管理服务 —— 4.7
  *
- * 强制下架：任意商品 → OFF_SHELF + 扣卖家经验 + 记录处罚日志
+ * 强制下架仅改变商品状态；内容处罚统一由内容审核工作台执行。
  * 强制重置密码：任意用户密码 → 123456 + Token 失效
  */
 @Slf4j
@@ -40,8 +38,7 @@ public class AdminManageService {
 
     private final ItemMapper itemMapper;
     private final SysUserMapper sysUserMapper;
-    private final ViolationLogMapper violationLogMapper;
-    private final UserGrowthService growthService;
+    private final ItemReservationMapper reservationMapper;
     private final PasswordEncoder passwordEncoder;
     private final UserStateCache userStateCache;
 
@@ -109,22 +106,15 @@ public class AdminManageService {
         if ("OFF_SHELF".equals(item.getStatus())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该商品已处于下架状态");
         }
+        if ("SOLD".equals(item.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "已售出商品不能下架");
+        }
+        if (reservationMapper.selectById(itemId) != null) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，不能强制下架");
+        }
 
-        // 1. 下架商品
         item.setStatus("OFF_SHELF");
         itemMapper.updateById(item);
-
-        // 2. 扣卖家经验
-        growthService.addExp(item.getPublisherId(),
-                UserGrowthService.EXP_FORCED_OFF_SHELF, "商品被管理员强制下架");
-
-        // 3. 记录处罚日志
-        ViolationLog vlog = new ViolationLog();
-        vlog.setUserId(item.getPublisherId());
-        vlog.setAdminId(adminId);
-        vlog.setType("WARNING");
-        vlog.setReason("商品「" + item.getTitle() + "」被管理员强制下架");
-        violationLogMapper.insert(vlog);
 
         log.info("管理员 {} 强制下架商品 itemId={} title={} publisherId={}",
                 adminId, itemId, item.getTitle(), item.getPublisherId());

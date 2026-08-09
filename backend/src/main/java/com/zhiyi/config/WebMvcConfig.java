@@ -50,6 +50,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/security-question",            // 获取密保问题
                         "/api/auth/security-questions",           // 预设密保问题列表
                         "/api/auth/reset-password",               // 重置密码
+                        "/api/admin/auth/login",                  // 管理员独立登录
                         "/api/school/list",                       // 学校列表（注册/资料页下拉）
                         "/api/category/list"                      // 分类列表
                 ).order(0);

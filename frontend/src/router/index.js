@@ -113,6 +113,12 @@ const routes = [
 
   // ── 管理后台（模块四）──
   {
+    path: '/admin/login',
+    name: 'AdminLogin',
+    component: () => import('@/views/admin/AdminLoginPage.vue'),
+    meta: { title: '管理员登录 - 智易校园' },
+  },
+  {
     path: '/admin/dashboard',
     name: 'AdminDashboard',
     component: () => import('@/views/admin/DashboardPage.vue'),
@@ -122,7 +128,7 @@ const routes = [
     path: '/admin/violations',
     name: 'AdminViolations',
     component: () => import('@/views/admin/ViolationsPage.vue'),
-    meta: { title: '违规管理', requireAuth: true, requireAdmin: true },
+    meta: { title: '内容治理', requireAuth: true, requireAdmin: true },
   },
   {
     path: '/admin/chat',
@@ -164,14 +170,30 @@ const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
 })
 
-// ── 全局路由守卫：未登录跳登录（记住来路），非管理员跳首页 ──
+// ── 全局路由守卫：管理员与普通用户使用完全独立的页面空间 ──
 router.beforeEach((to) => {
   document.title = to.meta.title || '智易校园'
 
-  if (to.meta.requireAuth && !getToken()) {
-    return { name: 'Login', query: { redirect: to.fullPath } }
+  const token = getToken()
+  const role = getRole()
+  const isAdminPath = to.path === '/admin' || to.path.startsWith('/admin/')
+
+  if (!token && to.meta.requireAuth) {
+    const loginRoute = to.meta.requireAdmin ? 'AdminLogin' : 'Login'
+    return { name: loginRoute, query: { redirect: to.fullPath } }
   }
-  if (to.meta.requireAdmin && getRole() !== 'ADMIN') {
+
+  if (token && role === 'ADMIN') {
+    if (!isAdminPath || to.name === 'AdminLogin') {
+      return { name: 'AdminDashboard' }
+    }
+    return true
+  }
+
+  if (isAdminPath && to.name !== 'AdminLogin') {
+    return token ? { name: 'Home' } : { name: 'AdminLogin', query: { redirect: to.fullPath } }
+  }
+  if (token && to.name === 'AdminLogin') {
     return { name: 'Home' }
   }
   return true

@@ -26,7 +26,7 @@ export function getItemRanking(params) {
   return request.get('/item/ranking', { params })
 }
 
-export function getTrendingAiTags(params) {
+export function getTrendingTags(params) {
   return request.get('/item/ranking/tags', { params })
 }
 
@@ -42,7 +42,7 @@ export function getActiveTopic() {
   return request.get('/item/active-topic')
 }
 
-/** 获取全部 AI 标签及出现次数（精细筛选标签云） */
+/** 获取本地生成标签及出现次数（精细筛选标签云） */
 export function getAllTags() {
   return request.get('/item/tags')
 }
@@ -83,6 +83,14 @@ export function offShelfItem(id) {
 
 export function relistItem(id) {
   return request.put(`/item/${id}/relist`)
+}
+
+export function reportItem(id, data) {
+  return request.post(`/item/${id}/reports`, data)
+}
+
+export function submitItemAppeal(id, data) {
+  return request.post(`/item/${id}/appeals`, data)
 }
 
 export function deleteItem(id) {

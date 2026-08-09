@@ -14,7 +14,7 @@ public class ExpLog {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
-    private Integer delta;          // 变动量（+50 完成订单 / -30 违规下架）
+    private Integer delta;          // 经验值变动量（例如 +50 完成订单）
     private Integer expAfter;       // 变动后累计经验
     private Integer levelAfter;     // 变动后等级
     private String reason;          // 变动原因

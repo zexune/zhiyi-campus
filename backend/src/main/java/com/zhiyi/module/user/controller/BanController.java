@@ -24,10 +24,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 模块一：违规封禁管理接口（管理员，B.4 附录接口清单中属于用户处罚的部分）
+ * 用户管理中的独立账号封禁接口。
  *
  * GET  /api/admin/users           用户检索（学号/昵称，风控工作台用）
- * POST /api/admin/ban-user        封禁/警告用户
+ * POST /api/admin/ban-user        限时或永久封禁用户
  * POST /api/admin/unban-user      提前解封 / 恢复注销账户
  * GET  /api/admin/violation-logs  处罚记录（可追溯）
  */
@@ -52,6 +52,7 @@ public class BanController {
                         .select(SysUser::getId, SysUser::getStudentId, SysUser::getNickname,
                                 SysUser::getRole, SysUser::getStatus, SysUser::getBanUntilTime,
                                 SysUser::getLevel, SysUser::getExp, SysUser::getCreatedAt)
+                        .eq(SysUser::getRole, "USER")
                         .and(keyword != null && !keyword.isBlank(), w -> w
                                 .like(SysUser::getStudentId, keyword).or()
                                 .like(SysUser::getNickname, keyword))

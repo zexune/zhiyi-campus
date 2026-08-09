@@ -40,7 +40,7 @@ test('orderStatusBadge returns correct CSS classes', () => {
 
 test('itemStatusLabel maps all known statuses', () => {
   assert.equal(itemStatusLabel('ON_SALE'), '在售')
-  assert.equal(itemStatusLabel('PENDING'), '交易中')
+  assert.equal(itemStatusLabel('REVIEWING'), '审核中')
   assert.equal(itemStatusLabel('SOLD'), '已售出')
   assert.equal(itemStatusLabel('OFF_SHELF'), '已下架')
   assert.equal(itemStatusLabel(''), '未知')
@@ -48,7 +48,7 @@ test('itemStatusLabel maps all known statuses', () => {
 
 test('itemStatusBadge returns correct CSS classes', () => {
   assert.equal(itemStatusBadge('ON_SALE'), 'badge--ok')
-  assert.equal(itemStatusBadge('PENDING'), 'badge--warn')
+  assert.equal(itemStatusBadge('REVIEWING'), 'badge--warn')
   assert.equal(itemStatusBadge('SOLD'), 'badge--muted')
   assert.equal(itemStatusBadge('OFF_SHELF'), 'badge--muted')
 })
@@ -60,7 +60,8 @@ test('itemStatusBadge returns correct CSS classes', () => {
 test('violationStatusLabel maps all known statuses', () => {
   assert.equal(violationStatusLabel('PENDING'), '待处理')
   assert.equal(violationStatusLabel('CONFIRMED'), '已确认')
-  assert.equal(violationStatusLabel('DISMISSED'), '已驳回')
+  assert.equal(violationStatusLabel('DISMISSED'), '已放行')
+  assert.equal(violationStatusLabel('OVERTURNED'), '申诉撤销')
 })
 
 // ================================================================

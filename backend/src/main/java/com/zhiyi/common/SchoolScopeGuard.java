@@ -5,8 +5,8 @@ import java.util.Objects;
 /**
  * 普通业务的学校边界策略。
  *
- * 管理员访问普通接口时也必须遵守该策略；只有 /api/admin/** 管理接口
- * 可以按管理员权限跨学校处理平台数据。
+ * 普通功能统一按用户所属学校隔离。管理员已由角色拦截器限制为只能访问
+ * /api/admin/**，管理接口可按业务需要显式跨学校操作。
  */
 public final class SchoolScopeGuard {
 

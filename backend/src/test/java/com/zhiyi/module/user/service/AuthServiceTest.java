@@ -118,6 +118,8 @@ class AuthServiceTest {
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
         assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+        assertTrue(wrapper.getParamNameValuePairs().containsValue("USER"),
+                () -> "ordinary login must exclude administrators: sql=" + sql);
         assertTrue(loginAttemptService.isLocked("1:admin"));
         assertTrue(loginAttemptService.isLocked("  1:ADMIN  "));
     }
@@ -251,6 +253,8 @@ class AuthServiceTest {
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
         assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+        assertTrue(wrapper.getParamNameValuePairs().containsValue("USER"),
+                () -> "password recovery must exclude administrators: sql=" + sql);
     }
 
     @Test

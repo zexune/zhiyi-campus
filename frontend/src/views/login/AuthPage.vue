@@ -33,7 +33,7 @@
             <div class="feature-item__icon" style="background:#FFE1B8">
               <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
             </div>
-            <div><b>AI 智能审核</b><span>发布内容秒级机审，违规信息自动拦截</span></div>
+            <div><b>本地合规检测</b><span>确定性规则实时检测，风险内容转人工复核</span></div>
           </div>
           <div class="feature-item rise rise-4">
             <div class="feature-item__icon" style="background:#CBE8FF">
@@ -90,6 +90,7 @@
             <button class="btn btn--primary btn--lg btn--block" type="submit" :disabled="loading || schoolsLoading">
               {{ loading ? '登录中…' : '登录' }}
             </button>
+            <p class="admin-entry">平台管理员？<router-link to="/admin/login">进入独立管理后台</router-link></p>
           </form>
           <div v-if="banMessage" class="banned-tip" role="alert">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
@@ -266,7 +267,7 @@
 
     <footer class="footer">
       <div class="footer__inner">
-        <span>智易校园 · AI 辅助审核与闭环生态的校园交易平台</span>
+        <span>智易校园 · 本地内容治理与可信交易闭环的校园平台</span>
         <span><router-link to="/">回到大厅</router-link></span>
       </div>
     </footer>
@@ -788,6 +789,8 @@ onMounted(async () => {
 }
 .form-foot a { color: var(--blue); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .form-foot a:hover { color: var(--primary); }
+.admin-entry { margin-top: 14px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+.admin-entry a { margin-left: 4px; color: var(--primary); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 
 /* 找回密码步骤条 */
 .steps { display: flex; align-items: center; gap: 6px; margin-bottom: 22px; }

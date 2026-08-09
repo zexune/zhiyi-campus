@@ -1,63 +1,101 @@
 package com.zhiyi.module.admin.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.admin.dto.ConfirmViolationDTO;
-import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.entity.ViolationReport;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.admin.vo.ViolationVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import com.zhiyi.module.user.service.BanService;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
-import com.zhiyi.module.user.service.UserGrowthService;
 import com.zhiyi.module.user.support.UserStateCache;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.math.BigDecimal;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
-/**
- * Admin 服务层单元测试 —— 覆盖 AdminManageService（强制下架/重置密码）
- * 和 AdminViolationService（违规审核）。
- */
 @ExtendWith(MockitoExtension.class)
 class AdminServiceTest {
 
-    /* ---- AdminManageService ---- */
+    @BeforeAll
+    static void initializeMyBatisMetadata() {
+        MapperBuilderAssistant reportAssistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
+        reportAssistant.setCurrentNamespace("com.zhiyi.module.admin.mapper.ViolationReportMapper");
+        TableInfoHelper.initTableInfo(reportAssistant, ViolationReport.class);
+    }
 
     @Nested
     class ForceOffShelf {
-
         @Mock private ItemMapper itemMapper;
-        @Mock private SysUserMapper sysUserMapper;
-        @Mock private ViolationLogMapper violationLogMapper;
-        @Mock private UserGrowthService growthService;
+        @Mock private SysUserMapper userMapper;
+        @Mock private ItemReservationMapper reservationMapper;
         @Mock private PasswordEncoder passwordEncoder;
         @Mock private UserStateCache userStateCache;
-
         private AdminManageService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminManageService(itemMapper, sysUserMapper,
-                    violationLogMapper, growthService, passwordEncoder, userStateCache);
+            service = new AdminManageService(itemMapper, userMapper, reservationMapper, passwordEncoder, userStateCache);
+        }
+
+        @Test
+        void forceOffShelfOnlyChangesItemState() {
+            Item item = onSaleItem();
+            when(itemMapper.selectById(1L)).thenReturn(item);
+
+            service.forceOffShelf(1L, 99L);
+
+            assertEquals("OFF_SHELF", item.getStatus());
+            verify(itemMapper).updateById(item);
+            verifyNoInteractions(userMapper, userStateCache);
+        }
+
+        @Test
+        void rejectsReservedItem() {
+            Item item = onSaleItem();
+            when(itemMapper.selectById(1L)).thenReturn(item);
+            when(reservationMapper.selectById(1L)).thenReturn(new com.zhiyi.module.trade.entity.ItemReservation());
+
+            BusinessException error = assertThrows(BusinessException.class,
+                    () -> service.forceOffShelf(1L, 99L));
+
+            assertEquals(409, error.getCode());
+            verify(itemMapper, never()).updateById(any(Item.class));
+        }
+
+        @Test
+        void rejectsAlreadyOffShelf() {
+            Item item = onSaleItem();
+            item.setStatus("OFF_SHELF");
+            when(itemMapper.selectById(1L)).thenReturn(item);
+
+            assertThrows(BusinessException.class, () -> service.forceOffShelf(1L, 99L));
         }
 
         private Item onSaleItem() {
@@ -68,224 +106,156 @@ class AdminServiceTest {
             item.setPublisherId(2L);
             return item;
         }
-
-        @Test
-        void shouldForceOffShelfSuccessfully() {
-            Item item = onSaleItem();
-            when(itemMapper.selectById(1L)).thenReturn(item);
-
-            service.forceOffShelf(1L, 99L);
-
-            assertEquals("OFF_SHELF", item.getStatus());
-            verify(itemMapper).updateById(item);
-            verify(growthService).addExp(eq(2L), eq(UserGrowthService.EXP_FORCED_OFF_SHELF), anyString());
-            verify(violationLogMapper).insert(any(ViolationLog.class));
-        }
-
-        @Test
-        void shouldRejectNonExistentItem() {
-            when(itemMapper.selectById(999L)).thenReturn(null);
-
-            assertThrows(BusinessException.class,
-                    () -> service.forceOffShelf(999L, 99L));
-        }
-
-        @Test
-        void shouldRejectAlreadyOffShelf() {
-            Item item = onSaleItem();
-            item.setStatus("OFF_SHELF");
-            when(itemMapper.selectById(1L)).thenReturn(item);
-
-            assertThrows(BusinessException.class,
-                    () -> service.forceOffShelf(1L, 99L));
-        }
-
-        @Test
-        void shouldRecordViolationLogWithCorrectInfo() {
-            Item item = onSaleItem();
-            when(itemMapper.selectById(1L)).thenReturn(item);
-
-            service.forceOffShelf(1L, 99L);
-
-            verify(violationLogMapper).insert(argThat((ViolationLog log) ->
-                    log.getUserId().equals(2L)
-                    && log.getAdminId().equals(99L)
-                    && "WARNING".equals(log.getType())
-                    && log.getReason().contains("强制下架")
-            ));
-        }
     }
 
     @Nested
     class ResetPassword {
-
         @Mock private ItemMapper itemMapper;
-        @Mock private SysUserMapper sysUserMapper;
-        @Mock private ViolationLogMapper violationLogMapper;
-        @Mock private UserGrowthService growthService;
+        @Mock private SysUserMapper userMapper;
+        @Mock private ItemReservationMapper reservationMapper;
         @Mock private PasswordEncoder passwordEncoder;
         @Mock private UserStateCache userStateCache;
-
         private AdminManageService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminManageService(itemMapper, sysUserMapper,
-                    violationLogMapper, growthService, passwordEncoder, userStateCache);
+            service = new AdminManageService(itemMapper, userMapper, reservationMapper, passwordEncoder, userStateCache);
         }
 
         @Test
-        void shouldRejectAdminPasswordReset() {
+        void rejectsAdminPasswordReset() {
             SysUser admin = new SysUser();
             admin.setId(1L);
             admin.setRole("ADMIN");
-            when(sysUserMapper.selectById(1L)).thenReturn(admin);
+            when(userMapper.selectById(1L)).thenReturn(admin);
 
-            assertThrows(BusinessException.class,
-                    () -> service.resetPassword(1L, 99L));
+            assertThrows(BusinessException.class, () -> service.resetPassword(1L, 99L));
         }
 
         @Test
-        void shouldResetPasswordSuccessfully() {
+        void resetsRegularUserAndInvalidatesToken() {
             SysUser user = new SysUser();
             user.setId(2L);
             user.setRole("USER");
-            user.setNickname("测试用户");
-            when(sysUserMapper.selectById(2L)).thenReturn(user);
-            when(passwordEncoder.encode("123456")).thenReturn("$2a$10$hashed");
-            when(sysUserMapper.updateById(any(SysUser.class))).thenReturn(1);
-            when(sysUserMapper.bumpTokenVersion(2L)).thenReturn(1);
-
-            // userStateCache.invalidateAfterCommit is void
-            doNothing().when(userStateCache).invalidateAfterCommit(2L);
+            when(userMapper.selectById(2L)).thenReturn(user);
+            when(passwordEncoder.encode("123456")).thenReturn("hash");
+            when(userMapper.updateById(any(SysUser.class))).thenReturn(1);
+            when(userMapper.bumpTokenVersion(2L)).thenReturn(1);
 
             assertDoesNotThrow(() -> service.resetPassword(2L, 99L));
+
+            verify(userStateCache).invalidateAfterCommit(2L);
         }
     }
 
-    /* ---- AdminViolationService ---- */
-
     @Nested
     class ViolationReview {
-
-        @Mock private ViolationReportMapper violationReportMapper;
-        @Mock private SysUserMapper sysUserMapper;
+        @Mock private ViolationReportMapper reportMapper;
+        @Mock private SysUserMapper userMapper;
         @Mock private ItemMapper itemMapper;
-        @Mock private BanService banService;
         @Mock private ViolationLogMapper violationLogMapper;
-        @Mock private ReputationPenaltyService reputationPenaltyService;
-
+        @Mock private ReputationPenaltyService penaltyService;
         private AdminViolationService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminViolationService(
-                    violationReportMapper, sysUserMapper, itemMapper, banService, violationLogMapper,
-                    reputationPenaltyService);
+            service = new AdminViolationService(reportMapper, userMapper, itemMapper, violationLogMapper, penaltyService);
         }
 
         @Test
-        void shouldReturnEmptyListWhenNoViolations() {
-            Page<ViolationReport> emptyPage = new Page<>(1, 10);
-            emptyPage.setRecords(List.of());
-            emptyPage.setTotal(0);
-            when(violationReportMapper.selectPage(any(Page.class), any())).thenReturn(emptyPage);
+        void returnsEmptyListWhenNoReviewsExist() {
+            Page<ViolationReport> page = new Page<>(1, 10, 0);
+            page.setRecords(List.of());
+            when(reportMapper.selectPage(any(Page.class), any())).thenReturn(page);
 
-            IPage<ViolationVO> result = service.getViolations(1, 10, "PENDING");
-
-            assertTrue(result.getRecords().isEmpty());
+            assertTrue(service.getViolations(1, 10, "PENDING").getRecords().isEmpty());
         }
 
         @Test
-        void shouldPopulateViolationVOFields() {
-            ViolationReport report = new ViolationReport();
-            report.setId(1L);
-            report.setUserId(10L);
-            report.setOriginalTitle("违规商品标题");
-            report.setOriginalDescription("违规描述");
-            report.setViolationType("CONTENT_VIOLATION");
-            report.setViolationReason("AI检测到违禁内容");
-            report.setStatus("PENDING");
-            report.setItemId(100L);
-
-            Page<ViolationReport> page = new Page<>(1, 10);
+        void mapsSellerReporterSourceAndRuleEvidence() {
+            ViolationReport report = pendingReport("USER_REPORT");
+            report.setReporterId(11L);
+            report.setMatchedRules("[]");
+            report.setRuleVersion("2026.1");
+            Page<ViolationReport> page = new Page<>(1, 10, 1);
             page.setRecords(List.of(report));
-            page.setTotal(1);
-
-            SysUser reporter = new SysUser();
-            reporter.setId(10L);
-            reporter.setNickname("发布者张三");
-
+            SysUser seller = user(10L, "卖家张三");
+            SysUser reporter = user(11L, "举报人李四");
             Item item = new Item();
             item.setId(100L);
-            item.setStatus("OFF_SHELF");
+            item.setStatus("ON_SALE");
+            when(reportMapper.selectPage(any(Page.class), any())).thenReturn(page);
+            when(userMapper.selectByIds(anyCollection())).thenReturn(List.of(seller, reporter));
+            when(itemMapper.selectByIds(anyCollection())).thenReturn(List.of(item));
 
-            when(violationReportMapper.selectPage(any(Page.class), any())).thenReturn(page);
-            when(sysUserMapper.selectByIds(List.of(10L))).thenReturn(List.of(reporter));
-            when(itemMapper.selectByIds(List.of(100L))).thenReturn(List.of(item));
+            ViolationVO vo = service.getViolations(1, 10, "PENDING").getRecords().get(0);
 
-            IPage<ViolationVO> result = service.getViolations(1, 10, "PENDING");
-
-            assertEquals(1, result.getRecords().size());
-            ViolationVO vo = result.getRecords().get(0);
-            assertEquals("违规商品标题", vo.getOriginalTitle());
-            assertEquals("发布者张三", vo.getReporterName());
-            assertEquals("OFF_SHELF", vo.getItemStatus());
-            assertEquals(100L, vo.getItemId());
+            assertEquals("卖家张三", vo.getSellerName());
+            assertEquals("举报人李四", vo.getReporterName());
+            assertEquals("USER_REPORT", vo.getSource());
+            assertEquals("2026.1", vo.getRuleVersion());
+            assertEquals("ON_SALE", vo.getItemStatus());
         }
 
         @Test
-        void shouldDismissPendingViolationWithoutChangingTradeReviews() {
-            ViolationReport report = new ViolationReport();
-            report.setId(1L);
-            report.setUserId(10L);
-            report.setStatus("PENDING");
-            report.setItemId(100L);
-
+        void dismissesLocalRuleReviewAndRelistsItem() {
+            ViolationReport report = pendingReport("LOCAL_RULE");
             Item item = new Item();
             item.setId(100L);
-            item.setStatus("OFF_SHELF");
-            item.setAiReviewed(false);
-
-            when(violationReportMapper.selectById(1L)).thenReturn(report);
+            item.setStatus("ON_SALE");
+            item.setModerationStatus("PENDING");
+            when(reportMapper.selectById(1L)).thenReturn(report);
+            when(reportMapper.update(isNull(), any())).thenReturn(1);
             when(itemMapper.selectById(100L)).thenReturn(item);
 
             service.dismissViolation(1L, 99L);
 
-            assertEquals("DISMISSED", report.getStatus());
-            assertEquals(99L, report.getHandlerId());
-            assertNotNull(report.getHandledAt());
+            assertEquals("PASSED", item.getModerationStatus());
             assertEquals("ON_SALE", item.getStatus());
-            assertEquals(Boolean.TRUE, item.getAiReviewed());
-            verify(violationReportMapper).updateById(report);
             verify(itemMapper).updateById(item);
-            verifyNoInteractions(reputationPenaltyService);
+            verifyNoInteractions(penaltyService);
         }
 
         @Test
-        void shouldConfirmViolationWithIndependentReputationPenalty() {
-            ViolationReport report = new ViolationReport();
-            report.setId(1L);
-            report.setUserId(10L);
-            report.setStatus("PENDING");
-            when(violationReportMapper.selectById(1L)).thenReturn(report);
-
+        void confirmingContentViolationDownshelvesAndRecordsFixedWarning() {
+            ViolationReport report = pendingReport("LOCAL_RULE");
+            Item item = new Item();
+            item.setId(100L);
+            item.setStatus("ON_SALE");
+            item.setModerationStatus("PENDING");
+            when(reportMapper.selectById(1L)).thenReturn(report);
+            when(reportMapper.update(isNull(), any())).thenReturn(1);
+            when(itemMapper.selectById(100L)).thenReturn(item);
             ConfirmViolationDTO dto = new ConfirmViolationDTO();
-            dto.setType("BAN_TEMP");
-            dto.setReason("重复发布违规内容");
-            dto.setBanDays(7);
-            dto.setHandleNote("人工复核确认");
+            dto.setReason("人工确认存在违规内容");
+            dto.setHandleNote("复核完成");
 
             service.confirmViolation(1L, dto, 99L);
 
-            assertEquals("CONFIRMED", report.getStatus());
-            assertEquals(99L, report.getHandlerId());
-            verify(banService).punish(argThat(punishment ->
-                    punishment.getUserId().equals(10L)
-                            && "BAN_TEMP".equals(punishment.getType())
-                            && punishment.getBanDays().equals(7)), eq(99L));
-            verify(reputationPenaltyService).recordPenalty(
-                    1L, 10L, 99L, "BAN_TEMP", "重复发布违规内容");
+            assertEquals("REJECTED", item.getModerationStatus());
+            assertEquals("OFF_SHELF", item.getStatus());
+            verify(penaltyService).recordContentWarning(1L, 10L, 99L, "人工确认存在违规内容");
+        }
+
+        private ViolationReport pendingReport(String source) {
+            ViolationReport report = new ViolationReport();
+            report.setId(1L);
+            report.setUserId(10L);
+            report.setItemId(100L);
+            report.setOriginalTitle("待审核商品");
+            report.setOriginalDescription("待审核描述");
+            report.setViolationReason("检测或举报依据");
+            report.setViolationType("KEYWORD_MATCH");
+            report.setSource(source);
+            report.setStatus("PENDING");
+            return report;
+        }
+
+        private SysUser user(Long id, String nickname) {
+            SysUser user = new SysUser();
+            user.setId(id);
+            user.setNickname(nickname);
+            return user;
         }
     }
 }

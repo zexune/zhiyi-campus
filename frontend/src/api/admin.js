@@ -2,6 +2,16 @@ import request from '@/utils/request'
 
 /** 超管控制台接口（D 负责） */
 
+/** 管理员独立登录 */
+export function adminLogin(data) {
+  return request.post('/admin/auth/login', data)
+}
+
+/** 管理员修改自己的后台密码 */
+export function changeAdminPassword(data) {
+  return request.put('/admin/auth/change-password', data)
+}
+
 /** 数据大盘（D2：支持 schoolId 切换学校视角） */
 export function getDashboard(schoolId) {
   return request.get('/admin/dashboard', { params: schoolId ? { schoolId } : {} })
@@ -12,7 +22,7 @@ export function getViolations(params) {
   return request.get('/admin/violations', { params })
 }
 
-/** 确认违规并封禁 */
+/** 确认内容违规并执行固定警告扣分 */
 export function confirmViolation(id, data) {
   return request.put(`/admin/violations/${id}/confirm`, data)
 }
@@ -20,6 +30,18 @@ export function confirmViolation(id, data) {
 /** 驳回违规（放行商品） */
 export function dismissViolation(id) {
   return request.put(`/admin/violations/${id}/dismiss`)
+}
+
+export function getAppeals(params) {
+  return request.get('/admin/appeals', { params })
+}
+
+export function approveAppeal(id, data) {
+  return request.put(`/admin/appeals/${id}/approve`, data)
+}
+
+export function rejectAppeal(id, data) {
+  return request.put(`/admin/appeals/${id}/reject`, data)
 }
 
 /** 用户搜索（封禁弹窗选人） */

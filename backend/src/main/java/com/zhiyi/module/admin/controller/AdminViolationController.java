@@ -4,7 +4,10 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zhiyi.common.Result;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.dto.ConfirmViolationDTO;
+import com.zhiyi.module.admin.dto.HandleAppealDTO;
 import com.zhiyi.module.admin.service.AdminViolationService;
+import com.zhiyi.module.admin.service.ViolationAppealService;
+import com.zhiyi.module.admin.vo.AppealVO;
 import com.zhiyi.module.admin.vo.PenaltyStatsVO;
 import com.zhiyi.module.admin.vo.ViolationVO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminViolationController {
 
     private final AdminViolationService violationService;
+    private final ViolationAppealService appealService;
 
     /**
      * 违规记录列表（支持按状态筛选）
@@ -39,7 +43,7 @@ public class AdminViolationController {
     }
 
     /**
-     * 确认违规 + 处罚用户
+     * 确认违规：下架商品并执行固定警告扣分。
      */
     @PutMapping("/violations/{id}/confirm")
     public Result<?> confirm(
@@ -48,7 +52,7 @@ public class AdminViolationController {
             HttpServletRequest request) {
         Long adminId = (Long) request.getAttribute("userId");
         violationService.confirmViolation(id, dto, adminId);
-        return Result.ok("违规已确认，处罚已生效");
+        return Result.ok("违规已确认，商品已下架并扣除合规分");
     }
 
     /**
@@ -69,5 +73,29 @@ public class AdminViolationController {
         Long adminId = (Long) request.getAttribute("userId");
         violationService.dismissViolation(id, adminId);
         return Result.ok("已放行，该违规记录已撤销");
+    }
+
+    @GetMapping("/appeals")
+    public Result<IPage<AppealVO>> appeals(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status) {
+        return Result.ok(appealService.list(page, size, status));
+    }
+
+    @PutMapping("/appeals/{id}/approve")
+    public Result<Void> approveAppeal(@PathVariable Long id,
+                                      @Valid @RequestBody HandleAppealDTO dto,
+                                      HttpServletRequest request) {
+        appealService.approve(id, (Long) request.getAttribute("userId"), dto);
+        return Result.ok("申诉已通过，处罚已撤销", null);
+    }
+
+    @PutMapping("/appeals/{id}/reject")
+    public Result<Void> rejectAppeal(@PathVariable Long id,
+                                     @Valid @RequestBody HandleAppealDTO dto,
+                                     HttpServletRequest request) {
+        appealService.reject(id, (Long) request.getAttribute("userId"), dto);
+        return Result.ok("申诉已驳回", null);
     }
 }

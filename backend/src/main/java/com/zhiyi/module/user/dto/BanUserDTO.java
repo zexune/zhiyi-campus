@@ -2,11 +2,12 @@ package com.zhiyi.module.user.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 管理员处罚请求（需求 1.6 多级违规与封禁）
+ * 管理员独立账号封禁请求。
  */
 @Data
 public class BanUserDTO {
@@ -14,8 +15,9 @@ public class BanUserDTO {
     @NotNull(message = "用户ID不能为空")
     private Long userId;
 
-    /** WARNING 警告 / BAN_TEMP 限时封禁 / BAN_PERM 永久封禁 */
+    /** BAN_TEMP 限时封禁 / BAN_PERM 永久封禁 */
     @NotBlank(message = "处罚类型不能为空")
+    @Pattern(regexp = "BAN_TEMP|BAN_PERM", message = "处罚类型只能是限时封禁或永久封禁")
     private String type;
 
     @NotBlank(message = "处罚原因不能为空")

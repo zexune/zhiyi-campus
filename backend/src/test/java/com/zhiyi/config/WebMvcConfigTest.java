@@ -11,6 +11,7 @@ import org.springframework.web.util.ServletRequestPathUtils;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 class WebMvcConfigTest {
 
@@ -32,7 +33,7 @@ class WebMvcConfigTest {
     }
 
     @Test
-    void trendingAiTagsRouteRequiresLogin() {
+    void trendingTagsRouteRequiresLogin() {
         JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
         RoleInterceptor roleInterceptor = new RoleInterceptor();
         WebMvcConfig config = new WebMvcConfig(
@@ -45,6 +46,26 @@ class WebMvcConfigTest {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/item/ranking/tags");
         ServletRequestPathUtils.parseAndCache(request);
         assertTrue(jwtMapping.matches(request));
+    }
+
+    @Test
+    void adminLoginIsPublicButAdminPasswordChangeRequiresToken() {
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
+        RoleInterceptor roleInterceptor = new RoleInterceptor();
+        WebMvcConfig config = new WebMvcConfig(
+                jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
+        ExposedInterceptorRegistry registry = new ExposedInterceptorRegistry();
+        config.addInterceptors(registry);
+        MappedInterceptor jwtMapping = registry.mappingFor(jwtInterceptor);
+
+        MockHttpServletRequest login = new MockHttpServletRequest("POST", "/api/admin/auth/login");
+        ServletRequestPathUtils.parseAndCache(login);
+        assertFalse(jwtMapping.matches(login));
+
+        MockHttpServletRequest changePassword = new MockHttpServletRequest(
+                "PUT", "/api/admin/auth/change-password");
+        ServletRequestPathUtils.parseAndCache(changePassword);
+        assertTrue(jwtMapping.matches(changePassword));
     }
 
     private static final class ExposedInterceptorRegistry extends InterceptorRegistry {

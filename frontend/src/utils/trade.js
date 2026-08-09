@@ -26,7 +26,7 @@ export function orderStatusBadge(status) {
 export function itemStatusLabel(status) {
   const map = {
     ON_SALE: '在售',
-    PENDING: '交易中',
+    REVIEWING: '审核中',
     SOLD: '已售出',
     OFF_SHELF: '已下架',
   }
@@ -37,7 +37,7 @@ export function itemStatusLabel(status) {
 export function itemStatusBadge(status) {
   const map = {
     ON_SALE: 'badge--ok',
-    PENDING: 'badge--warn',
+    REVIEWING: 'badge--warn',
     SOLD: 'badge--muted',
     OFF_SHELF: 'badge--muted',
   }
@@ -49,7 +49,8 @@ export function violationStatusLabel(status) {
   const map = {
     PENDING: '待处理',
     CONFIRMED: '已确认',
-    DISMISSED: '已驳回',
+    DISMISSED: '已放行',
+    OVERTURNED: '申诉撤销',
   }
   return map[status] || status || '未知'
 }

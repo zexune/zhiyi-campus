@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * 对其他模块的契约：
  * - D 模块确认收货事务里：growthService.addExp(buyerId, 50, "买家完成订单")、addExp(sellerId, 50, "卖家完成订单")
- * - B/D 模块强制下架时：growthService.addExp(publisherId, -30, "商品被管理员强制下架")
  *
  * 高并发设计：
  * - exp 用单条 UPDATE 原子增减（DB 端 read-modify-write），并发确认收货不丢加分；
@@ -32,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserGrowthService {
 
     public static final int EXP_ORDER_COMPLETED = 50;    // 买/卖完成一笔订单
-    public static final int EXP_FORCED_OFF_SHELF = -30;  // 商品被强制下架
 
     private final SysUserMapper userMapper;
     private final ExpLogMapper expLogMapper;

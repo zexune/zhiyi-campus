@@ -1,11 +1,11 @@
 <template>
-  <DefaultLayout>
+  <AdminLayout>
     <div class="category-page rise">
       <div class="page-title">🗂️ 商品分类管理 <span class="stamp">Module 2</span></div>
 
       <div class="nav-tabs">
         <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 违规审核</router-link>
+        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
         <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
         <span class="nav-tab active">🗂️ 分类管理</span>
       </div>
@@ -65,12 +65,12 @@
         </section>
       </div>
     </div>
-  </DefaultLayout>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { createCategory, deleteCategory, getAdminCategories, updateCategory } from '@/api/admin'
 
 const categories = ref([])
