@@ -27,14 +27,18 @@ public class ItemCardVO {
     private BigDecimal price;
     private List<String> images;
     private String coverImage;
-    private List<String> aiTags;
+    private List<String> tags;
     private String tradeLocation;
     private String pickupLocation;
     private String deliveryLocation;
-    private LocalDateTime deadlineTime;
-    /** >7天不展示，3-7天展示闹钟，3天内展示警告。 */
-    private String deadlineLabel;
     private String status;
+    private String moderationStatus;
+    /** 是否存在进行中的订单预占；它不是商品状态。 */
+    private Boolean reserved;
+    /** 当前用户是否还能对最近一次确认违规提交申诉。 */
+    private Boolean appealable;
+    private String appealStatus;
+    private Long latestViolationId;
     private Integer viewCount;
     private Long favoriteCount;
     private Boolean favoriteByCurrentUser;

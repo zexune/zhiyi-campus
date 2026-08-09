@@ -7,10 +7,13 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.module.admin.mapper.ViolationAppealMapper;
+import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -41,6 +44,12 @@ class MarketplaceServiceTest {
     private ItemFavoriteMapper favoriteMapper;
     @Mock
     private SysUserMapper userMapper;
+    @Mock
+    private ItemReservationMapper reservationMapper;
+    @Mock
+    private ViolationReportMapper violationReportMapper;
+    @Mock
+    private ViolationAppealMapper appealMapper;
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
@@ -51,7 +60,7 @@ class MarketplaceServiceTest {
     }
 
     @Test
-    void ranksAiTagsByDistinctOnSaleItemFrequency() {
+    void ranksTagsByDistinctVisibleItemFrequency() {
         SysUser viewer = new SysUser();
         viewer.setId(7L);
         viewer.setSchoolId(2L);
@@ -61,10 +70,9 @@ class MarketplaceServiceTest {
                 "[\"iPad\",\"student\"]",
                 "[\"iPad\",\"tablet\"]"
         ));
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
 
-        var result = service.trendingAiTags(10, 7L);
+        var result = service.trendingTags(10, 7L);
 
         assertEquals(List.of("iPad", "student", "tablet"),
                 result.stream().map(tag -> tag.tag()).toList());
@@ -100,8 +108,7 @@ class MarketplaceServiceTest {
         emptyPage.setRecords(List.of());
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
         service.listOnSaleItems(null, null, null, null,
                 "random", null, null, 1, 12, 7L);
 
@@ -131,8 +138,7 @@ class MarketplaceServiceTest {
         emptyPage.setRecords(List.of());
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
         service.listOnSaleItems(null, null, null, null,
                 "random", null, null, 1, 12, 7L);
 
@@ -155,8 +161,7 @@ class MarketplaceServiceTest {
         emptyPage.setRecords(List.of());
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
         service.listOnSaleItems(null, null, null, null,
                 "latest", null, null, 1, 12, 7L);
 
@@ -181,8 +186,7 @@ class MarketplaceServiceTest {
         emptyPage.setRecords(List.of());
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
         service.listOnSaleItems(null, null, null, null,
                 "latest", null, null, 1, 12, 9L);
 
@@ -208,8 +212,7 @@ class MarketplaceServiceTest {
         viewer.setSchoolId(1L);
         when(userMapper.selectById(7L)).thenReturn(viewer);
 
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
 
         BusinessException error = assertThrows(
                 BusinessException.class, () -> service.toggleFavorite(7L, 100L));
@@ -228,11 +231,15 @@ class MarketplaceServiceTest {
         viewer.setSchoolId(1L);
         when(userMapper.selectById(7L)).thenReturn(viewer);
 
-        MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
+        MarketplaceService service = service();
 
         BusinessException error = assertThrows(
                 BusinessException.class, () -> service.getDetail(100L, 7L));
         assertEquals(403, error.getCode());
+    }
+
+    private MarketplaceService service() {
+        return new MarketplaceService(itemMapper, categoryMapper, favoriteMapper, userMapper,
+                JsonMapper.builder().build(), reservationMapper, violationReportMapper, appealMapper);
     }
 }

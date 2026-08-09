@@ -11,7 +11,7 @@ public class ViolationLog {
     private Long id;
     private Long userId;            // 被处罚用户
     private Long adminId;           // 操作管理员
-    private String type;            // WARNING / BAN_TEMP / BAN_PERM
+    private String type;            // BAN_TEMP / BAN_PERM
     private String reason;
     private Integer banDays;
 

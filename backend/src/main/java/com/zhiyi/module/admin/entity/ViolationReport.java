@@ -10,16 +10,21 @@ public class ViolationReport {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
+    /** USER_REPORT 时为举报人，其余来源为空。 */
+    private Long reporterId;
     private String originalTitle;
     private String originalDescription;
+    /** LOCAL_RULE / USER_REPORT / CORRECTION */
+    private String source;
     private String violationType;
     private String violationReason;
-    private String aiTags;
-    private Long itemId;            // 关联商品ID（AI拦截时创建的 OFF_SHELF 商品）
-    private String status;          // PENDING / CONFIRMED / DISMISSED
+    /** 命中的本地规则编号（JSON 数组）。 */
+    private String matchedRules;
+    private String ruleVersion;
+    private Long itemId;
+    private String status;          // PENDING / CONFIRMED / DISMISSED / OVERTURNED
     private Long handlerId;
     private String handleNote;
-    private Boolean aiReviewError;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

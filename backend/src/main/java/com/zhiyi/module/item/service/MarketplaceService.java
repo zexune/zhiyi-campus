@@ -10,19 +10,26 @@ import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
+import com.zhiyi.module.admin.entity.ViolationAppeal;
+import com.zhiyi.module.admin.entity.ViolationReport;
+import com.zhiyi.module.admin.mapper.ViolationAppealMapper;
+import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
-import com.zhiyi.module.item.vo.AiTagTrendVO;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.TagTrendVO;
 import com.zhiyi.module.social.entity.ItemFavorite;
 import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
+import com.zhiyi.module.trade.entity.ItemReservation;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.LevelRule;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +37,6 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,6 +63,12 @@ public class MarketplaceService {
     private final ItemFavoriteMapper favoriteMapper;
     private final SysUserMapper userMapper;
     private final JsonMapper objectMapper;
+    private final ItemReservationMapper reservationMapper;
+    private final ViolationReportMapper violationReportMapper;
+    private final ViolationAppealMapper appealMapper;
+
+    @Value("${zhiyi.moderation.appeal-window-days:7}")
+    private int appealWindowDays = 7;
 
     public List<Category> listCategories() {
         return categoryMapper.selectList(new LambdaQueryWrapper<Category>()
@@ -65,17 +77,19 @@ public class MarketplaceService {
     }
 
     /**
-     * 按商品大类聚合 AI 标签，用于前端"精细筛选"分组标签云。
+     * 按商品大类聚合本地生成标签，用于前端精细筛选。
      * 返回结构：[{categoryId, categoryName, tags: [{name, count}]}]
      */
     public List<Map<String, Object>> getAllTags(Long currentUserId) {
         Long schoolId = requireUserSchoolId(currentUserId);
 
-        // 查出所有在售商品（只需 category_id + ai_tags）
+        // 只聚合审核通过且未被订单预占的在售商品。
         LambdaQueryWrapper<Item> itemWrapper = new LambdaQueryWrapper<Item>()
                 .eq(Item::getStatus, "ON_SALE")
+                .eq(Item::getModerationStatus, "PASSED")
                 .eq(Item::getSchoolId, schoolId)
-                .select(Item::getCategoryId, Item::getAiTags);
+                .notInSql(Item::getId, "SELECT item_id FROM item_reservation")
+                .select(Item::getCategoryId, Item::getTags);
         List<Item> items = itemMapper.selectList(itemWrapper);
 
         // categoryId → tag → count
@@ -83,7 +97,7 @@ public class MarketplaceService {
         for (Item item : items) {
             Long cid = item.getCategoryId();
             Map<String, Long> tagMap = grouped.computeIfAbsent(cid, k -> new LinkedHashMap<>());
-            for (String tag : parseJsonArray(item.getAiTags())) {
+            for (String tag : parseJsonArray(item.getTags())) {
                 if (StringUtils.hasText(tag)) {
                     tagMap.merge(tag.trim(), 1L, Long::sum);
                 }
@@ -146,6 +160,10 @@ public class MarketplaceService {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品不存在");
         }
         requireSameSchool(currentUserId, item, "只能查看本校商品");
+        if (!Objects.equals(item.getPublisherId(), currentUserId)
+                && !"PASSED".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "商品正在审核或已被下架");
+        }
         itemMapper.update(null, new LambdaUpdateWrapper<Item>()
                 .eq(Item::getId, itemId)
                 .setSql("view_count = view_count + 1")
@@ -173,8 +191,9 @@ public class MarketplaceService {
                 .eq(Item::getSchoolId, schoolId)
                 .eq(Item::getType, "ERRAND")
                 .eq(Item::getStatus, "ON_SALE")
-                .gt(Item::getDeadlineTime, LocalDateTime.now())
-                .orderByAsc(Item::getDeadlineTime));
+                .eq(Item::getModerationStatus, "PASSED")
+                .notInSql(Item::getId, "SELECT item_id FROM item_reservation")
+                .orderByDesc(Item::getCreatedAt));
         return toItemCards(items, currentUserId);
     }
 
@@ -184,7 +203,9 @@ public class MarketplaceService {
                 .eq(Item::getPublisherId, currentUserId)
                 .eq(Item::getSchoolId, schoolId)
                 .eq(Item::getType, "SWAP")
-                .eq(Item::getStatus, "ON_SALE"));
+                .eq(Item::getStatus, "ON_SALE")
+                .eq(Item::getModerationStatus, "PASSED")
+                .notInSql(Item::getId, "SELECT item_id FROM item_reservation"));
         if (mine.isEmpty()) {
             return List.of();
         }
@@ -193,6 +214,8 @@ public class MarketplaceService {
                 .eq(Item::getSchoolId, schoolId)
                 .eq(Item::getType, "SWAP")
                 .eq(Item::getStatus, "ON_SALE")
+                .eq(Item::getModerationStatus, "PASSED")
+                .notInSql(Item::getId, "SELECT item_id FROM item_reservation")
                 .ne(Item::getPublisherId, currentUserId)
                 .in(!categoryIds.isEmpty(), Item::getCategoryId, categoryIds)
                 .orderByDesc(Item::getCreatedAt));
@@ -205,6 +228,11 @@ public class MarketplaceService {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品不存在");
         }
         requireSameSchool(userId, item, "只能查看本校商品");
+        if (!Objects.equals(item.getPublisherId(), userId)
+                && (!"PASSED".equals(item.getModerationStatus())
+                || !"ON_SALE".equals(item.getStatus()))) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "商品当前不可见");
+        }
     }
 
     @Transactional
@@ -215,6 +243,9 @@ public class MarketplaceService {
         }
         requireSameSchool(userId, item, "只能收藏本校商品");
         if (!"ON_SALE".equals(item.getStatus())) {
+            throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
+        }
+        if (!"PASSED".equals(item.getModerationStatus()) || reservationMapper.selectById(itemId) != null) {
             throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
         }
         if (Objects.equals(item.getPublisherId(), userId)) {
@@ -261,6 +292,7 @@ public class MarketplaceService {
                 .filter(Objects::nonNull)
                 // 收藏列表也以账号当前所属学校为边界。
                 .filter(item -> Objects.equals(item.getSchoolId(), schoolId))
+                .filter(item -> "PASSED".equals(item.getModerationStatus()))
                 .toList();
 
         Page<ItemCardVO> result = new Page<>(favPage.getCurrent(), favPage.getSize(), favPage.getTotal());
@@ -273,7 +305,15 @@ public class MarketplaceService {
                 .eq(Item::getPublisherId, userId)
                 .orderByDesc(Item::getCreatedAt);
         if (StringUtils.hasText(status)) {
-            wrapper.eq(Item::getStatus, status.trim());
+            String normalized = status.trim().toUpperCase();
+            if ("REVIEWING".equals(normalized)) {
+                wrapper.eq(Item::getModerationStatus, "PENDING");
+            } else {
+                wrapper.eq(Item::getStatus, normalized);
+                if ("ON_SALE".equals(normalized) || "OFF_SHELF".equals(normalized)) {
+                    wrapper.ne(Item::getModerationStatus, "PENDING");
+                }
+            }
         }
 
         Page<Item> itemPage = itemMapper.selectPage(
@@ -290,15 +330,20 @@ public class MarketplaceService {
         if (!"ON_SALE".equals(item.getStatus())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "只有在售商品可以下架");
         }
+        if ("PENDING".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "审核中的商品不能手动下架");
+        }
+        requireNotReserved(itemId);
         updateStatus(itemId, "OFF_SHELF");
     }
 
     @Transactional
     public void deleteOwnItem(Long userId, Long itemId) {
         Item item = requireOwnItem(userId, itemId);
-        if ("PENDING".equals(item.getStatus())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "交易中的商品不能删除");
+        if ("PENDING".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "审核中的商品不能删除");
         }
+        requireNotReserved(itemId);
         itemMapper.deleteById(itemId);
     }
 
@@ -311,7 +356,9 @@ public class MarketplaceService {
                 .orderByDesc("favorite_count");
         List<Long> visibleItemIds = itemMapper.selectList(new LambdaQueryWrapper<Item>()
                         .eq(Item::getStatus, "ON_SALE")
+                        .eq(Item::getModerationStatus, "PASSED")
                         .eq(Item::getSchoolId, schoolId)
+                        .notInSql(Item::getId, "SELECT item_id FROM item_reservation")
                         .select(Item::getId))
                 .stream()
                 .map(Item::getId)
@@ -333,6 +380,8 @@ public class MarketplaceService {
                 ? Map.of()
                 : itemMapper.selectByIds(rankedIds).stream()
                 .filter(item -> "ON_SALE".equals(item.getStatus()))
+                .filter(item -> "PASSED".equals(item.getModerationStatus()))
+                .filter(item -> reservationMapper.selectById(item.getId()) == null)
                 .filter(item -> Objects.equals(item.getSchoolId(), schoolId))
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
 
@@ -345,7 +394,9 @@ public class MarketplaceService {
         if (items.size() < safeLimit) {
             LambdaQueryWrapper<Item> fillerWrapper = new LambdaQueryWrapper<Item>()
                     .eq(Item::getStatus, "ON_SALE")
+                    .eq(Item::getModerationStatus, "PASSED")
                     .eq(Item::getSchoolId, schoolId)
+                    .notInSql(Item::getId, "SELECT item_id FROM item_reservation")
                     .orderByDesc(Item::getCreatedAt)
                     .last("LIMIT " + (safeLimit - items.size()));
             if (!rankedIds.isEmpty()) {
@@ -361,14 +412,16 @@ public class MarketplaceService {
         return cards;
     }
 
-    public List<AiTagTrendVO> trendingAiTags(int limit, Long currentUserId) {
+    public List<TagTrendVO> trendingTags(int limit, Long currentUserId) {
         int safeLimit = Math.max(1, Math.min(limit, 10));
         Long schoolId = requireUserSchoolId(currentUserId);
         QueryWrapper<Item> tagWrapper = new QueryWrapper<Item>()
-                .select("ai_tags")
+                .select("tags")
                 .eq("status", "ON_SALE")
+                .eq("moderation_status", "PASSED")
                 .eq("school_id", schoolId)
-                .isNotNull("ai_tags");
+                .notInSql("id", "SELECT item_id FROM item_reservation")
+                .isNotNull("tags");
         List<Object> rawTagValues = itemMapper.selectObjs(tagWrapper);
 
         Map<String, Long> frequencies = new HashMap<>();
@@ -385,7 +438,7 @@ public class MarketplaceService {
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed()
                         .thenComparing(Map.Entry::getKey, String.CASE_INSENSITIVE_ORDER))
                 .limit(safeLimit)
-                .map(entry -> new AiTagTrendVO(entry.getKey(), entry.getValue()))
+                .map(entry -> new TagTrendVO(entry.getKey(), entry.getValue()))
                 .toList();
     }
 
@@ -400,14 +453,13 @@ public class MarketplaceService {
                                                        NeighborPriority neighborPriority) {
         LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<Item>()
                 .eq(Item::getStatus, "ON_SALE")
-                .eq(Item::getSchoolId, schoolId)
-                // 过滤已过截止时间的商品（无截止时间或截止时间在未来才展示）
-                .and(w -> w.isNull(Item::getDeadlineTime)
-                        .or().gt(Item::getDeadlineTime, LocalDateTime.now()));
+                .eq(Item::getModerationStatus, "PASSED")
+                .notInSql(Item::getId, "SELECT item_id FROM item_reservation")
+                .eq(Item::getSchoolId, schoolId);
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             wrapper.and(w -> w.like(Item::getTitle, kw)
-                    .or().like(Item::getAiTags, kw)
+                    .or().like(Item::getTags, kw)
                     .or().like(Item::getDescription, kw));
         }
         if (categoryId != null) {
@@ -426,7 +478,7 @@ public class MarketplaceService {
             // 用 LIKE "\"%tag%\"" 精确匹配 JSON 数组中的标签名
             // 引号包裹防止 "全新" 误匹配 "全新未拆封" 等包含关系
             String trimmed = tag.trim();
-            wrapper.like(Item::getAiTags, "\"" + trimmed + "\"");
+            wrapper.like(Item::getTags, "\"" + trimmed + "\"");
         }
         applySort(wrapper, sort, neighborPriority);
         return wrapper;
@@ -544,6 +596,11 @@ public class MarketplaceService {
         Map<Long, Long> favoriteCounts = favoriteCounts(itemIds);
         Set<Long> myFavorites = currentUserId == null ? Collections.emptySet() : favoriteItemIds(currentUserId, itemIds);
         SysUser viewer = currentUserId == null ? null : userMapper.selectById(currentUserId);
+        Set<Long> reservedItemIds = reservationMapper.selectByIds(itemIds).stream()
+                .map(ItemReservation::getItemId)
+                .collect(Collectors.toSet());
+        Map<Long, ViolationReport> latestViolations = latestConfirmedViolations(itemIds, currentUserId);
+        Map<Long, ViolationAppeal> appealsByReport = appealsByReport(latestViolations.values());
 
         return items.stream().map(item -> {
             Category category = categories.get(item.getCategoryId());
@@ -567,13 +624,22 @@ public class MarketplaceService {
             List<String> images = parseJsonArray(item.getImages());
             vo.setImages(images);
             vo.setCoverImage(images.isEmpty() ? "" : images.get(0));
-            vo.setAiTags(parseJsonArray(item.getAiTags()));
+            vo.setTags(parseJsonArray(item.getTags()));
             vo.setTradeLocation(item.getTradeLocation());
             vo.setPickupLocation(item.getPickupLocation());
             vo.setDeliveryLocation(item.getDeliveryLocation());
-            vo.setDeadlineTime(item.getDeadlineTime());
-            vo.setDeadlineLabel(deadlineLabel(item.getDeadlineTime()));
             vo.setStatus(item.getStatus());
+            vo.setModerationStatus(item.getModerationStatus());
+            vo.setReserved(reservedItemIds.contains(item.getId()));
+            ViolationReport latestViolation = latestViolations.get(item.getId());
+            ViolationAppeal appeal = latestViolation == null ? null : appealsByReport.get(latestViolation.getId());
+            vo.setLatestViolationId(latestViolation == null ? null : latestViolation.getId());
+            vo.setAppealStatus(appeal == null ? null : appeal.getStatus());
+            boolean withinWindow = latestViolation != null && latestViolation.getHandledAt() != null
+                    && !LocalDateTime.now().isAfter(latestViolation.getHandledAt()
+                    .plusDays(Math.max(1, appealWindowDays)));
+            vo.setAppealable(Objects.equals(currentUserId, item.getPublisherId())
+                    && latestViolation != null && appeal == null && withinWindow);
             vo.setViewCount(item.getViewCount());
             vo.setFavoriteCount(favoriteCounts.getOrDefault(item.getId(), 0L));
             vo.setFavoriteByCurrentUser(myFavorites.contains(item.getId()));
@@ -583,12 +649,36 @@ public class MarketplaceService {
         }).toList();
     }
 
-    static String deadlineLabel(LocalDateTime deadline) {
-        if (deadline == null) return null;
-        Duration remaining = Duration.between(LocalDateTime.now(), deadline);
-        if (remaining.compareTo(Duration.ofDays(7)) > 0) return null;
-        // 允许同一请求内取 now 产生的毫秒级误差，确保“正好 3 天”仍落在 3-7 天区间。
-        return remaining.compareTo(Duration.ofDays(3).minusSeconds(1)) >= 0 ? "⏰" : "⚠️";
+    private Map<Long, ViolationReport> latestConfirmedViolations(Set<Long> itemIds, Long currentUserId) {
+        if (currentUserId == null || itemIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ViolationReport> reports = violationReportMapper.selectList(
+                new LambdaQueryWrapper<ViolationReport>()
+                        .in(ViolationReport::getItemId, itemIds)
+                        .eq(ViolationReport::getUserId, currentUserId)
+                        .eq(ViolationReport::getStatus, "CONFIRMED")
+                        .orderByDesc(ViolationReport::getHandledAt)
+                        .orderByDesc(ViolationReport::getId));
+        Map<Long, ViolationReport> latest = new HashMap<>();
+        for (ViolationReport report : reports) {
+            latest.putIfAbsent(report.getItemId(), report);
+        }
+        return latest;
+    }
+
+    private Map<Long, ViolationAppeal> appealsByReport(java.util.Collection<ViolationReport> reports) {
+        Set<Long> reportIds = reports.stream()
+                .map(ViolationReport::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (reportIds.isEmpty()) {
+            return Map.of();
+        }
+        return appealMapper.selectList(new LambdaQueryWrapper<ViolationAppeal>()
+                        .in(ViolationAppeal::getReportId, reportIds))
+                .stream()
+                .collect(Collectors.toMap(ViolationAppeal::getReportId, Function.identity()));
     }
 
     private String proximityRelation(SysUser viewer, SysUser publisher) {
@@ -686,6 +776,12 @@ public class MarketplaceService {
             throw new BusinessException(ResultCode.FORBIDDEN, "只能操作自己发布的商品");
         }
         return item;
+    }
+
+    private void requireNotReserved(Long itemId) {
+        if (reservationMapper.selectById(itemId) != null) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能操作");
+        }
     }
 
     private void updateStatus(Long itemId, String status) {

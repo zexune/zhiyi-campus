@@ -11,7 +11,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -49,9 +48,7 @@ public class PublishItemDTO {
     @Size(max = 255, message = "送达地点不能超过255字")
     private String deliveryLocation;
 
-    private LocalDateTime deadlineTime;
-
-    @AssertTrue(message = "发布类型对应的价格、取送地点或截止时间不符合要求")
+    @AssertTrue(message = "发布类型对应的价格或取送地点不符合要求")
     public boolean isTypeDetailsValid() {
         if ("SWAP".equals(type)) {
             return price == null;
@@ -62,12 +59,10 @@ public class PublishItemDTO {
                     && price.compareTo(BigDecimal.ONE) >= 0
                     && price.compareTo(new BigDecimal("20")) <= 0
                     && pickupLocation != null && !pickupLocation.isBlank()
-                    && deliveryLocation != null && !deliveryLocation.isBlank()
-                    && deadlineTime != null && deadlineTime.isAfter(LocalDateTime.now());
+                    && deliveryLocation != null && !deliveryLocation.isBlank();
         }
         // SELL / BUY：tradeLocation 必填
         return price != null
-                && tradeLocation != null && !tradeLocation.isBlank()
-                && (deadlineTime == null || deadlineTime.isAfter(LocalDateTime.now()));
+                && tradeLocation != null && !tradeLocation.isBlank();
     }
 }

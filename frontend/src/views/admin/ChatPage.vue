@@ -1,5 +1,5 @@
 <template>
-  <DefaultLayout>
+  <AdminLayout>
     <div class="chat-admin-page rise">
       <!-- 页面标题 -->
       <div class="page-title">
@@ -10,7 +10,7 @@
       <!-- 导航标签 -->
       <div class="nav-tabs">
         <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 违规审核</router-link>
+        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
         <span class="nav-tab active">💬 客服收件箱</span>
         <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
         <router-link to="/admin/schools" class="nav-tab">🏫 学校管理</router-link>
@@ -122,12 +122,12 @@
         </div>
       </div>
     </div>
-  </DefaultLayout>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import {

@@ -3,8 +3,8 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 🎓 智易校园 - 数据库初始化脚本
--- 版本：v2.0
--- 日期：2026-07-07
+-- 版本：v3.0
+-- 日期：2026-08-09
 -- 数据库：MySQL 8.0+
 -- 字符集：utf8mb4（完整支持中文 + Emoji）
 -- ============================================================
@@ -49,7 +49,7 @@ CREATE TABLE sys_user (
     password        VARCHAR(255)    NOT NULL                 COMMENT 'BCrypt加密密码',
     nickname        VARCHAR(50)     NOT NULL                 COMMENT '昵称',
     phone           VARCHAR(20)     DEFAULT NULL             COMMENT '手机号',
-    school_id       BIGINT          NOT NULL                 COMMENT '所属学校ID（普通功能按学校隔离；管理员默认上海大学）',
+    school_id       BIGINT          NOT NULL                 COMMENT '所属学校ID（普通功能按学校隔离；管理员仅为关系约束保留）',
     school_email    VARCHAR(100)    DEFAULT NULL             COMMENT '学校邮箱（可选，后缀须与所属学校匹配）',
     campus          VARCHAR(50)     DEFAULT NULL             COMMENT '校区（个人中心自愿补全，智能推荐与信任标签使用）',
     college         VARCHAR(50)     DEFAULT NULL             COMMENT '学院（个人中心自愿补全，信任标签用）',
@@ -104,13 +104,12 @@ CREATE TABLE item (
     category_id     BIGINT          NOT NULL                 COMMENT '所属大类ID',
     price           DECIMAL(10,2)   DEFAULT NULL             COMMENT '价格/跑腿悬赏；SWAP为空',
     images          TEXT            NOT NULL                 COMMENT '图片URL列表（JSON数组）',
-    ai_tags         TEXT            DEFAULT NULL             COMMENT 'AI动态标签（JSON数组）',
-    ai_reviewed     TINYINT(1)      NOT NULL DEFAULT 0       COMMENT 'AI是否已完成审核：0未审核/1已审核',
+    tags            TEXT            DEFAULT NULL             COMMENT '本地生成的普通商品标签（JSON数组）',
+    moderation_status VARCHAR(20)   NOT NULL DEFAULT 'PENDING' COMMENT '内容审核状态：PASSED/PENDING/REJECTED',
     trade_location  VARCHAR(255)    DEFAULT NULL             COMMENT '交易地点',
     pickup_location VARCHAR(255)    DEFAULT NULL             COMMENT '跑腿取件地点',
     delivery_location VARCHAR(255)  DEFAULT NULL             COMMENT '跑腿送达地点',
-    deadline_time   DATETIME        DEFAULT NULL             COMMENT '期望出手/跑腿截止时间',
-    status          VARCHAR(20)     NOT NULL DEFAULT 'ON_SALE' COMMENT '状态：ON_SALE/PENDING/SOLD/OFF_SHELF',
+    status          VARCHAR(20)     NOT NULL DEFAULT 'ON_SALE' COMMENT '商品状态：ON_SALE/SOLD/OFF_SHELF；订单状态独立存储',
     view_count      INT             NOT NULL DEFAULT 0       COMMENT '浏览次数',
     is_deleted      TINYINT(1)      NOT NULL DEFAULT 0       COMMENT '软删除标记：0正常/1已删除',
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
@@ -118,12 +117,14 @@ CREATE TABLE item (
 
     PRIMARY KEY (id),
     INDEX idx_status (status),
+    INDEX idx_moderation_status (moderation_status),
     INDEX idx_category (category_id),
     INDEX idx_publisher (publisher_id),
     INDEX idx_school (school_id),
     INDEX idx_type (type),
     INDEX idx_created (created_at),
-    INDEX idx_type_deadline (school_id, type, deadline_time),
+    INDEX idx_school_type_created (school_id, type, created_at),
+    INDEX idx_market_visibility (school_id, status, moderation_status, created_at),
     CONSTRAINT fk_item_publisher  FOREIGN KEY (publisher_id) REFERENCES sys_user(id),
     CONSTRAINT fk_item_school     FOREIGN KEY (school_id)    REFERENCES school(id),
     CONSTRAINT fk_item_category   FOREIGN KEY (category_id)  REFERENCES category(id)
@@ -136,7 +137,7 @@ CREATE TABLE event_topic (
     end_time DATETIME NOT NULL COMMENT '结束时间',
     filter_type VARCHAR(10) DEFAULT NULL COMMENT '商品类型筛选',
     filter_category_id BIGINT DEFAULT NULL COMMENT '分类筛选',
-    filter_tag VARCHAR(50) DEFAULT NULL COMMENT 'AI标签筛选',
+    filter_tag VARCHAR(50) DEFAULT NULL COMMENT '商品标签筛选',
     banner_text VARCHAR(255) NOT NULL COMMENT 'Banner文案',
     enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
     created_by BIGINT NOT NULL COMMENT '创建管理员',
@@ -192,6 +193,24 @@ CREATE TABLE trade_order (
 
 
 -- -----------------------------------------------------------
+-- 2.6 item_reservation — 商品订单独占预留表
+-- -----------------------------------------------------------
+CREATE TABLE item_reservation (
+    item_id         BIGINT      NOT NULL                 COMMENT '商品ID（主键保证同一商品仅一个进行中订单）',
+    buyer_id        BIGINT      NOT NULL                 COMMENT '占用商品的买家ID',
+    order_id        BIGINT      DEFAULT NULL             COMMENT '创建完成后的订单ID',
+    created_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '预留时间',
+
+    PRIMARY KEY (item_id),
+    UNIQUE KEY uk_reservation_order (order_id),
+    INDEX idx_reservation_buyer (buyer_id),
+    CONSTRAINT fk_reservation_item  FOREIGN KEY (item_id)  REFERENCES item(id),
+    CONSTRAINT fk_reservation_buyer FOREIGN KEY (buyer_id) REFERENCES sys_user(id),
+    CONSTRAINT fk_reservation_order FOREIGN KEY (order_id) REFERENCES trade_order(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='进行中订单的商品独占预留表';
+
+
+-- -----------------------------------------------------------
 -- 2.6 wallet_log — 钱包资金变动流水表
 -- -----------------------------------------------------------
 CREATE TABLE wallet_log (
@@ -238,31 +257,36 @@ CREATE TABLE chat_message (
 
 
 -- -----------------------------------------------------------
--- 2.8 violation_report — AI违规上报记录表
+-- 2.9 violation_report — 内容审核记录表
 -- -----------------------------------------------------------
 CREATE TABLE violation_report (
     id                      BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
     user_id                 BIGINT          NOT NULL                 COMMENT '发布者ID',
+    reporter_id             BIGINT          DEFAULT NULL             COMMENT '用户举报来源的举报人ID',
     original_title          VARCHAR(100)    NOT NULL                 COMMENT '原始标题',
     original_description    TEXT            NOT NULL                 COMMENT '原始描述',
-    violation_type          VARCHAR(50)     NOT NULL                 COMMENT 'AI判定违规类型',
-    violation_reason        TEXT            NOT NULL                 COMMENT 'AI判定原因',
-    ai_tags                 TEXT            DEFAULT NULL             COMMENT 'AI提取的标签（备用）',
-    status                  VARCHAR(20)     NOT NULL DEFAULT 'PENDING' COMMENT '处理状态：PENDING待处理/CONFIRMED已确认/DISMISSED已驳回',
+    source                  VARCHAR(30)     NOT NULL                 COMMENT '来源：LOCAL_RULE/USER_REPORT/CORRECTION',
+    violation_type          VARCHAR(50)     NOT NULL                 COMMENT '风险或举报类型',
+    violation_reason        TEXT            NOT NULL                 COMMENT '本地检测依据或用户举报说明',
+    matched_rules           TEXT            DEFAULT NULL             COMMENT '命中的本地规则编号（JSON数组）',
+    rule_version            VARCHAR(30)     DEFAULT NULL             COMMENT '本地规则集版本',
+    status                  VARCHAR(20)     NOT NULL DEFAULT 'PENDING' COMMENT '处理状态：PENDING/CONFIRMED/DISMISSED/OVERTURNED',
     handler_id              BIGINT          DEFAULT NULL             COMMENT '处理的管理员ID',
     handle_note             VARCHAR(500)    DEFAULT NULL             COMMENT '处理备注',
-    item_id                 BIGINT          DEFAULT NULL             COMMENT '关联商品ID（AI拦截时创建的OFF_SHELF商品，管理员放行后改为ON_SALE）',
-    ai_review_error         TINYINT(1)      NOT NULL DEFAULT 0       COMMENT 'AI是否异常：0正常/1超时或异常（待人工复核）',
+    item_id                 BIGINT          NOT NULL                 COMMENT '关联商品ID',
     created_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上报时间',
     handled_at              DATETIME        DEFAULT NULL             COMMENT '处理时间',
 
     PRIMARY KEY (id),
     INDEX idx_status (status),
+    INDEX idx_source_status (source, status),
     INDEX idx_user (user_id),
     INDEX idx_item_id (item_id),
     CONSTRAINT fk_vr_user    FOREIGN KEY (user_id)    REFERENCES sys_user(id),
+    CONSTRAINT fk_vr_reporter FOREIGN KEY (reporter_id) REFERENCES sys_user(id),
+    CONSTRAINT fk_vr_item    FOREIGN KEY (item_id)    REFERENCES item(id),
     CONSTRAINT fk_vr_handler FOREIGN KEY (handler_id) REFERENCES sys_user(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI违规上报记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='本地规则、用户举报与整改复核记录表';
 
 
 -- -----------------------------------------------------------
@@ -272,7 +296,7 @@ CREATE TABLE violation_log (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
     user_id     BIGINT          NOT NULL                 COMMENT '被处罚用户ID',
     admin_id    BIGINT          NOT NULL                 COMMENT '操作管理员ID',
-    type        VARCHAR(20)     NOT NULL                 COMMENT '处罚类型：WARNING警告/BAN_TEMP限时封禁/BAN_PERM永久封禁',
+    type        VARCHAR(20)     NOT NULL                 COMMENT '账号封禁类型：BAN_TEMP限时封禁/BAN_PERM永久封禁',
     reason      VARCHAR(500)    NOT NULL                 COMMENT '处罚原因',
     ban_days    INT             DEFAULT NULL             COMMENT '封禁天数（限时封禁时填写）',
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '处罚时间',
@@ -293,7 +317,7 @@ CREATE TABLE reputation_penalty (
     report_id   BIGINT          NOT NULL                 COMMENT '关联违规报告ID（一条报告仅一条信誉处罚）',
     user_id     BIGINT          NOT NULL                 COMMENT '被处罚用户ID',
     admin_id    BIGINT          NOT NULL                 COMMENT '操作管理员ID',
-    type        VARCHAR(20)     NOT NULL                 COMMENT '处罚类型：WARNING/BAN_TEMP/BAN_PERM',
+    type        VARCHAR(20)     NOT NULL                 COMMENT '处罚类型：CONTENT_WARNING',
     points      INT             NOT NULL                 COMMENT '合规度扣分',
     reason      VARCHAR(500)    NOT NULL                 COMMENT '处罚原因',
     status      VARCHAR(20)     NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/REVOKED',
@@ -310,12 +334,38 @@ CREATE TABLE reputation_penalty (
 
 
 -- -----------------------------------------------------------
--- 2.11 exp_log — 经验值变动记录表（模块一成长体系）
+-- 2.11 violation_appeal — 内容违规申诉表
+-- -----------------------------------------------------------
+CREATE TABLE violation_appeal (
+    id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '申诉ID',
+    report_id   BIGINT          NOT NULL                 COMMENT '对应的已确认违规记录',
+    item_id     BIGINT          NOT NULL                 COMMENT '关联商品ID',
+    user_id     BIGINT          NOT NULL                 COMMENT '申诉卖家ID',
+    reason      VARCHAR(500)    NOT NULL                 COMMENT '申诉理由',
+    status      VARCHAR(20)     NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING/APPROVED/REJECTED',
+    handler_id  BIGINT          DEFAULT NULL             COMMENT '复核管理员ID',
+    handle_note VARCHAR(500)    DEFAULT NULL             COMMENT '复核说明',
+    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申诉时间',
+    handled_at  DATETIME        DEFAULT NULL             COMMENT '复核时间',
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_appeal_report (report_id),
+    INDEX idx_appeal_status_created (status, created_at),
+    INDEX idx_appeal_user (user_id),
+    CONSTRAINT fk_appeal_report  FOREIGN KEY (report_id)  REFERENCES violation_report(id),
+    CONSTRAINT fk_appeal_item    FOREIGN KEY (item_id)    REFERENCES item(id),
+    CONSTRAINT fk_appeal_user    FOREIGN KEY (user_id)    REFERENCES sys_user(id),
+    CONSTRAINT fk_appeal_handler FOREIGN KEY (handler_id) REFERENCES sys_user(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品内容违规申诉表';
+
+
+-- -----------------------------------------------------------
+-- 2.12 exp_log — 经验值变动记录表（模块一成长体系）
 -- -----------------------------------------------------------
 CREATE TABLE exp_log (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
     user_id     BIGINT          NOT NULL                 COMMENT '用户ID',
-    delta       INT             NOT NULL                 COMMENT '变动量（+50完成订单/-30违规下架）',
+    delta       INT             NOT NULL                 COMMENT '经验值变动量（例如完成订单奖励）',
     exp_after   INT             NOT NULL                 COMMENT '变动后累计经验',
     level_after INT             NOT NULL                 COMMENT '变动后等级',
     reason      VARCHAR(255)    NOT NULL                 COMMENT '变动原因',
@@ -328,7 +378,7 @@ CREATE TABLE exp_log (
 
 
 -- -----------------------------------------------------------
--- 2.12 trade_review — 交易评价表（模块一创新功能：信誉体系）
+-- 2.13 trade_review — 交易评价表（模块一创新功能：信誉体系）
 -- -----------------------------------------------------------
 CREATE TABLE trade_review (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '评价ID',
@@ -361,7 +411,7 @@ INSERT INTO school (name, code, email_domain) VALUES
 ('东华大学', 'DHU', '@dhu.edu.cn');
 
 -- -----------------------------------------------------------
--- 3.1 系统管理员（账号 admin；密码与密保答案均以 BCrypt 哈希形式保存，初始化后请在本地重置）
+-- 3.1 系统管理员（仅通过 /admin/login 进入后台，不具备普通用户功能；初始化后请立即改密）
 -- -----------------------------------------------------------
 INSERT INTO sys_user (student_id, password, nickname, school_id, role, status, level, exp, wallet_balance, security_question, security_answer)
 VALUES (

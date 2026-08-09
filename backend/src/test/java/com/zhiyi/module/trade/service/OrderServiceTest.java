@@ -11,6 +11,7 @@ import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.entity.WalletLog;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
 import com.zhiyi.module.trade.mapper.TradeReviewMapper;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.trade.mapper.WalletLogMapper;
 import com.zhiyi.module.trade.vo.OrderVO;
 import com.zhiyi.module.user.entity.SysUser;
@@ -27,7 +28,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,6 +44,7 @@ class OrderServiceTest {
     @Mock private SysUserMapper sysUserMapper;
     @Mock private ItemMapper itemMapper;
     @Mock private TradeOrderMapper orderMapper;
+    @Mock private ItemReservationMapper reservationMapper;
     @Mock private TradeReviewMapper reviewMapper;
     @Mock private WalletLogMapper walletLogMapper;
     @Mock private UserGrowthService growthService;
@@ -71,7 +72,7 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         orderService = new OrderService(sysUserMapper, itemMapper,
-                orderMapper, reviewMapper, walletLogMapper, growthService);
+                orderMapper, reservationMapper, reviewMapper, walletLogMapper, growthService);
     }
 
     /** 构造一个在售的 SELL 商品 */
@@ -80,6 +81,7 @@ class OrderServiceTest {
         item.setId(ITEM_ID);
         item.setType("SELL");
         item.setStatus("ON_SALE");
+        item.setModerationStatus("PASSED");
         item.setPrice(PRICE);
         item.setPublisherId(SELLER_ID);
         item.setSchoolId(1L);
@@ -123,10 +125,9 @@ class OrderServiceTest {
             dto.setItemId(ITEM_ID);
 
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-            when(orderMapper.selectCount(any())).thenReturn(0L);
-            when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b);
+            when(reservationMapper.tryReserve(ITEM_ID, BUYER_ID)).thenReturn(1);
             when(sysUserMapper.update(nullable(SysUser.class), any())).thenReturn(1);
-            when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b, b); // 两次回读
+            when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b, b); // 校验与扣款后回读
             when(sysUserMapper.selectById(SELLER_ID)).thenReturn(s);
             when(orderMapper.insert(any(TradeOrder.class))).thenAnswer(inv -> {
                 TradeOrder o = inv.getArgument(0);
@@ -142,6 +143,10 @@ class OrderServiceTest {
             assertEquals(SELLER_ID, vo.getSellerId());
             assertEquals("WAITING_MEET", vo.getStatus());
             assertEquals(s.getNickname(), vo.getPeerNickname());
+            assertEquals("ON_SALE", item.getStatus(), "下单不应把订单状态写入商品状态");
+            verify(itemMapper, never()).updateById(any(Item.class));
+            verify(reservationMapper).updateById(argThat((com.zhiyi.module.trade.entity.ItemReservation reservation) ->
+                    ITEM_ID.equals(reservation.getItemId()) && Long.valueOf(1L).equals(reservation.getOrderId())));
 
             // 验流水
             ArgumentCaptor<WalletLog> logCaptor = ArgumentCaptor.forClass(WalletLog.class);
@@ -162,21 +167,6 @@ class OrderServiceTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> orderService.createOrder(BUYER_ID, dto));
             assertTrue(ex.getMessage().contains("求购"));
-        }
-
-        @Test
-        void shouldRejectItemPastItsDeadline() {
-            Item item = onSaleItem();
-            item.setDeadlineTime(LocalDateTime.now().minusMinutes(1));
-            CreateOrderDTO dto = new CreateOrderDTO();
-            dto.setItemId(ITEM_ID);
-            when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> orderService.createOrder(BUYER_ID, dto));
-
-            assertTrue(ex.getMessage().contains("截止时间"));
-            verifyNoInteractions(orderMapper, sysUserMapper);
         }
 
         @Test
@@ -204,12 +194,26 @@ class OrderServiceTest {
         }
 
         @Test
+        void shouldRejectItemStillUnderModeration() {
+            Item item = onSaleItem();
+            item.setModerationStatus("PENDING");
+            CreateOrderDTO dto = new CreateOrderDTO();
+            dto.setItemId(ITEM_ID);
+            when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
+
+            assertThrows(BusinessException.class, () -> orderService.createOrder(BUYER_ID, dto));
+            verifyNoInteractions(reservationMapper);
+        }
+
+        @Test
         void shouldRejectDuplicateActiveOrder() {
             Item item = onSaleItem();
             CreateOrderDTO dto = new CreateOrderDTO();
             dto.setItemId(ITEM_ID);
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-            when(orderMapper.selectCount(any())).thenReturn(1L); // 已有活跃订单
+            when(sysUserMapper.selectById(BUYER_ID)).thenReturn(buyer(new BigDecimal("200.00")));
+            when(sysUserMapper.selectById(SELLER_ID)).thenReturn(seller());
+            when(reservationMapper.tryReserve(ITEM_ID, BUYER_ID)).thenReturn(0); // 数据库主键冲突
 
             assertThrows(BusinessException.class,
                     () -> orderService.createOrder(BUYER_ID, dto));
@@ -223,7 +227,6 @@ class OrderServiceTest {
             dto.setItemId(ITEM_ID);
 
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-            when(orderMapper.selectCount(any())).thenReturn(0L);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b);
 
             assertThrows(BusinessException.class,
@@ -239,7 +242,6 @@ class OrderServiceTest {
             dto.setItemId(ITEM_ID);
 
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-            when(orderMapper.selectCount(any())).thenReturn(0L);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b);
 
             BusinessException error = assertThrows(BusinessException.class,
@@ -258,7 +260,6 @@ class OrderServiceTest {
             dto.setItemId(ITEM_ID);
 
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-            when(orderMapper.selectCount(any())).thenReturn(0L);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b);
             when(sysUserMapper.selectById(SELLER_ID)).thenReturn(s);
 
@@ -276,9 +277,9 @@ class OrderServiceTest {
             dto.setItemId(ITEM_ID);
 
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
-            when(orderMapper.selectCount(any())).thenReturn(0L);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b);
             when(sysUserMapper.selectById(SELLER_ID)).thenReturn(seller());
+            when(reservationMapper.tryReserve(ITEM_ID, BUYER_ID)).thenReturn(1);
             when(sysUserMapper.update(nullable(SysUser.class), any())).thenReturn(0); // 扣款失败
 
             assertThrows(BusinessException.class,
@@ -331,6 +332,7 @@ class OrderServiceTest {
             // 双方加经验
             verify(growthService).addExp(eq(BUYER_ID), eq(UserGrowthService.EXP_ORDER_COMPLETED), anyString());
             verify(growthService).addExp(eq(SELLER_ID), eq(UserGrowthService.EXP_ORDER_COMPLETED), anyString());
+            verify(reservationMapper).deleteById(ITEM_ID);
         }
 
         @Test
@@ -397,6 +399,7 @@ class OrderServiceTest {
             verify(walletLogMapper).insert(logCaptor.capture());
             assertEquals("REFUND", logCaptor.getValue().getType());
             assertEquals(PRICE, logCaptor.getValue().getAmount());
+            verify(reservationMapper).deleteById(ITEM_ID);
         }
 
         @Test

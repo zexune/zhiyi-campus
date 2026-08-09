@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { clearAuth, getToken } from '@/utils/auth'
+import { clearAuth, getRole, getToken } from '@/utils/auth'
 
 const MAX_JSON_RESPONSE_SIZE = 5 * 1024 * 1024
 const BLOCKED_JSON_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
@@ -48,9 +48,11 @@ request.interceptors.request.use((config) => {
 })
 
 function redirectToLogin() {
+  const adminSession = getRole() === 'ADMIN' || window.location.pathname.startsWith('/admin/')
+  const loginPath = adminSession ? '/admin/login' : '/login'
   clearAuth()
-  if (!window.location.pathname.startsWith('/login')) {
-    window.location.href = '/login'
+  if (window.location.pathname !== loginPath) {
+    window.location.href = loginPath
   }
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <DefaultLayout>
+  <AdminLayout>
     <div class="schools-page rise">
       <div class="page-title">
         🏫 学校管理
@@ -8,7 +8,7 @@
 
       <div class="nav-tabs">
         <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 违规审核</router-link>
+        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
         <router-link to="/admin/chat" class="nav-tab">💬 客服收件箱</router-link>
         <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
         <span class="nav-tab active">🏫 学校管理</span>
@@ -137,12 +137,12 @@
         </div>
       </template>
     </div>
-  </DefaultLayout>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
 
 const schools = ref([])

@@ -18,7 +18,6 @@
               <span v-if="unreadCount > 0" class="dot" :aria-label="`${unreadCount}条未读`">{{ unreadCount }}</span>
             </router-link>
             <router-link to="/wallet" :class="{ active: isActive('/wallet') }">钱包·订单</router-link>
-            <router-link v-if="admin" to="/admin/dashboard" :class="{ active: isActive('/admin') }">管理后台</router-link>
           </template>
         </nav>
 
@@ -37,7 +36,6 @@
                   <el-dropdown-item @click="go('/user/profile')">个人中心</el-dropdown-item>
                   <el-dropdown-item @click="go('/user/my-items')">我的发布</el-dropdown-item>
                   <el-dropdown-item @click="go('/user/my-favorites')">我的收藏</el-dropdown-item>
-                  <el-dropdown-item v-if="admin" divided @click="go('/admin/dashboard')">管理后台</el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -59,7 +57,7 @@
     <!-- 页脚（demo 设计） -->
     <footer class="footer">
       <div class="footer__inner">
-        <span>智易校园 · AI 辅助审核与闭环生态的校园交易平台</span>
+        <span>智易校园 · 本地内容治理与可信交易闭环的校园平台</span>
         <span><router-link to="/chat">联系客服</router-link> · <router-link to="/">回到大厅</router-link></span>
       </div>
     </footer>
@@ -69,7 +67,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { isLoggedIn, isAdmin, getNickname, getUserId } from '@/utils/auth'
+import { isLoggedIn, getNickname, getUserId } from '@/utils/auth'
 import { useUserStore } from '@/stores/user'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { getUnreadCount } from '@/api/chat'
@@ -79,7 +77,6 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const loggedIn = computed(() => isLoggedIn())
-const admin = computed(() => isAdmin())
 const nickname = computed(() => userStore.user?.nickname || getNickname() || '?')
 const userId = computed(() => userStore.user?.id || getUserId() || 0)
 

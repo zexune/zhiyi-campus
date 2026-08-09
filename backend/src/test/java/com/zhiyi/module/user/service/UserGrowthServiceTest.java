@@ -44,7 +44,7 @@ class UserGrowthServiceTest {
         when(userMapper.incrExp(1L, -30)).thenReturn(1);
         when(userMapper.selectGrowthState(1L)).thenReturn(state(1L, 0, 2));
 
-        service.addExp(1L, -30, "商品被管理员强制下架");
+        service.addExp(1L, -30, "管理员人工经验修正");
 
         ArgumentCaptor<ExpLog> captor = ArgumentCaptor.forClass(ExpLog.class);
         verify(expLogMapper).insert(captor.capture());
@@ -60,7 +60,7 @@ class UserGrowthServiceTest {
         when(userMapper.incrExp(1L, -30)).thenReturn(1);
         when(userMapper.selectGrowthState(1L)).thenReturn(state(1L, 70, 2));
 
-        service.addExp(1L, -30, "违规扣分");
+        service.addExp(1L, -30, "历史数据修正");
 
         ArgumentCaptor<ExpLog> captor = ArgumentCaptor.forClass(ExpLog.class);
         verify(expLogMapper).insert(captor.capture());

@@ -14,7 +14,7 @@ public class AdminItemVO {
     private String title;
     private String type;            // SELL / BUY
     private BigDecimal price;
-    private String status;          // ON_SALE / PENDING / SOLD / OFF_SHELF
+    private String status;          // ON_SALE / SOLD / OFF_SHELF
     private Long publisherId;
     private String publisherNickname;
     private LocalDateTime createdAt;

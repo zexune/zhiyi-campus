@@ -3,13 +3,17 @@ package com.zhiyi.module.item.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zhiyi.common.Result;
 import com.zhiyi.module.admin.service.AdminLineageService;
+import com.zhiyi.module.admin.service.ViolationAppealService;
+import com.zhiyi.module.admin.dto.SubmitAppealDTO;
+import com.zhiyi.module.admin.vo.AppealVO;
 import com.zhiyi.module.admin.vo.ItemLineageVO;
 import com.zhiyi.module.item.dto.PublishItemDTO;
+import com.zhiyi.module.item.dto.ReportItemDTO;
 import com.zhiyi.module.item.service.ItemPublishService;
 import com.zhiyi.module.item.service.MarketplaceService;
-import com.zhiyi.module.item.vo.AiTagTrendVO;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.TagTrendVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +41,7 @@ public class ItemController {
     private final MarketplaceService marketplaceService;
     private final ItemPublishService itemPublishService;
     private final AdminLineageService lineageService;
+    private final ViolationAppealService appealService;
 
     @PostMapping("/upload-image")
     public Result<UploadImageVO> uploadImage(@RequestParam("file") MultipartFile file) {
@@ -114,9 +119,9 @@ public class ItemController {
     }
 
     @GetMapping("/ranking/tags")
-    public Result<List<AiTagTrendVO>> trendingAiTags(@RequestParam(defaultValue = "10") int limit,
-                                                     @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.trendingAiTags(limit, userId));
+    public Result<List<TagTrendVO>> trendingTags(@RequestParam(defaultValue = "10") int limit,
+                                                 @RequestAttribute("userId") Long userId) {
+        return Result.ok(marketplaceService.trendingTags(limit, userId));
     }
 
     @GetMapping("/{id}")
@@ -161,10 +166,28 @@ public class ItemController {
     }
 
     @PutMapping("/{id}/relist")
-    public Result<Void> relist(@RequestAttribute("userId") Long userId,
-                               @PathVariable Long id) {
-        itemPublishService.relist(userId, id);
-        return Result.ok("AI 审核通过，已重新上架", null);
+    public Result<ItemCardVO> relist(@RequestAttribute("userId") Long userId,
+                                     @PathVariable Long id) {
+        ItemCardVO item = itemPublishService.relist(userId, id);
+        String message = "PENDING".equals(item.getModerationStatus())
+                ? "检测到风险内容，已提交管理员审核"
+                : "已重新上架";
+        return Result.ok(message, item);
+    }
+
+    @PostMapping("/{id}/reports")
+    public Result<Void> report(@RequestAttribute("userId") Long userId,
+                               @PathVariable Long id,
+                               @Valid @RequestBody ReportItemDTO dto) {
+        itemPublishService.report(userId, id, dto);
+        return Result.ok("举报已提交，管理员会尽快处理", null);
+    }
+
+    @PostMapping("/{id}/appeals")
+    public Result<AppealVO> appeal(@RequestAttribute("userId") Long userId,
+                                   @PathVariable Long id,
+                                   @Valid @RequestBody SubmitAppealDTO dto) {
+        return Result.ok("申诉已提交", appealService.submitLatestForItem(userId, id, dto));
     }
 
     @DeleteMapping("/{id}")

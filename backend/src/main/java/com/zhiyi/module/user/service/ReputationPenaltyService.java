@@ -1,15 +1,15 @@
 package com.zhiyi.module.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.zhiyi.common.BusinessException;
-import com.zhiyi.common.ResultCode;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.module.user.entity.ReputationPenalty;
 import com.zhiyi.module.user.mapper.ReputationPenaltyMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * 信誉处罚策略：处罚作为独立维度参与信誉计算，不污染买家的真实交易评价。
@@ -20,16 +20,16 @@ public class ReputationPenaltyService {
 
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_REVOKED = "REVOKED";
-
-    private static final int WARNING_POINTS = 5;
-    private static final int TEMP_BAN_POINTS = 15;
-    private static final int PERM_BAN_POINTS = 40;
+    public static final String TYPE_CONTENT_WARNING = "CONTENT_WARNING";
 
     private final ReputationPenaltyMapper penaltyMapper;
 
-    /** 同一违规报告只生成一条信誉处罚记录。 */
-    public ReputationPenalty recordPenalty(Long reportId, Long userId, Long adminId,
-                                             String type, String reason) {
+    @Value("${zhiyi.moderation.warning-points:5}")
+    private int warningPoints = 5;
+
+    /** 同一违规审核记录只生成一条固定内容警告。 */
+    public ReputationPenalty recordContentWarning(Long reportId, Long userId, Long adminId,
+                                                    String reason) {
         ReputationPenalty existing = penaltyMapper.selectOne(
                 new LambdaQueryWrapper<ReputationPenalty>()
                         .eq(ReputationPenalty::getReportId, reportId));
@@ -37,17 +37,33 @@ public class ReputationPenaltyService {
             return existing;
         }
 
-        String normalizedType = normalizeType(type);
         ReputationPenalty penalty = new ReputationPenalty();
         penalty.setReportId(reportId);
         penalty.setUserId(userId);
         penalty.setAdminId(adminId);
-        penalty.setType(normalizedType);
-        penalty.setPoints(pointsFor(normalizedType));
+        penalty.setType(TYPE_CONTENT_WARNING);
+        penalty.setPoints(Math.max(1, warningPoints));
         penalty.setReason(reason);
         penalty.setStatus(STATUS_ACTIVE);
         penaltyMapper.insert(penalty);
         return penalty;
+    }
+
+    /** 申诉通过时幂等撤销原扣分，避免重试造成重复返分。 */
+    public boolean revokePenalty(Long reportId) {
+        int updated = penaltyMapper.update(null, new LambdaUpdateWrapper<ReputationPenalty>()
+                .eq(ReputationPenalty::getReportId, reportId)
+                .eq(ReputationPenalty::getStatus, STATUS_ACTIVE)
+                .set(ReputationPenalty::getStatus, STATUS_REVOKED)
+                .set(ReputationPenalty::getRevokedAt, LocalDateTime.now()));
+        return updated > 0;
+    }
+
+    public long activeWarningCount(Long userId) {
+        return penaltyMapper.selectCount(new LambdaQueryWrapper<ReputationPenalty>()
+                .eq(ReputationPenalty::getUserId, userId)
+                .eq(ReputationPenalty::getType, TYPE_CONTENT_WARNING)
+                .eq(ReputationPenalty::getStatus, STATUS_ACTIVE));
     }
 
     /** 当前有效处罚的累计扣分。 */
@@ -69,20 +85,4 @@ public class ReputationPenaltyService {
         return Math.max(0, 100 - activePenaltyPoints(userId));
     }
 
-    private String normalizeType(String type) {
-        String normalized = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("WARNING", "BAN_TEMP", "BAN_PERM").contains(normalized)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "不支持的处罚类型");
-        }
-        return normalized;
-    }
-
-    private int pointsFor(String type) {
-        return switch (type) {
-            case "WARNING" -> WARNING_POINTS;
-            case "BAN_TEMP" -> TEMP_BAN_POINTS;
-            case "BAN_PERM" -> PERM_BAN_POINTS;
-            default -> throw new IllegalArgumentException("Unsupported penalty type: " + type);
-        };
-    }
 }

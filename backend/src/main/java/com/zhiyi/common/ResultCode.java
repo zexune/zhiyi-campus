@@ -29,7 +29,7 @@ public enum ResultCode {
     ORDER_STATUS_ERROR(3002, "订单状态异常"),
     ORDER_ALREADY_REVIEWED(3003, "该订单已评价"),
     ITEM_NOT_ON_SALE(2001, "商品已下架或已售出"),
-    AI_VIOLATION(2002, "内容涉嫌违规，已被拦截"),
+    CONTENT_REVIEW_REQUIRED(2002, "内容涉嫌违规，已转入人工审核"),
     DUPLICATE_FAVORITE(2003, "已收藏过该商品");
 
     private final int code;

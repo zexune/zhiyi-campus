@@ -30,11 +30,13 @@ class RoleInterceptorTest {
                 ProtectedController.class.getDeclaredMethod("protectedAction"));
 
         MockHttpServletRequest admin = new MockHttpServletRequest();
+        admin.setRequestURI("/api/admin/protected");
         admin.setAttribute("role", "ADMIN");
         assertTrue(interceptor.preHandle(
                 admin, new MockHttpServletResponse(), handler));
 
         MockHttpServletRequest user = new MockHttpServletRequest();
+        user.setRequestURI("/api/admin/protected");
         user.setAttribute("role", "USER");
         MockHttpServletResponse response = new MockHttpServletResponse();
         assertFalse(interceptor.preHandle(user, response, handler));
@@ -51,5 +53,31 @@ class RoleInterceptorTest {
                 new MockHttpServletRequest(),
                 new MockHttpServletResponse(),
                 handler));
+    }
+
+    @Test
+    void adminCannotAccessRegularUserApi() throws Exception {
+        HandlerMethod handler = new HandlerMethod(
+                new ProtectedController(),
+                ProtectedController.class.getDeclaredMethod("publicAction"));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/item/list");
+        request.setAttribute("role", "ADMIN");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertFalse(interceptor.preHandle(request, response, handler));
+        assertEquals(403, response.getStatus());
+    }
+
+    @Test
+    void regularUserCanAccessRegularUserApi() throws Exception {
+        HandlerMethod handler = new HandlerMethod(
+                new ProtectedController(),
+                ProtectedController.class.getDeclaredMethod("publicAction"));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/item/list");
+        request.setAttribute("role", "USER");
+
+        assertTrue(interceptor.preHandle(request, new MockHttpServletResponse(), handler));
     }
 }

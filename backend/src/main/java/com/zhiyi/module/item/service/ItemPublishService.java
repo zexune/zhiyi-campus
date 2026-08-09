@@ -1,31 +1,29 @@
 package com.zhiyi.module.item.service;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.module.admin.entity.ViolationReport;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.dto.PublishItemDTO;
+import com.zhiyi.module.item.dto.ReportItemDTO;
 import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -33,18 +31,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 /**
- * 模块二：商品发布、图片上传与 AI 审核/打标。
+ * 商品发布、整改、重新上架、举报与本地内容检测。
  */
 @Service
 @RequiredArgsConstructor
@@ -52,14 +47,22 @@ public class ItemPublishService {
 
     private static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
     private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
+    private static final Map<String, String> REPORT_LABELS = Map.of(
+            "PRICE_FRAUD", "疑似虚假价格",
+            "PROHIBITED_ITEM", "疑似违禁商品",
+            "IMAGE_VIOLATION", "图片内容违规",
+            "ADVERTISING", "广告或站外引流",
+            "OTHER", "其他问题"
+    );
+
     private final ItemMapper itemMapper;
     private final CategoryMapper categoryMapper;
     private final ViolationReportMapper violationReportMapper;
     private final MarketplaceService marketplaceService;
     private final SysUserMapper userMapper;
+    private final ItemReservationMapper reservationMapper;
     private final JsonMapper objectMapper;
-    private final PlatformTransactionManager transactionManager;
-    private final AiReviewService aiReviewService;
+    private final LocalContentAnalyzer contentAnalyzer;
 
     @Value("${zhiyi.upload-path:./uploads}")
     private String uploadPath;
@@ -90,6 +93,189 @@ public class ItemPublishService {
 
     @Transactional
     public ItemCardVO publish(Long publisherId, PublishItemDTO dto) {
+        SysUser publisher = requirePublisher(publisherId);
+        Category category = requireCategory(dto.getCategoryId());
+        validateImages(dto.getImages());
+
+        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
+        Item item = buildItem(publisherId, publisher.getSchoolId(), dto, analysis.tags());
+        item.setStatus("ON_SALE");
+        item.setModerationStatus(analysis.risky() ? "PENDING" : "PASSED");
+        itemMapper.insert(item);
+        if (analysis.risky()) {
+            saveReview(publisherId, null, item.getId(), dto, "LOCAL_RULE", "KEYWORD_MATCH",
+                    analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
+        }
+        return marketplaceService.getSnapshot(item.getId(), publisherId);
+    }
+
+    @Transactional
+    public ItemCardVO update(Long publisherId, Long itemId, PublishItemDTO dto) {
+        Item item = requireOwnedItem(publisherId, itemId);
+        assertNotReserved(itemId);
+        if ("SOLD".equals(item.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "已售出的商品不能编辑");
+        }
+        if ("PENDING".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "商品正在审核中，暂不能重复修改");
+        }
+
+        Category category = requireCategory(dto.getCategoryId());
+        validateImages(dto.getImages());
+        boolean correction = "REJECTED".equals(item.getModerationStatus());
+        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
+        applyContent(item, dto, analysis.tags());
+
+        if (correction) {
+            item.setStatus("OFF_SHELF");
+            item.setModerationStatus("PENDING");
+            itemMapper.updateById(item);
+            String reason = analysis.risky()
+                    ? analysis.reason()
+                    : "卖家已提交整改内容，等待管理员复核";
+            saveReview(publisherId, null, itemId, dto, "CORRECTION", "CORRECTION_REVIEW",
+                    reason, analysis.matchedRules(), analysis.ruleVersion());
+        } else if (analysis.risky()) {
+            item.setModerationStatus("PENDING");
+            itemMapper.updateById(item);
+            saveReview(publisherId, null, itemId, dto, "LOCAL_RULE", "KEYWORD_MATCH",
+                    analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
+        } else {
+            item.setModerationStatus("PASSED");
+            itemMapper.updateById(item);
+        }
+        return marketplaceService.getSnapshot(itemId, publisherId);
+    }
+
+    @Transactional
+    public ItemCardVO relist(Long publisherId, Long itemId) {
+        Item item = requireOwnedItem(publisherId, itemId);
+        assertNotReserved(itemId);
+        if (!"OFF_SHELF".equals(item.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "只有已下架商品可以重新上架");
+        }
+        if ("PENDING".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "商品正在审核中");
+        }
+        if ("REJECTED".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该商品因内容违规下架，请先整改或申诉");
+        }
+
+        Category category = requireCategory(item.getCategoryId());
+        PublishItemDTO dto = toReviewDTO(item);
+        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
+        item.setTags(toJson(analysis.tags()));
+        if (analysis.risky()) {
+            item.setModerationStatus("PENDING");
+            itemMapper.updateById(item);
+            saveReview(publisherId, null, itemId, dto, "LOCAL_RULE", "KEYWORD_MATCH",
+                    analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
+        } else {
+            item.setStatus("ON_SALE");
+            item.setModerationStatus("PASSED");
+            itemMapper.updateById(item);
+        }
+        return marketplaceService.getSnapshot(itemId, publisherId);
+    }
+
+    /**
+     * 用户举报不会自动隐藏商品，避免恶意举报造成下架；最终状态由管理员决定。
+     */
+    @Transactional
+    public void report(Long reporterId, Long itemId, ReportItemDTO dto) {
+        Item item = itemMapper.selectById(itemId);
+        if (item == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "商品不存在");
+        }
+        marketplaceService.requireVisibleItem(reporterId, itemId);
+        if (Objects.equals(item.getPublisherId(), reporterId)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "不能举报自己发布的商品");
+        }
+        long existing = violationReportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
+                .eq(ViolationReport::getItemId, itemId)
+                .eq(ViolationReport::getReporterId, reporterId)
+                .eq(ViolationReport::getSource, "USER_REPORT")
+                .eq(ViolationReport::getStatus, "PENDING"));
+        if (existing > 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "你已经举报过该商品，管理员正在处理");
+        }
+
+        ViolationReport report = new ViolationReport();
+        report.setUserId(item.getPublisherId());
+        report.setReporterId(reporterId);
+        report.setItemId(itemId);
+        report.setOriginalTitle(item.getTitle());
+        report.setOriginalDescription(item.getDescription());
+        report.setSource("USER_REPORT");
+        report.setViolationType(dto.type());
+        String label = REPORT_LABELS.getOrDefault(dto.type(), "其他问题");
+        report.setViolationReason(StringUtils.hasText(dto.details())
+                ? label + "：" + dto.details().trim()
+                : label);
+        report.setMatchedRules("[]");
+        report.setRuleVersion(null);
+        report.setStatus("PENDING");
+        violationReportMapper.insert(report);
+    }
+
+    private void saveReview(Long sellerId,
+                            Long reporterId,
+                            Long itemId,
+                            PublishItemDTO dto,
+                            String source,
+                            String violationType,
+                            String reason,
+                            List<String> matchedRules,
+                            String ruleVersion) {
+        long existing = violationReportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
+                .eq(ViolationReport::getItemId, itemId)
+                .in(ViolationReport::getSource, "LOCAL_RULE", "CORRECTION")
+                .eq(ViolationReport::getStatus, "PENDING"));
+        if (existing > 0) {
+            return;
+        }
+        ViolationReport report = new ViolationReport();
+        report.setUserId(sellerId);
+        report.setReporterId(reporterId);
+        report.setItemId(itemId);
+        report.setOriginalTitle(dto.getTitle().trim());
+        report.setOriginalDescription(dto.getDescription().trim());
+        report.setSource(source);
+        report.setViolationType(violationType);
+        report.setViolationReason(reason);
+        report.setMatchedRules(toJson(matchedRules));
+        report.setRuleVersion(ruleVersion);
+        report.setStatus("PENDING");
+        violationReportMapper.insert(report);
+    }
+
+    private Item buildItem(Long publisherId,
+                           Long schoolId,
+                           PublishItemDTO dto,
+                           List<String> tags) {
+        Item item = new Item();
+        item.setPublisherId(publisherId);
+        item.setSchoolId(schoolId);
+        applyContent(item, dto, tags);
+        item.setViewCount(0);
+        item.setIsDeleted(false);
+        return item;
+    }
+
+    private void applyContent(Item item, PublishItemDTO dto, List<String> tags) {
+        item.setType(dto.getType());
+        item.setTitle(dto.getTitle().trim());
+        item.setDescription(dto.getDescription().trim());
+        item.setCategoryId(dto.getCategoryId());
+        item.setPrice(normalizePrice(dto));
+        item.setImages(toJson(dto.getImages()));
+        item.setTags(toJson(tags));
+        item.setTradeLocation(trimToNull(dto.getTradeLocation()));
+        item.setPickupLocation(trimToNull(dto.getPickupLocation()));
+        item.setDeliveryLocation(trimToNull(dto.getDeliveryLocation()));
+    }
+
+    private SysUser requirePublisher(Long publisherId) {
         SysUser publisher = userMapper.selectById(publisherId);
         if (publisher == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
@@ -97,164 +283,32 @@ public class ItemPublishService {
         if (publisher.getSchoolId() == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "请先设置所属学校");
         }
-        Category category = categoryMapper.selectById(dto.getCategoryId());
-        if (category == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "商品分类不存在");
-        }
-        validateImages(dto.getImages());
-
-        ReviewResult review = review(dto, category);
-
-        if (review.violation()) {
-            // 独立事务：确保 item + violation_report 提交后再抛异常
-            TransactionTemplate newTx = new TransactionTemplate(transactionManager);
-            newTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            Long savedItemId = newTx.execute(status -> {
-                Item item = buildItem(publisherId, publisher.getSchoolId(), dto, review);
-                item.setStatus("OFF_SHELF");
-                item.setAiReviewed(true);
-                itemMapper.insert(item);
-                saveViolationReport(publisherId, item.getId(), dto, review, false);
-                return item.getId();
-            });
-            throw new BusinessException(ResultCode.AI_VIOLATION, review.reason());
-        }
-
-        // 合规商品正常发布
-        Item item = buildItem(publisherId, publisher.getSchoolId(), dto, review);
-        item.setStatus("ON_SALE");
-        item.setAiReviewed(!review.reviewError());
-        itemMapper.insert(item);
-        if (review.reviewError()) {
-            saveViolationReport(publisherId, item.getId(), dto, review, true);
-        }
-        return marketplaceService.getSnapshot(item.getId(), publisherId);
+        return publisher;
     }
 
-    @Transactional
-    public ItemCardVO update(Long publisherId, Long itemId, PublishItemDTO dto) {
+    private Item requireOwnedItem(Long userId, Long itemId) {
         Item item = itemMapper.selectById(itemId);
         if (item == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品不存在");
         }
-        if (!Objects.equals(item.getPublisherId(), publisherId)) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "只能编辑自己发布的商品");
-        }
-        if (!List.of("ON_SALE", "OFF_SHELF").contains(item.getStatus())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "交易中或已售出的商品不能编辑");
-        }
-
-        Category category = categoryMapper.selectById(dto.getCategoryId());
-        if (category == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "商品分类不存在");
-        }
-        validateImages(dto.getImages());
-        ReviewResult review = review(dto, category);
-        if (review.violation()) {
-            TransactionTemplate newTx = new TransactionTemplate(transactionManager);
-            newTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            newTx.executeWithoutResult(status -> {
-                item.setStatus("OFF_SHELF");
-                item.setAiReviewed(true);
-                itemMapper.updateById(item);
-                saveViolationReport(publisherId, item.getId(), dto, review, false);
-            });
-            throw new BusinessException(ResultCode.AI_VIOLATION, review.reason());
-        }
-
-        item.setType(dto.getType());
-        item.setTitle(dto.getTitle().trim());
-        item.setDescription(dto.getDescription().trim());
-        item.setCategoryId(dto.getCategoryId());
-        item.setPrice(normalizePrice(dto));
-        item.setImages(toJson(dto.getImages()));
-        item.setAiTags(toJson(review.tags()));
-        item.setAiReviewed(!review.reviewError());
-        item.setTradeLocation(trimToNull(dto.getTradeLocation()));
-        item.setPickupLocation(trimToNull(dto.getPickupLocation()));
-        item.setDeliveryLocation(trimToNull(dto.getDeliveryLocation()));
-        item.setDeadlineTime(dto.getDeadlineTime());
-        itemMapper.updateById(item);
-        if (!review.reviewError()) {
-            dismissPendingViolationsAfterCorrection(itemId);
-        }
-        if (review.reviewError()) {
-            saveViolationReport(publisherId, item.getId(), dto, review, true);
-        }
-        return marketplaceService.getSnapshot(itemId, publisherId);
-    }
-
-    /**
-     * 重新上架不是单纯状态切换：普通下架商品必须重新经过 AI 审核；
-     * 已有待处理违规记录的商品必须先修改内容或由管理员放行。
-     */
-    @Transactional
-    public void relist(Long publisherId, Long itemId) {
-        Item item = itemMapper.selectById(itemId);
-        if (item == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "商品不存在");
-        }
-        if (!Objects.equals(item.getPublisherId(), publisherId)) {
+        if (!Objects.equals(item.getPublisherId(), userId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "只能操作自己发布的商品");
         }
-        if (!"OFF_SHELF".equals(item.getStatus())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "只有已下架商品可以重新上架");
-        }
-        // ERRAND 类型：截止时间已过的跑腿单不允许重新上架
-        if ("ERRAND".equals(item.getType()) && item.getDeadlineTime() != null
-                && !item.getDeadlineTime().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "已过截止时间的跑腿单无法重新上架，请重新发布");
-        }
-        if (hasPendingViolation(itemId)) {
-            throw new BusinessException(ResultCode.AI_VIOLATION, "该商品存在待处理违规记录，请修改内容后重试或等待管理员复核");
-        }
+        return item;
+    }
 
-        Category category = categoryMapper.selectById(item.getCategoryId());
+    private Category requireCategory(Long categoryId) {
+        Category category = categoryMapper.selectById(categoryId);
         if (category == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品分类不存在");
         }
-        PublishItemDTO dto = toReviewDTO(item);
-        ReviewResult review = review(dto, category);
-        if (review.violation()) {
-            TransactionTemplate newTx = new TransactionTemplate(transactionManager);
-            newTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            newTx.executeWithoutResult(status -> {
-                Item patch = new Item();
-                patch.setId(itemId);
-                patch.setAiReviewed(true);
-                itemMapper.updateById(patch);
-                saveViolationReport(publisherId, itemId, dto, review, false);
-            });
-            throw new BusinessException(ResultCode.AI_VIOLATION, review.reason());
-        }
-
-        item.setStatus("ON_SALE");
-        item.setAiReviewed(!review.reviewError());
-        item.setAiTags(toJson(review.tags()));
-        itemMapper.updateById(item);
-        if (review.reviewError()) {
-            saveViolationReport(publisherId, itemId, dto, review, true);
-        }
+        return category;
     }
 
-    private Item buildItem(Long publisherId, Long schoolId, PublishItemDTO dto, ReviewResult review) {
-        Item item = new Item();
-        item.setPublisherId(publisherId);
-        item.setSchoolId(schoolId);
-        item.setType(dto.getType());
-        item.setTitle(dto.getTitle().trim());
-        item.setDescription(dto.getDescription().trim());
-        item.setCategoryId(dto.getCategoryId());
-        item.setPrice(normalizePrice(dto));
-        item.setImages(toJson(dto.getImages()));
-        item.setAiTags(toJson(review.tags()));
-        item.setTradeLocation(trimToNull(dto.getTradeLocation()));
-        item.setPickupLocation(trimToNull(dto.getPickupLocation()));
-        item.setDeliveryLocation(trimToNull(dto.getDeliveryLocation()));
-        item.setDeadlineTime(dto.getDeadlineTime());
-        item.setViewCount(0);
-        item.setIsDeleted(false);
-        return item;
+    private void assertNotReserved(Long itemId) {
+        if (reservationMapper.selectById(itemId) != null) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能修改");
+        }
     }
 
     private void validateImages(List<String> images) {
@@ -265,85 +319,6 @@ public class ItemPublishService {
         }
     }
 
-    private ReviewResult review(PublishItemDTO dto, Category category) {
-        AiReviewService.ReviewResult result = aiReviewService.review(dto, category);
-        List<String> tags = result.tags().isEmpty() ? generateTags(dto, category) : result.tags();
-        return new ReviewResult(result.violation(), result.reason(), tags, result.reviewError());
-    }
-
-    private List<String> generateTags(PublishItemDTO dto, Category category) {
-        Set<String> tags = new LinkedHashSet<>();
-        tags.add(category.getName());
-        String text = dto.getTitle() + " " + dto.getDescription();
-        addKnownTags(text, tags);
-        for (String token : text.split("[\\s,，。.!！?？、/\\\\()（）\\[\\]【】]+")) {
-            String value = token.trim();
-            if (value.length() >= 2 && value.length() <= 16 && tags.size() < 6) {
-                tags.add(value);
-            }
-        }
-        tags.add(switch (dto.getType()) {
-            case "SELL" -> "出售";
-            case "BUY" -> "求购";
-            case "SWAP" -> "以物换物";
-            case "ERRAND" -> "校园跑腿";
-            default -> dto.getType();
-        });
-        return new ArrayList<>(tags).stream().limit(6).toList();
-    }
-
-    private void addKnownTags(String text, Set<String> tags) {
-        String normalized = text.toLowerCase(Locale.ROOT);
-        List<String> candidates = List.of(
-                "iPad", "苹果", "小米", "华为", "耳机", "键盘", "充电宝", "教材", "高数", "考研",
-                "四级", "全新", "99新", "有笔记", "台灯", "风扇", "背包", "运动鞋", "篮球", "Switch"
-        );
-        for (String candidate : candidates) {
-            if (normalized.contains(candidate.toLowerCase(Locale.ROOT)) && tags.size() < 6) {
-                tags.add(candidate);
-            }
-        }
-    }
-
-    private void saveViolationReport(Long userId, Long itemId, PublishItemDTO dto, ReviewResult review, boolean aiReviewError) {
-        String violationType = aiReviewError ? "AI_REVIEW_ERROR" : "CONTENT_VIOLATION";
-        Long existing = violationReportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
-                .eq(ViolationReport::getItemId, itemId)
-                .eq(ViolationReport::getViolationType, violationType)
-                .eq(ViolationReport::getStatus, "PENDING"));
-        if (existing != null && existing > 0) {
-            return;
-        }
-        ViolationReport report = new ViolationReport();
-        report.setUserId(userId);
-        report.setItemId(itemId);
-        report.setOriginalTitle(dto.getTitle());
-        report.setOriginalDescription(dto.getDescription());
-        report.setViolationType(violationType);
-        report.setViolationReason(review.reason());
-        report.setAiTags(toJson(review.tags()));
-        report.setStatus("PENDING");
-        report.setAiReviewError(aiReviewError);
-        violationReportMapper.insert(report);
-    }
-
-    private boolean hasPendingViolation(Long itemId) {
-        return violationReportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
-                .eq(ViolationReport::getItemId, itemId)
-                .eq(ViolationReport::getStatus, "PENDING")
-                .eq(ViolationReport::getAiReviewError, false)) > 0;
-    }
-
-    private void dismissPendingViolationsAfterCorrection(Long itemId) {
-        violationReportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
-                .eq(ViolationReport::getItemId, itemId)
-                .eq(ViolationReport::getStatus, "PENDING")
-                .eq(ViolationReport::getAiReviewError, false)
-                .set(ViolationReport::getStatus, "DISMISSED")
-                .set(ViolationReport::getHandleNote, "用户修改内容后重新通过 AI 审核")
-                .set(ViolationReport::getHandledAt, LocalDateTime.now()));
-    }
-
     private PublishItemDTO toReviewDTO(Item item) {
         PublishItemDTO dto = new PublishItemDTO();
         dto.setType(item.getType());
@@ -351,11 +326,23 @@ public class ItemPublishService {
         dto.setDescription(item.getDescription());
         dto.setCategoryId(item.getCategoryId());
         dto.setPrice(item.getPrice());
+        dto.setImages(parseJsonArray(item.getImages()));
         dto.setTradeLocation(item.getTradeLocation());
         dto.setPickupLocation(item.getPickupLocation());
         dto.setDeliveryLocation(item.getDeliveryLocation());
-        dto.setDeadlineTime(item.getDeadlineTime());
         return dto;
+    }
+
+    private List<String> parseJsonArray(String json) {
+        if (!StringUtils.hasText(json)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+        } catch (JacksonException e) {
+            throw new BusinessException(ResultCode.SERVER_ERROR, "商品图片数据格式错误");
+        }
     }
 
     private BigDecimal normalizePrice(PublishItemDTO dto) {
@@ -388,8 +375,5 @@ public class ItemPublishService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "仅支持 jpg、png、webp 图片");
         }
         return "jpeg".equals(ext) ? "jpg" : ext;
-    }
-
-    private record ReviewResult(boolean violation, String reason, List<String> tags, boolean reviewError) {
     }
 }

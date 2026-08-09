@@ -1,584 +1,415 @@
 <template>
-  <DefaultLayout>
-    <div class="violations-page rise">
-      <!-- 页面标题 -->
-      <div class="page-title">
-        ⚖️ 违规审核
-        <span class="stamp">Admin</span>
-      </div>
+  <AdminLayout>
+    <div class="review-page">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">CONTENT GOVERNANCE</p>
+          <h1 class="page-title">内容治理工作台</h1>
+          <p class="muted">内容处罚与账号封禁完全分离；这里只处理商品内容、固定合规扣分及卖家申诉。</p>
+        </div>
+        <button class="btn" :disabled="loading" @click="refreshCurrent">刷新</button>
+      </header>
 
-      <!-- 导航标签 -->
-      <div class="nav-tabs">
-        <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <span class="nav-tab active">⚖️ 违规审核</span>
-        <router-link to="/admin/chat" class="nav-tab">💬 客服收件箱</router-link>
-        <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
-        <router-link to="/admin/schools" class="nav-tab">🏫 学校管理</router-link>
-      </div>
-
-      <!-- 状态筛选 -->
-      <div class="filter-bar">
-        <button
-          v-for="tab in statusTabs" :key="tab.key"
-          class="filter-tab"
-          :class="{ active: currentStatus === tab.key }"
-          @click="switchTab(tab.key)"
-        >
-          {{ tab.label }}
-          <span v-if="tab.key === 'PENDING' && pendingCount > 0" class="filter-count">{{ pendingCount }}</span>
+      <div class="workspace-tabs" role="tablist">
+        <button class="workspace-tab" :class="{ active: workspace === 'reviews' }" @click="switchWorkspace('reviews')">
+          内容审核
+          <span v-if="pendingReviewCount" class="count">{{ pendingReviewCount }}</span>
+        </button>
+        <button class="workspace-tab" :class="{ active: workspace === 'appeals' }" @click="switchWorkspace('appeals')">
+          申诉复核
+          <span v-if="pendingAppealCount" class="count">{{ pendingAppealCount }}</span>
         </button>
       </div>
 
-      <!-- 加载 / 错误 -->
-      <div v-if="loading" class="card card--flat state-card">
-        <span class="muted">加载中...</span>
-      </div>
-      <div v-else-if="loadError" class="card card--flat state-card">
-        <span class="muted">数据加载失败</span>
-        <button class="btn btn--sm" style="margin-top:12px" @click="fetchList">重新加载</button>
-      </div>
-
-      <!-- 列表 -->
-      <template v-else>
-        <div v-if="list.length === 0" class="card card--flat state-card">
-          <span class="muted">{{ emptyText }}</span>
-        </div>
-
-        <div v-else class="violation-list">
-          <div
-            v-for="v in list" :key="v.id"
-            class="violation-card card"
-            :class="{ 'card--flat': v.status !== 'PENDING' }"
-          >
-            <!-- 卡片头部 -->
-            <div class="v-card__header">
-              <div class="v-card__header-left">
-                <span class="badge" :class="violationBadge(v.violationType)">
-                  {{ v.violationType === 'CONTENT_VIOLATION' ? '内容违规' : v.violationType }}
-                </span>
-                <span class="badge" :class="statusBadge(v.status)">
-                  {{ statusLabel(v.status) }}
-                </span>
-                <span v-if="v.aiReviewError" class="badge badge--warn">AI异常</span>
-              </div>
-              <span class="v-card__time muted">{{ fmtTime(v.createdAt) }}</span>
-            </div>
-
-            <!-- 卡片主体 -->
-            <div class="v-card__body">
-              <div class="v-card__title">{{ v.originalTitle }}</div>
-              <div class="v-card__desc muted">{{ v.originalDescription }}</div>
-              <div class="v-card__reason">
-                <span class="reason-label">AI 判定：</span>
-                {{ v.violationReason }}
-              </div>
-              <div class="v-card__meta muted">
-                发布者：{{ v.reporterName }}
-                <template v-if="v.itemId">
-                  · 商品：<strong>#{{ v.itemId }}</strong>
-                  <span v-if="v.itemStatus">（{{ itemStatusLabel(v.itemStatus) }}）</span>
-                </template>
-                <template v-if="v.handlerName">
-                  · 处理人：{{ v.handlerName }}
-                </template>
-                <template v-if="v.handleNote">
-                  · 备注：{{ v.handleNote }}
-                </template>
-              </div>
-            </div>
-
-            <!-- 卡片操作 -->
-            <div v-if="v.status === 'PENDING' || canForceOff(v)" class="v-card__actions">
-              <template v-if="v.status === 'PENDING'">
-                <button class="btn btn--danger btn--sm" @click="openBanDialog(v)">
-                  🚫 确认违规
-                </button>
-                <button class="btn btn--green btn--sm" @click="handleDismiss(v)">
-                  ✅ 误判放行
-                </button>
-              </template>
-              <button
-                v-if="canForceOff(v)"
-                class="btn btn--sm"
-                @click="handleForceOff(v)"
-              >
-                📦 强制下架商品 #{{ v.itemId }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 分页 -->
-        <div v-if="total > pageSize" class="pagination-bar">
+      <template v-if="workspace === 'reviews'">
+        <div class="filter-tabs" aria-label="内容审核状态">
           <button
+            v-for="tab in REVIEW_STATUS_TABS"
+            :key="tab.value"
             class="btn btn--sm"
-            :disabled="currentPage <= 1"
-            @click="goPage(currentPage - 1)"
-          >
-            上一页
-          </button>
-          <span class="page-info muted">
-            {{ currentPage }} / {{ totalPages }}
-          </span>
-          <button
-            class="btn btn--sm"
-            :disabled="currentPage >= totalPages"
-            @click="goPage(currentPage + 1)"
-          >
-            下一页
-          </button>
+            :class="{ 'btn--dark': reviewStatus === tab.value }"
+            @click="changeReviewStatus(tab.value)"
+          >{{ tab.label }}</button>
         </div>
+
+        <el-skeleton v-if="loading" :rows="7" animated />
+        <div v-else-if="reviews.length" class="review-list">
+          <article v-for="review in reviews" :key="review.id" class="card review-card">
+            <div class="review-card__head">
+              <div>
+                <div class="badge-row">
+                  <span class="badge" :class="sourceMeta(review.source).badge">{{ sourceMeta(review.source).label }}</span>
+                  <span class="badge" :class="reviewStatusMeta(review.status).badge">{{ reviewStatusMeta(review.status).label }}</span>
+                  <span v-if="review.ruleVersion" class="rule-version">规则 {{ review.ruleVersion }}</span>
+                </div>
+                <h2>{{ review.originalTitle || '已删除商品' }}</h2>
+              </div>
+              <div class="review-card__time">{{ formatDate(review.createdAt) }}</div>
+            </div>
+
+            <div class="party-grid">
+              <div><span>卖家</span><strong>{{ review.sellerName || `用户 #${review.userId}` }}</strong></div>
+              <div v-if="review.reporterId"><span>举报人</span><strong>{{ review.reporterName || `用户 #${review.reporterId}` }}</strong></div>
+              <div><span>商品状态</span><strong>{{ itemStatusText(review.itemStatus) }}</strong></div>
+              <div v-if="review.handlerName"><span>处理人</span><strong>{{ review.handlerName }}</strong></div>
+            </div>
+
+            <div class="content-box">
+              <p class="content-box__label">待核实内容</p>
+              <p>{{ review.originalDescription || '暂无商品描述' }}</p>
+            </div>
+
+            <div class="reason-box">
+              <strong>{{ review.source === 'USER_REPORT' ? '举报说明' : '检测依据' }}</strong>
+              <p>{{ review.violationReason || '未提供说明' }}</p>
+              <div v-if="matchedRules(review).length" class="matched-rules">
+                <span v-for="rule in matchedRules(review)" :key="rule" class="tag">{{ rule }}</span>
+              </div>
+            </div>
+
+            <div v-if="review.handleNote" class="handle-note">
+              <strong>处理备注：</strong>{{ review.handleNote }}
+            </div>
+
+            <div v-if="review.status === 'PENDING'" class="review-card__actions">
+              <button class="btn btn--green" :disabled="acting" @click="dismissReview(review)">核实无违规，放行</button>
+              <button class="btn btn--danger" :disabled="acting" @click="openConfirmDialog(review)">确认内容违规</button>
+            </div>
+          </article>
+        </div>
+        <div v-else class="card empty-card"><p class="muted">当前状态下没有内容审核记录</p></div>
+
+        <el-pagination
+          v-if="reviewTotal > pageSize"
+          v-model:current-page="reviewPage"
+          :page-size="pageSize"
+          :total="reviewTotal"
+          layout="prev, pager, next"
+          @current-change="fetchReviews"
+        />
       </template>
-    </div>
 
-    <!-- ========== 封禁弹窗 ========== -->
-    <div v-if="banDialog.visible" class="modal-overlay" @click.self="closeBanDialog">
-      <div class="modal-card card">
-        <h3 class="modal-title">🚫 确认违规 · 处罚用户</h3>
-
-        <!-- 违规信息摘要 -->
-        <div class="ban-summary card card--flat">
-          <div class="ban-summary__row">
-            <span class="muted">违规用户：</span>
-            <strong>{{ banDialog.report?.reporterName }}</strong>
-          </div>
-          <div class="ban-summary__row">
-            <span class="muted">违规标题：</span>
-            <span>{{ banDialog.report?.originalTitle }}</span>
-          </div>
-          <div class="ban-summary__row">
-            <span class="muted">AI判定：</span>
-            <span>{{ banDialog.report?.violationReason }}</span>
-          </div>
-        </div>
-
-        <!-- 处罚类型 -->
-        <div class="field">
-          <label>处罚类型 <span class="req">*</span></label>
-          <div class="radio-group">
-            <label
-              v-for="pt in punishTypes" :key="pt.key"
-              class="radio-card"
-              :class="{ active: banDialog.form.type === pt.key }"
-            >
-              <input
-                type="radio"
-                :value="pt.key"
-                v-model="banDialog.form.type"
-                style="display:none"
-              />
-              <span class="radio-card__icon">{{ pt.icon }}</span>
-              <span class="radio-card__label">{{ pt.label }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- 封禁天数（仅限时封禁） -->
-        <div class="field" v-if="banDialog.form.type === 'BAN_TEMP'">
-          <label>封禁天数 <span class="req">*</span></label>
-          <input
-            class="input"
-            type="number"
-            v-model.number="banDialog.form.banDays"
-            min="1" max="365"
-            placeholder="1-365 天"
-          />
-        </div>
-
-        <!-- 处罚原因 -->
-        <div class="field">
-          <label>处罚原因 <span class="req">*</span></label>
-          <textarea
-            class="textarea"
-            v-model="banDialog.form.reason"
-            rows="3"
-            maxlength="500"
-            placeholder="填写处罚原因（最长500字）"
-          ></textarea>
-        </div>
-
-        <!-- 处理备注 -->
-        <div class="field">
-          <label>处理备注</label>
-          <input
-            class="input"
-            v-model="banDialog.form.handleNote"
-            maxlength="500"
-            placeholder="可选：补充说明"
-          />
-        </div>
-
-        <!-- 按钮 -->
-        <div class="modal-actions">
-          <button class="btn" @click="closeBanDialog">取消</button>
+      <template v-else>
+        <div class="filter-tabs" aria-label="申诉状态">
           <button
-            class="btn btn--danger"
-            :disabled="banDialog.submitting"
-            @click="handleConfirm"
-          >
-            {{ banDialog.submitting ? '处理中...' : '确认处罚' }}
-          </button>
+            v-for="tab in APPEAL_STATUS_TABS"
+            :key="tab.value"
+            class="btn btn--sm"
+            :class="{ 'btn--dark': appealStatus === tab.value }"
+            @click="changeAppealStatus(tab.value)"
+          >{{ tab.label }}</button>
         </div>
-      </div>
+
+        <el-skeleton v-if="loading" :rows="6" animated />
+        <div v-else-if="appeals.length" class="review-list">
+          <article v-for="appeal in appeals" :key="appeal.id" class="card appeal-card">
+            <div class="review-card__head">
+              <div>
+                <span class="badge" :class="appealStatusMeta(appeal.status).badge">{{ appealStatusMeta(appeal.status).label }}</span>
+                <h2>{{ appeal.itemTitle || `商品 #${appeal.itemId}` }}</h2>
+                <p class="muted">卖家：{{ appeal.sellerName || `用户 #${appeal.userId}` }} · 提交于 {{ formatDate(appeal.createdAt) }}</p>
+              </div>
+            </div>
+
+            <div class="appeal-compare">
+              <div>
+                <span>原违规依据</span>
+                <p>{{ appeal.violationReason }}</p>
+              </div>
+              <div>
+                <span>卖家申诉理由</span>
+                <p>{{ appeal.reason }}</p>
+              </div>
+            </div>
+
+            <div v-if="appeal.handleNote" class="handle-note">
+              <strong>复核说明：</strong>{{ appeal.handleNote }}
+              <span v-if="appeal.handlerName"> · {{ appeal.handlerName }} · {{ formatDate(appeal.handledAt) }}</span>
+            </div>
+
+            <div v-if="appeal.status === 'PENDING'" class="review-card__actions">
+              <button class="btn btn--danger" :disabled="acting" @click="openAppealHandle(appeal, 'reject')">驳回申诉</button>
+              <button class="btn btn--green" :disabled="acting" @click="openAppealHandle(appeal, 'approve')">通过并撤销扣分</button>
+            </div>
+          </article>
+        </div>
+        <div v-else class="card empty-card"><p class="muted">当前状态下没有申诉记录</p></div>
+
+        <el-pagination
+          v-if="appealTotal > pageSize"
+          v-model:current-page="appealPage"
+          :page-size="pageSize"
+          :total="appealTotal"
+          layout="prev, pager, next"
+          @current-change="fetchAppeals"
+        />
+      </template>
+
+      <el-dialog
+        v-model="confirmForm.visible"
+        title="确认内容违规"
+        width="min(560px, 92vw)"
+        :close-on-click-modal="!confirmForm.submitting"
+      >
+        <div class="dialog-form">
+          <div class="warning-panel">
+            确认后商品会下架，并按平台当前固定值扣除卖家合规分（默认 5 分）。该操作不会封禁账号，账号封禁只能在用户管理中执行。
+          </div>
+          <label>
+            <span>违规原因 <b>*</b></span>
+            <el-input v-model="confirmForm.reason" type="textarea" :rows="3" maxlength="500" show-word-limit />
+          </label>
+          <label>
+            <span>内部处理备注</span>
+            <el-input v-model="confirmForm.handleNote" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="选填" />
+          </label>
+        </div>
+        <template #footer>
+          <button class="btn" :disabled="confirmForm.submitting" @click="confirmForm.visible = false">取消</button>
+          <button class="btn btn--danger" :disabled="confirmForm.submitting" @click="submitConfirm">
+            {{ confirmForm.submitting ? '处理中...' : '确认违规并下架' }}
+          </button>
+        </template>
+      </el-dialog>
+
+      <el-dialog
+        v-model="appealHandle.visible"
+        :title="appealHandle.action === 'approve' ? '通过申诉' : '驳回申诉'"
+        width="min(520px, 92vw)"
+        :close-on-click-modal="!appealHandle.submitting"
+      >
+        <div class="dialog-form">
+          <div v-if="appealHandle.action === 'approve'" class="success-panel">
+            通过后将幂等撤销该违规记录对应的扣分；如果商品没有其他已确认违规，会自动重新上架。
+          </div>
+          <label>
+            <span>复核说明</span>
+            <el-input v-model="appealHandle.handleNote" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="选填，建议说明判断依据" />
+          </label>
+        </div>
+        <template #footer>
+          <button class="btn" :disabled="appealHandle.submitting" @click="appealHandle.visible = false">取消</button>
+          <button
+            class="btn"
+            :class="appealHandle.action === 'approve' ? 'btn--green' : 'btn--danger'"
+            :disabled="appealHandle.submitting"
+            @click="submitAppealHandle"
+          >{{ appealHandle.submitting ? '处理中...' : '确认提交' }}</button>
+        </template>
+      </el-dialog>
     </div>
-  </DefaultLayout>
+  </AdminLayout>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import { getViolations, confirmViolation, dismissViolation, forceOffShelf } from '@/api/admin'
+import { onMounted, reactive, ref } from 'vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
+import {
+  approveAppeal,
+  confirmViolation,
+  dismissViolation,
+  getAppeals,
+  getViolations,
+  rejectAppeal,
+} from '@/api/admin'
 
-// ---- 状态筛选 ----
-const statusTabs = [
-  { key: '',      label: '全部' },
-  { key: 'PENDING',   label: '待处理' },
-  { key: 'CONFIRMED', label: '已确认' },
-  { key: 'DISMISSED', label: '已驳回' },
+const REVIEW_STATUS_TABS = [
+  { label: '待审核', value: 'PENDING' },
+  { label: '已确认违规', value: 'CONFIRMED' },
+  { label: '已放行', value: 'DISMISSED' },
+  { label: '申诉撤销', value: 'OVERTURNED' },
+]
+const APPEAL_STATUS_TABS = [
+  { label: '待复核', value: 'PENDING' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '已驳回', value: 'REJECTED' },
 ]
 
-const currentStatus = ref('PENDING')
-const currentPage = ref(1)
 const pageSize = 10
-const total = ref(0)
-const list = ref([])
+const workspace = ref('reviews')
 const loading = ref(false)
-const loadError = ref(false)
-const pendingCount = ref(0)
+const acting = ref(false)
+const reviews = ref([])
+const reviewPage = ref(1)
+const reviewTotal = ref(0)
+const reviewStatus = ref('PENDING')
+const appeals = ref([])
+const appealPage = ref(1)
+const appealTotal = ref(0)
+const appealStatus = ref('PENDING')
+const pendingReviewCount = ref(0)
+const pendingAppealCount = ref(0)
+const confirmForm = reactive({ visible: false, review: null, reason: '', handleNote: '', submitting: false })
+const appealHandle = reactive({ visible: false, appeal: null, action: 'approve', handleNote: '', submitting: false })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
-const emptyText = computed(() => {
-  const tab = statusTabs.find(t => t.key === currentStatus.value)
-  return tab ? `暂无${tab.label}违规记录 🎉` : '暂无数据'
-})
+function sourceMeta(source) {
+  return {
+    LOCAL_RULE: { label: '本地规则命中', badge: 'badge--warn' },
+    USER_REPORT: { label: '用户举报', badge: 'badge--buy' },
+    CORRECTION: { label: '违规整改', badge: 'badge--sell' },
+  }[source] || { label: source || '未知来源', badge: 'badge--muted' }
+}
+function reviewStatusMeta(status) {
+  return {
+    PENDING: { label: '待审核', badge: 'badge--warn' },
+    CONFIRMED: { label: '已确认违规', badge: 'badge--danger' },
+    DISMISSED: { label: '已放行', badge: 'badge--ok' },
+    OVERTURNED: { label: '申诉已撤销', badge: 'badge--ok' },
+  }[status] || { label: status, badge: 'badge--muted' }
+}
+function appealStatusMeta(status) {
+  return {
+    PENDING: { label: '待复核', badge: 'badge--warn' },
+    APPROVED: { label: '已通过', badge: 'badge--ok' },
+    REJECTED: { label: '已驳回', badge: 'badge--muted' },
+  }[status] || { label: status, badge: 'badge--muted' }
+}
+function itemStatusText(status) { return { ON_SALE: '在售中', OFF_SHELF: '已下架', SOLD: '已售出' }[status] || status || '未知' }
+function formatDate(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : '' }
+function matchedRules(review) {
+  if (!review.matchedRules) return []
+  if (Array.isArray(review.matchedRules)) return review.matchedRules
+  try { return JSON.parse(review.matchedRules) || [] } catch { return [review.matchedRules] }
+}
 
-async function fetchList() {
+async function fetchCounts() {
+  const [reviewResult, appealResult] = await Promise.allSettled([
+    getViolations({ page: 1, size: 1, status: 'PENDING' }),
+    getAppeals({ page: 1, size: 1, status: 'PENDING' }),
+  ])
+  pendingReviewCount.value = reviewResult.status === 'fulfilled' ? Number(reviewResult.value.data?.total || 0) : 0
+  pendingAppealCount.value = appealResult.status === 'fulfilled' ? Number(appealResult.value.data?.total || 0) : 0
+}
+
+async function fetchReviews() {
   loading.value = true
-  loadError.value = false
   try {
-    const params = { page: currentPage.value, size: pageSize }
-    if (currentStatus.value) params.status = currentStatus.value
-    const res = await getViolations(params)
-    const data = res.data
-    list.value = data.records || []
-    total.value = data.total || 0
-  } catch {
-    loadError.value = true
-  } finally {
-    loading.value = false
-  }
+    const res = await getViolations({ page: reviewPage.value, size: pageSize, status: reviewStatus.value })
+    reviews.value = res.data?.records || []
+    reviewTotal.value = Number(res.data?.total || 0)
+  } finally { loading.value = false }
 }
 
-async function fetchPendingCount() {
+async function fetchAppeals() {
+  loading.value = true
   try {
-    const res = await getViolations({ page: 1, size: 1, status: 'PENDING' })
-    pendingCount.value = res.data?.total || 0
-  } catch { /* ignore */ }
+    const res = await getAppeals({ page: appealPage.value, size: pageSize, status: appealStatus.value })
+    appeals.value = res.data?.records || []
+    appealTotal.value = Number(res.data?.total || 0)
+  } finally { loading.value = false }
 }
 
-function switchTab(key) {
-  currentStatus.value = key
-  currentPage.value = 1
-  fetchList()
+function switchWorkspace(next) {
+  if (workspace.value === next) return
+  workspace.value = next
+  if (next === 'reviews') fetchReviews()
+  else fetchAppeals()
+}
+function changeReviewStatus(status) { reviewStatus.value = status; reviewPage.value = 1; fetchReviews() }
+function changeAppealStatus(status) { appealStatus.value = status; appealPage.value = 1; fetchAppeals() }
+function refreshCurrent() { fetchCounts(); return workspace.value === 'reviews' ? fetchReviews() : fetchAppeals() }
+
+function openConfirmDialog(review) {
+  confirmForm.review = review
+  confirmForm.reason = review.violationReason || ''
+  confirmForm.handleNote = ''
+  confirmForm.visible = true
 }
 
-function goPage(p) {
-  currentPage.value = p
-  fetchList()
-}
-
-// ---- 封禁弹窗 ----
-const punishTypes = [
-  { key: 'WARNING',  icon: '⚠️', label: '警告' },
-  { key: 'BAN_TEMP', icon: '⏳', label: '限时封禁' },
-  { key: 'BAN_PERM', icon: '🚫', label: '永久封禁' },
-]
-
-const banDialog = reactive({
-  visible: false,
-  report: null,
-  submitting: false,
-  form: {
-    type: 'WARNING',
-    reason: '',
-    banDays: 7,
-    handleNote: '',
-  },
-})
-
-function openBanDialog(report) {
-  banDialog.report = report
-  banDialog.form = {
-    type: 'WARNING',
-    reason: `AI判定：${report.violationReason}`,
-    banDays: 7,
-    handleNote: '',
-  }
-  banDialog.visible = true
-}
-
-function closeBanDialog() {
-  banDialog.visible = false
-  banDialog.report = null
-}
-
-async function handleConfirm() {
-  const { type, reason, banDays, handleNote } = banDialog.form
-  if (!reason.trim()) {
-    ElMessage.warning('请填写处罚原因')
-    return
-  }
-  if (type === 'BAN_TEMP' && (!banDays || banDays < 1 || banDays > 365)) {
-    ElMessage.warning('封禁天数须为 1-365')
-    return
-  }
-
-  banDialog.submitting = true
+async function submitConfirm() {
+  const reason = confirmForm.reason.trim()
+  if (!reason) { ElMessage.warning('请填写明确的违规原因'); return }
+  confirmForm.submitting = true
+  acting.value = true
   try {
-    await confirmViolation(banDialog.report.id, {
-      type,
-      reason: reason.trim(),
-      banDays: type === 'BAN_TEMP' ? banDays : null,
-      handleNote: handleNote.trim() || null,
+    await confirmViolation(confirmForm.review.id, { reason, handleNote: confirmForm.handleNote.trim() || null })
+    confirmForm.visible = false
+    ElMessage.success('已确认违规，商品已下架并执行固定合规扣分')
+    await Promise.all([fetchReviews(), fetchCounts()])
+  } finally { confirmForm.submitting = false; acting.value = false }
+}
+
+async function dismissReview(review) {
+  try {
+    await ElMessageBox.confirm(`确认放行「${review.originalTitle}」？本次审核记录会标记为已放行。`, '放行内容', {
+      confirmButtonText: '确认放行', cancelButtonText: '取消', type: 'info',
     })
-    ElMessage.success('处罚已生效')
-    closeBanDialog()
-    fetchList()
-    fetchPendingCount()
-  } catch {
-    ElMessage.error('操作失败')
-  } finally {
-    banDialog.submitting = false
-  }
-}
-
-// ---- 误判放行 ----
-async function handleDismiss(report) {
+  } catch { return }
+  acting.value = true
   try {
-    await ElMessageBox.confirm(
-      `确认放行「${report.originalTitle}」？AI 判定将被撤销。`,
-      '误判放行',
-      { confirmButtonText: '确认放行', cancelButtonText: '取消', type: 'warning' }
-    )
-  } catch {
-    return // 用户取消
-  }
+    await dismissViolation(review.id)
+    ElMessage.success('已放行该内容')
+    await Promise.all([fetchReviews(), fetchCounts()])
+  } finally { acting.value = false }
+}
 
+function openAppealHandle(appeal, action) {
+  appealHandle.appeal = appeal
+  appealHandle.action = action
+  appealHandle.handleNote = ''
+  appealHandle.visible = true
+}
+
+async function submitAppealHandle() {
+  appealHandle.submitting = true
+  acting.value = true
+  const payload = { handleNote: appealHandle.handleNote.trim() || null }
   try {
-    await dismissViolation(report.id)
-    ElMessage.success('已放行，该违规记录已撤销')
-    fetchList()
-    fetchPendingCount()
-  } catch {
-    ElMessage.error('操作失败')
-  }
+    if (appealHandle.action === 'approve') await approveAppeal(appealHandle.appeal.id, payload)
+    else await rejectAppeal(appealHandle.appeal.id, payload)
+    appealHandle.visible = false
+    ElMessage.success(appealHandle.action === 'approve' ? '申诉已通过，关联扣分已撤销' : '申诉已驳回')
+    await Promise.all([fetchAppeals(), fetchCounts()])
+  } finally { appealHandle.submitting = false; acting.value = false }
 }
 
-// ---- 强制下架（关联商品仍在售时可直接下架） ----
-function canForceOff(v) {
-  return v.itemId && v.itemStatus && v.itemStatus !== 'OFF_SHELF'
-}
-
-function itemStatusLabel(s) {
-  return { ON_SALE: '在售', OFF_SHELF: '已下架', SOLD: '已售出', PENDING: '交易中' }[s] || s
-}
-
-async function handleForceOff(v) {
-  try {
-    await ElMessageBox.confirm(
-      `确认强制下架商品「${v.originalTitle}」(#${v.itemId})？卖家将被扣除 30 经验值。`,
-      '强制下架',
-      { confirmButtonText: '确认下架', cancelButtonText: '取消', type: 'warning' }
-    )
-  } catch {
-    return // 用户取消
-  }
-
-  try {
-    await forceOffShelf(v.itemId)
-    ElMessage.success('商品已强制下架')
-    v.itemStatus = 'OFF_SHELF'
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '操作失败')
-  }
-}
-
-// ---- 工具函数 ----
-function fmtTime(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function statusLabel(s) {
-  return { PENDING: '待处理', CONFIRMED: '已确认', DISMISSED: '已驳回' }[s] || s
-}
-
-function statusBadge(s) {
-  return { PENDING: 'badge--warn', CONFIRMED: 'badge--danger', DISMISSED: 'badge--ok' }[s] || 'badge--muted'
-}
-
-function violationBadge(type) {
-  if (!type) return 'badge--muted'
-  const t = type.toLowerCase()
-  if (t.includes('violation') || t.includes('违禁')) return 'badge--danger'
-  if (t.includes('ai_review_error') || t.includes('异常')) return 'badge--warn'
-  return 'badge--muted'
-}
-
-onMounted(() => {
-  fetchList()
-  fetchPendingCount()
-})
+onMounted(async () => { await Promise.all([fetchReviews(), fetchCounts()]) })
 </script>
 
 <style scoped>
-.violations-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-/* 导航 */
-.nav-tabs {
-  display: flex; gap: 4px; margin: 18px 0 22px; flex-wrap: wrap;
-}
-.nav-tab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 10px 20px; font-size: 15px; font-weight: 700;
-  border: var(--bw) solid var(--ink); border-radius: var(--r-s);
-  background: var(--paper-deep); color: var(--ink);
-  cursor: pointer; text-decoration: none; transition: all .2s;
-}
-.nav-tab:hover { background: var(--white); box-shadow: var(--shadow-s); }
-.nav-tab.active { background: var(--ink); color: var(--paper); }
-
-/* 状态筛选 */
-.filter-bar {
-  display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;
-}
-.filter-tab {
-  padding: 8px 18px; font-size: 14px; font-weight: 700;
-  border: var(--bw) solid var(--ink); border-radius: 999px;
-  background: var(--paper-deep); color: var(--ink);
-  cursor: pointer; transition: all .15s;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.filter-tab:hover { background: var(--white); }
-.filter-tab.active { background: var(--ink); color: var(--paper); }
-.filter-count {
-  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
-  background: var(--red); color: #fff; font-size: 11px; font-weight: 700;
-  display: grid; place-items: center;
-}
-.filter-tab.active .filter-count { background: var(--yellow); color: var(--ink); }
-
-/* 状态卡片 */
-.state-card {
-  padding: 40px 24px; text-align: center;
-}
-
-/* 违规列表 */
-.violation-list {
-  display: flex; flex-direction: column; gap: 14px;
-}
-
-/* 违规卡片 */
-.violation-card {
-  padding: 20px 24px;
-}
-.v-card__header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
-}
-.v-card__header-left {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.v-card__time { font-size: 13px; flex-shrink: 0; }
-.v-card__body {
-  margin-bottom: 16px;
-}
-.v-card__title {
-  font-size: 17px; font-weight: 700; margin-bottom: 6px;
-}
-.v-card__desc {
-  font-size: 14px; margin-bottom: 10px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.v-card__reason {
-  font-size: 13px; padding: 10px 14px; margin-bottom: 8px;
-  background: var(--paper-deep); border-radius: var(--r-s);
-  border-left: 3px solid var(--red);
-}
-.reason-label { font-weight: 700; color: var(--red); }
-.v-card__meta { font-size: 13px; }
-.v-card__actions {
-  display: flex; gap: 10px; padding-top: 14px;
-  border-top: var(--bw) dashed var(--ink); border-color: rgba(38,34,28,.15);
-}
-
-/* 分页 */
-.pagination-bar {
-  display: flex; align-items: center; justify-content: center;
-  gap: 16px; margin-top: 28px;
-}
-.page-info {
-  font-size: 14px; font-weight: 700;
-}
-
-/* ===== 弹窗 ===== */
-.modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal);
-  background: rgba(38,34,28,.45);
-  display: grid; place-items: center;
-  padding: 20px;
-}
-.modal-card {
-  width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
-  padding: 28px 28px 24px;
-}
-.modal-title {
-  font-family: var(--font-display); font-size: 22px;
-  letter-spacing: .5px; margin-bottom: 22px;
-}
-.modal-actions {
-  display: flex; gap: 12px; justify-content: flex-end; margin-top: 22px;
-}
-
-/* 违规摘要 */
-.ban-summary {
-  padding: 16px; margin-bottom: 22px;
-  background: var(--paper-deep);
-}
-.ban-summary__row {
-  font-size: 14px; margin-bottom: 4px;
-  display: flex; gap: 6px;
-}
-.ban-summary__row:last-child { margin-bottom: 0; }
-
-/* 处罚类型单选卡片 */
-.radio-group {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-}
-.radio-card {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 14px 10px;
-  border: var(--bw) solid var(--ink); border-radius: var(--r-s);
-  background: var(--paper-deep); cursor: pointer;
-  transition: all .15s;
-}
-.radio-card:hover { background: var(--white); }
-.radio-card.active {
-  background: var(--ink); color: var(--paper);
-  box-shadow: var(--shadow-s);
-}
-.radio-card__icon { font-size: 22px; }
-.radio-card__label { font-size: 13px; font-weight: 700; }
-
-@media (max-width: 640px) {
-  .radio-group { grid-template-columns: 1fr; }
-  .modal-card { padding: 20px; }
+.review-page { display: flex; flex-direction: column; gap: 22px; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; }
+.eyebrow { color: var(--primary); font-size: 11px; font-weight: 900; letter-spacing: .16em; }
+.page-head .muted { margin-top: 7px; max-width: 760px; }
+.workspace-tabs { display: grid; grid-template-columns: 1fr 1fr; border: var(--bw) solid var(--ink); border-radius: var(--r-m); background: var(--white); overflow: hidden; box-shadow: var(--shadow-s); }
+.workspace-tab { padding: 15px 20px; border: 0; background: transparent; color: var(--ink); font-size: 16px; font-weight: 900; cursor: pointer; }
+.workspace-tab + .workspace-tab { border-left: var(--bw) solid var(--ink); }
+.workspace-tab.active { background: var(--ink); color: var(--white); }
+.count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 7px; padding: 0 6px; border-radius: 999px; background: var(--primary); color: var(--white); font-size: 11px; }
+.filter-tabs, .badge-row, .matched-rules { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.review-list { display: flex; flex-direction: column; gap: 16px; }
+.review-card, .appeal-card { padding: 22px 24px; }
+.review-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.review-card__head h2 { margin-top: 9px; font-family: var(--font-display); font-size: 20px; }
+.review-card__time, .rule-version { color: var(--ink-soft); font-size: 12px; }
+.party-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.party-grid > div { padding: 10px 12px; border: 1.5px solid #D8CEBB; border-radius: var(--r-s); background: var(--paper-deep); }
+.party-grid span, .appeal-compare span { display: block; color: var(--ink-soft); font-size: 11px; font-weight: 800; }
+.party-grid strong { display: block; margin-top: 3px; font-size: 13px; }
+.content-box, .reason-box, .appeal-compare > div { padding: 14px 16px; border-radius: var(--r-s); }
+.content-box { border: 1.5px dashed #CFC3AD; background: #FAF7F0; }
+.content-box__label { margin-bottom: 5px; color: var(--ink-soft); font-size: 11px; font-weight: 900; }
+.content-box p:last-child { white-space: pre-wrap; line-height: 1.7; }
+.reason-box { margin-top: 10px; border-left: 4px solid var(--primary); background: #FFF1E9; }
+.reason-box p { margin: 5px 0 9px; }
+.handle-note { margin-top: 12px; color: var(--ink-soft); font-size: 13px; }
+.review-card__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1.5px dashed #D8CEBB; }
+.appeal-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.appeal-compare > div:first-child { background: #FFF1E9; border-left: 4px solid var(--primary); }
+.appeal-compare > div:last-child { background: #EEF8F1; border-left: 4px solid var(--green); }
+.appeal-compare p { margin-top: 6px; line-height: 1.7; white-space: pre-wrap; }
+.dialog-form { display: flex; flex-direction: column; gap: 16px; }
+.dialog-form label { display: flex; flex-direction: column; gap: 7px; font-weight: 800; }
+.dialog-form label b { color: var(--red); }
+.warning-panel, .success-panel { padding: 12px 14px; border: 1.5px solid; border-radius: var(--r-s); line-height: 1.65; font-size: 13px; }
+.warning-panel { border-color: #C88719; background: #FFF4CE; color: #6A4700; }
+.success-panel { border-color: var(--green); background: #E4F6EA; color: #1D6B42; }
+.empty-card { padding: 54px 24px; text-align: center; }
+@media (max-width: 760px) {
+  .page-head { align-items: stretch; flex-direction: column; }
+  .page-head > .btn { align-self: flex-start; }
+  .party-grid { grid-template-columns: 1fr 1fr; }
+  .appeal-compare { grid-template-columns: 1fr; }
+  .review-card__actions { justify-content: stretch; flex-direction: column; }
 }
 </style>

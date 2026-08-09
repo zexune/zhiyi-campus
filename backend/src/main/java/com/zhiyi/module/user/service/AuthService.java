@@ -124,7 +124,8 @@ public class AuthService {
 
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getSchoolId, school.getId())
-                .eq(SysUser::getStudentId, studentId));
+                .eq(SysUser::getStudentId, studentId)
+                .eq(SysUser::getRole, "USER"));
         if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             loginAttemptService.recordFailure(loginKey);
             // 不区分「用户不存在」与「密码错误」，防止学号枚举
@@ -171,7 +172,8 @@ public class AuthService {
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .select(SysUser::getId, SysUser::getSecurityQuestion, SysUser::getStatus)
                 .eq(SysUser::getSchoolId, school.getId())
-                .eq(SysUser::getStudentId, studentId));
+                .eq(SysUser::getStudentId, studentId)
+                .eq(SysUser::getRole, "USER"));
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND, "该学号尚未注册");
         }
@@ -200,7 +202,8 @@ public class AuthService {
 
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getSchoolId, school.getId())
-                .eq(SysUser::getStudentId, studentId));
+                .eq(SysUser::getStudentId, studentId)
+                .eq(SysUser::getRole, "USER"));
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND, "该学号尚未注册");
         }

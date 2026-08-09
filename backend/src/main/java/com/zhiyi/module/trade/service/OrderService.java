@@ -11,6 +11,8 @@ import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.trade.dto.CreateOrderDTO;
 import com.zhiyi.module.trade.entity.TradeOrder;
+import com.zhiyi.module.trade.entity.ItemReservation;
+import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.trade.entity.TradeReview;
 import com.zhiyi.module.trade.entity.WalletLog;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
@@ -48,6 +50,7 @@ public class OrderService {
     private final SysUserMapper sysUserMapper;
     private final ItemMapper itemMapper;
     private final TradeOrderMapper orderMapper;
+    private final ItemReservationMapper reservationMapper;
     private final TradeReviewMapper reviewMapper;
     private final WalletLogMapper walletLogMapper;
     private final UserGrowthService growthService;
@@ -57,7 +60,7 @@ public class OrderService {
     // ================================================================
 
     /**
-     * 买家下单：扣款冻结 → 创建订单 → 商品标记 PENDING
+     * 买家下单：原子预占商品 → 扣款冻结 → 创建订单。商品状态不承载订单状态。
      */
     @Transactional(rollbackFor = Exception.class)
     public OrderVO createOrder(Long buyerId, CreateOrderDTO dto) {
@@ -69,24 +72,14 @@ public class OrderService {
         if (!"ON_SALE".equals(item.getStatus())) {
             throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
         }
+        if (!"PASSED".equals(item.getModerationStatus())) {
+            throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
+        }
         if (!"SELL".equals(item.getType())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "仅支持购买出售类型的商品，求购请直接联系发布者");
         }
-        if (item.getDeadlineTime() != null
-                && !item.getDeadlineTime().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "商品已过截止时间，无法下单");
-        }
         if (item.getPublisherId().equals(buyerId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "不能购买自己发布的商品");
-        }
-
-        // 2. 同一商品不能有进行中的订单（首次检查）
-        Long activeCount = orderMapper.selectCount(
-                new LambdaQueryWrapper<TradeOrder>()
-                        .eq(TradeOrder::getItemId, item.getId())
-                        .eq(TradeOrder::getStatus, "WAITING_MEET"));
-        if (activeCount > 0) {
-            throw new BusinessException(ResultCode.CONFLICT, "该商品已被他人抢先下单");
         }
 
         BigDecimal price = item.getPrice();
@@ -110,22 +103,18 @@ public class OrderService {
         SchoolScopeGuard.requireSame(
                 buyer.getSchoolId(), seller.getSchoolId(), "仅支持同校交易");
 
-        // 5. 原子扣款（WHERE 条件兜底余额不足的并发竞态）
+        // 5. 数据库主键保证同一商品只能存在一个有效预占。
+        if (reservationMapper.tryReserve(item.getId(), buyerId) == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "该商品已被他人抢先下单");
+        }
+
+        // 6. 原子扣款（WHERE 条件兜底余额不足的并发竞态）
         LambdaUpdateWrapper<SysUser> deduct = new LambdaUpdateWrapper<>();
         deduct.setSql("wallet_balance = wallet_balance - {0}", price)
               .eq(SysUser::getId, buyerId)
               .ge(SysUser::getWalletBalance, price);
         if (sysUserMapper.update(null, deduct) == 0) {
             throw new BusinessException(ResultCode.BALANCE_NOT_ENOUGH);
-        }
-
-        // 6. 二次检查：扣款后再次确认没有并发创建了同一商品的活跃订单
-        Long recheckCount = orderMapper.selectCount(
-                new LambdaQueryWrapper<TradeOrder>()
-                        .eq(TradeOrder::getItemId, item.getId())
-                        .eq(TradeOrder::getStatus, "WAITING_MEET"));
-        if (recheckCount > 0) {
-            throw new BusinessException(ResultCode.CONFLICT, "该商品已被他人抢先下单");
         }
 
         // 7. 回读最新余额
@@ -140,6 +129,11 @@ public class OrderService {
         order.setStatus("WAITING_MEET");
         orderMapper.insert(order);
 
+        ItemReservation reservation = new ItemReservation();
+        reservation.setItemId(item.getId());
+        reservation.setOrderId(order.getId());
+        reservationMapper.updateById(reservation);
+
         // 9. 买家支出流水
         WalletLog paymentLog = new WalletLog();
         paymentLog.setUserId(buyerId);
@@ -150,11 +144,7 @@ public class OrderService {
         paymentLog.setRemark("购买商品：" + item.getTitle());
         walletLogMapper.insert(paymentLog);
 
-        // 10. 商品标记交易中
-        item.setStatus("PENDING");
-        itemMapper.updateById(item);
-
-        // 11. 获取卖家昵称作为对的显示方
+        // 10. 获取卖家昵称作为对方显示
         String sellerNickname = seller != null ? seller.getNickname() : null;
 
         log.info("订单创建成功 orderId={} buyer={} seller={} price={}",
@@ -223,6 +213,7 @@ public class OrderService {
             item.setStatus("SOLD");
             itemMapper.updateById(item);
         }
+        reservationMapper.deleteById(order.getItemId());
 
         // 6. 双方加经验（使用 REQUIRED 传播，加入当前事务）
         growthService.addExp(order.getBuyerId(),
@@ -241,7 +232,7 @@ public class OrderService {
     // ================================================================
 
     /**
-     * 买家取消订单：退款 → 订单取消 → 商品恢复 ON_SALE
+     * 买家取消订单：退款 → 订单取消 → 释放商品预占。商品状态始终保持 ON_SALE。
      *
      * 使用原子 UPDATE（WHERE status = 'WAITING_MEET'）防止并发重复退款。
      */
@@ -289,12 +280,9 @@ public class OrderService {
         refundLog.setRemark("取消订单退款");
         walletLogMapper.insert(refundLog);
 
-        // 5. 商品恢复在售
+        // 5. 释放商品预占，商品交易状态不变
         Item item = itemMapper.selectById(order.getItemId());
-        if (item != null) {
-            item.setStatus("ON_SALE");
-            itemMapper.updateById(item);
-        }
+        reservationMapper.deleteById(order.getItemId());
 
         // 6. 获取卖家昵称作为对方显示
         SysUser seller = sysUserMapper.selectById(order.getSellerId());

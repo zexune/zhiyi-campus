@@ -20,7 +20,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,28 +45,6 @@ class BanServiceTest {
         userStateCache = new RecordingUserStateCache(userMapper);
         service = new BanService(
                 userMapper, violationLogMapper, userStateCache, eventPublisher);
-    }
-
-    @Test
-    void warningPersistsLogAndPublishesEvent() {
-        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
-        BanUserDTO dto = punishment("WARNING", null);
-
-        service.punish(dto, 99L);
-
-        ArgumentCaptor<ViolationLog> log = ArgumentCaptor.forClass(ViolationLog.class);
-        verify(violationLogMapper).insert(log.capture());
-        assertEquals("WARNING", log.getValue().getType());
-
-        ArgumentCaptor<UserPunishedEvent> event =
-                ArgumentCaptor.forClass(UserPunishedEvent.class);
-        verify(eventPublisher).publishEvent(event.capture());
-        assertEquals(2L, event.getValue().userId());
-        assertEquals("WARNING", event.getValue().type());
-        assertNull(event.getValue().banUntilTime());
-        assertEquals(List.of(2L), userStateCache.afterCommitInvalidations());
-        assertTrue(userStateCache.immediateInvalidations().isEmpty());
-        verify(userMapper, never()).bumpTokenVersion(any());
     }
 
     @Test
@@ -127,7 +104,7 @@ class BanServiceTest {
         when(userMapper.selectById(2L)).thenReturn(admin);
 
         assertThrows(BusinessException.class,
-                () -> service.punish(punishment("WARNING", null), 99L));
+                () -> service.punish(punishment("BAN_PERM", null), 99L));
 
         verify(violationLogMapper, never()).insert(any(ViolationLog.class));
         verify(eventPublisher, never()).publishEvent(any(Object.class));
