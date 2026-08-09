@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
@@ -98,8 +99,12 @@ class AuthServiceTest {
         return s;
     }
 
+    private static LambdaQueryWrapper<?> requireLambdaQuery(Wrapper<SysUser> query) {
+        assertTrue(query instanceof LambdaQueryWrapper<?>);
+        return (LambdaQueryWrapper<?>) query;
+    }
+
     @Test
-    @SuppressWarnings("unchecked")
     void loginUsesSchoolAndCanonicalIdForThrottleAndQuery() {
         LoginDTO dto = new LoginDTO();
         dto.setSchoolId(1L);
@@ -111,18 +116,17 @@ class AuthServiceTest {
                 assertThrows(BusinessException.class, () -> service.login(dto));
 
         assertEquals(ResultCode.PASSWORD_ERROR.getCode(), exception.getCode());
-        ArgumentCaptor<Wrapper<SysUser>> query =
-                ArgumentCaptor.forClass(Wrapper.class);
-        verify(userMapper).selectOne(query.capture());
-        LambdaQueryWrapper<SysUser> wrapper =
-                (LambdaQueryWrapper<SysUser>) query.getValue();
-        String sql = wrapper.getSqlSegment();
-        assertTrue(wrapper.getParamNameValuePairs().containsValue("admin"),
-                () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-        assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
-                () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-        assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
-                () -> "ordinary login must exclude administrators: sql=" + sql);
+        verify(userMapper).selectOne(argThat(query -> {
+            LambdaQueryWrapper<?> wrapper = requireLambdaQuery(query);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(wrapper.getParamNameValuePairs().containsValue("admin"),
+                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+            assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
+                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+            assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
+                    () -> "ordinary login must exclude administrators: sql=" + sql);
+            return true;
+        }));
         assertTrue(loginAttemptService.isLocked("1:admin"));
         assertTrue(loginAttemptService.isLocked("  1:ADMIN  "));
     }
@@ -148,16 +152,15 @@ class AuthServiceTest {
 
         LoginVO result = service.register(dto);
 
-        ArgumentCaptor<Wrapper<SysUser>> duplicateQuery =
-                ArgumentCaptor.forClass(Wrapper.class);
-        verify(userMapper).selectOne(duplicateQuery.capture());
-        LambdaQueryWrapper<SysUser> duplicateWrapper =
-                (LambdaQueryWrapper<SysUser>) duplicateQuery.getValue();
-        String duplicateSql = duplicateWrapper.getSqlSegment();
-        assertTrue(duplicateWrapper.getParamNameValuePairs().containsValue(1L),
-                () -> "sql=" + duplicateSql + ", params=" + duplicateWrapper.getParamNameValuePairs());
-        assertTrue(duplicateWrapper.getParamNameValuePairs().containsValue("abcd1234"),
-                () -> "sql=" + duplicateSql + ", params=" + duplicateWrapper.getParamNameValuePairs());
+        verify(userMapper).selectOne(argThat(query -> {
+            LambdaQueryWrapper<?> wrapper = requireLambdaQuery(query);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
+                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+            assertTrue(wrapper.getParamNameValuePairs().containsValue("abcd1234"),
+                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+            return true;
+        }));
 
         ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
         verify(userMapper).insert(captor.capture());
@@ -235,7 +238,6 @@ class AuthServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void securityQuestionUsesSchoolAndCanonicalIdForQuery() {
         SysUser user = new SysUser();
         user.setId(3L);
@@ -246,18 +248,17 @@ class AuthServiceTest {
         assertEquals("你的出生地是哪个城市？",
                 service.getSecurityQuestion(1L, " USER01 "));
 
-        ArgumentCaptor<Wrapper<SysUser>> query =
-                ArgumentCaptor.forClass(Wrapper.class);
-        verify(userMapper).selectOne(query.capture());
-        LambdaQueryWrapper<SysUser> wrapper =
-                (LambdaQueryWrapper<SysUser>) query.getValue();
-        String sql = wrapper.getSqlSegment();
-        assertTrue(wrapper.getParamNameValuePairs().containsValue("user01"),
-                () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-        assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
-                () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-        assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
-                () -> "password recovery must exclude administrators: sql=" + sql);
+        verify(userMapper).selectOne(argThat(query -> {
+            LambdaQueryWrapper<?> wrapper = requireLambdaQuery(query);
+            String sql = wrapper.getSqlSegment();
+            assertTrue(wrapper.getParamNameValuePairs().containsValue("user01"),
+                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+            assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
+                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
+            assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
+                    () -> "password recovery must exclude administrators: sql=" + sql);
+            return true;
+        }));
     }
 
     @Test

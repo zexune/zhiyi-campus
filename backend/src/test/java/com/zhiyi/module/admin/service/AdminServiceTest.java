@@ -178,7 +178,7 @@ class AdminServiceTest {
         void returnsEmptyListWhenNoReviewsExist() {
             Page<ViolationReport> page = new Page<>(1, 10, 0);
             page.setRecords(List.of());
-            when(reportMapper.selectPage(any(Page.class), any())).thenReturn(page);
+            when(reportMapper.selectPage(any(), any())).thenReturn(page);
 
             assertTrue(service.getViolations(1, 10, "PENDING").getRecords().isEmpty());
         }
@@ -196,7 +196,7 @@ class AdminServiceTest {
             Item item = new Item();
             item.setId(100L);
             item.setStatus(ItemStatus.ON_SALE);
-            when(reportMapper.selectPage(any(Page.class), any())).thenReturn(page);
+            when(reportMapper.selectPage(any(), any())).thenReturn(page);
             when(userMapper.selectByIds(anyCollection())).thenReturn(List.of(seller, reporter));
             when(itemMapper.selectByIds(anyCollection())).thenReturn(List.of(item));
 
