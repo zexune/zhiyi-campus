@@ -16,23 +16,31 @@ import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.UploadImageVO;
 import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -57,12 +65,79 @@ class ItemPublishServiceTest {
     @Mock private LocalContentAnalyzer contentAnalyzer;
     @Mock private ItemTagService itemTagService;
 
+    @TempDir Path uploadDirectory;
+
     private ItemPublishService service;
 
     @BeforeEach
     void setUp() {
         service = new ItemPublishService(itemMapper, categoryMapper, violationReportMapper,
                 marketplaceService, userMapper, reservationMapper, contentAnalyzer, itemTagService);
+        ReflectionTestUtils.setField(service, "uploadPath", uploadDirectory.toString());
+    }
+
+    @Test
+    void acceptsImagesWhenMagicNumbersMatchDeclaredFormats() throws IOException {
+        byte[] png = {
+                (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+                0x00, 0x00, 0x00, 0x0d
+        };
+        byte[] jpeg = {
+                (byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe0,
+                0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01
+        };
+        byte[] webp = {
+                0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00,
+                0x57, 0x45, 0x42, 0x50
+        };
+
+        UploadImageVO uploadedPng = service.uploadImage(
+                new MockMultipartFile("file", "campus.png", "image/png", png));
+        UploadImageVO uploadedJpeg = service.uploadImage(
+                new MockMultipartFile("file", "campus.jpeg", "image/jpeg", jpeg));
+        UploadImageVO uploadedWebp = service.uploadImage(
+                new MockMultipartFile("file", "campus.webp", "image/webp", webp));
+
+        assertTrue(uploadedPng.getUrl().endsWith(".png"));
+        assertTrue(uploadedJpeg.getUrl().endsWith(".jpg"));
+        assertTrue(uploadedWebp.getUrl().endsWith(".webp"));
+        try (var files = Files.walk(uploadDirectory)) {
+            assertEquals(3L, files.filter(Files::isRegularFile).count());
+        }
+    }
+
+    @Test
+    void rejectsExecutableContentDisguisedAsJpegBeforeWritingIt() throws IOException {
+        byte[] executable = {0x4d, 0x5a, (byte) 0x90, 0x00, 0x03, 0x00, 0x00, 0x00};
+        MockMultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", executable);
+
+        assertThrows(BusinessException.class, () -> service.uploadImage(file));
+
+        try (var files = Files.walk(uploadDirectory)) {
+            assertEquals(0L, files.filter(Files::isRegularFile).count());
+        }
+    }
+
+    @Test
+    void rejectsWhenMagicNumberConflictsWithFilenameAndContentType() {
+        byte[] jpeg = {
+                (byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe0,
+                0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01
+        };
+        MockMultipartFile file = new MockMultipartFile("file", "avatar.png", "image/png", jpeg);
+
+        assertThrows(BusinessException.class, () -> service.uploadImage(file));
+    }
+
+    @Test
+    void rejectsWhenFilenameExtensionConflictsWithContentType() {
+        byte[] png = {
+                (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+                0x00, 0x00, 0x00, 0x0d
+        };
+        MockMultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/png", png);
+
+        assertThrows(BusinessException.class, () -> service.uploadImage(file));
     }
 
     @Test

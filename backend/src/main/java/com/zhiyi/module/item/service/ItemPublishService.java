@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -50,6 +51,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ItemPublishService {
 
     private static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
+    private static final int IMAGE_SIGNATURE_BYTES = 12;
     private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final Map<String, String> REPORT_LABELS = Map.of(
             "PRICE_FRAUD", "疑似虚假价格",
@@ -78,21 +80,27 @@ public class ItemPublishService {
         if (file.getSize() > MAX_IMAGE_BYTES) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "单张图片不能超过5MB");
         }
-        String extension = extensionOf(file.getOriginalFilename(), file.getContentType());
         String day = LocalDate.now().format(DAY_FORMATTER);
-        String filename = UUID.randomUUID().toString().replace("-", "") + "." + extension;
         Path targetDir = Path.of(uploadPath, "items", day).toAbsolutePath().normalize();
-        Path target = targetDir.resolve(filename).normalize();
-        if (!target.startsWith(targetDir)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "文件名非法");
-        }
-        try {
+        try (BufferedInputStream input = new BufferedInputStream(file.getInputStream())) {
+            input.mark(IMAGE_SIGNATURE_BYTES);
+            byte[] signature = input.readNBytes(IMAGE_SIGNATURE_BYTES);
+            ImageFormat imageFormat = validateImageFormat(
+                    file.getOriginalFilename(), file.getContentType(), signature);
+            input.reset();
+
+            String filename = UUID.randomUUID().toString().replace("-", "")
+                    + "." + imageFormat.extension();
+            Path target = targetDir.resolve(filename).normalize();
+            if (!target.startsWith(targetDir)) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "文件名非法");
+            }
             Files.createDirectories(targetDir);
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            return new UploadImageVO("/uploads/items/" + day + "/" + filename);
         } catch (IOException e) {
             throw new BusinessException(ResultCode.SERVER_ERROR, "图片保存失败");
         }
-        return new UploadImageVO("/uploads/items/" + day + "/" + filename);
     }
 
     @Transactional
@@ -346,19 +354,125 @@ public class ItemPublishService {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
-    private String extensionOf(String originalFilename, String contentType) {
-        String ext = "";
-        if (StringUtils.hasText(originalFilename) && originalFilename.contains(".")) {
-            ext = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+    private ImageFormat validateImageFormat(String originalFilename, String contentType, byte[] signature) {
+        ImageFormat filenameFormat = formatFromOriginalFilename(originalFilename);
+        ImageFormat contentTypeFormat = formatFromContentType(contentType);
+        if (filenameFormat != null && contentTypeFormat != null && filenameFormat != contentTypeFormat) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "文件扩展名与 Content-Type 不一致");
         }
-        if (!List.of("jpg", "jpeg", "png", "webp").contains(ext)) {
-            if ("image/jpeg".equalsIgnoreCase(contentType)) ext = "jpg";
-            else if ("image/png".equalsIgnoreCase(contentType)) ext = "png";
-            else if ("image/webp".equalsIgnoreCase(contentType)) ext = "webp";
+
+        ImageFormat declaredFormat = filenameFormat != null ? filenameFormat : contentTypeFormat;
+        if (declaredFormat == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "无法确定声明的图片格式");
         }
-        if (!List.of("jpg", "jpeg", "png", "webp").contains(ext)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "仅支持 jpg、png、webp 图片");
+
+        ImageFormat actualFormat = ImageFormat.detect(signature);
+        if (actualFormat == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "文件内容不是受支持的图片格式");
         }
-        return "jpeg".equals(ext) ? "jpg" : ext;
+        if (actualFormat != declaredFormat) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "文件内容与声明的图片格式不一致");
+        }
+        return actualFormat;
+    }
+
+    private ImageFormat formatFromOriginalFilename(String originalFilename) {
+        if (!StringUtils.hasText(originalFilename)) {
+            return null;
+        }
+        String filename = StringUtils.getFilename(originalFilename);
+        int dot = filename == null ? -1 : filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) {
+            return null;
+        }
+        String extension = filename.substring(dot + 1).toLowerCase(Locale.ROOT);
+        ImageFormat format = ImageFormat.fromExtension(extension);
+        if (format == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "仅支持 jpg、jpeg、png、webp 图片");
+        }
+        return format;
+    }
+
+    private ImageFormat formatFromContentType(String contentType) {
+        if (!StringUtils.hasText(contentType)) {
+            return null;
+        }
+        String normalized = contentType.toLowerCase(Locale.ROOT);
+        int parameters = normalized.indexOf(';');
+        if (parameters >= 0) {
+            normalized = normalized.substring(0, parameters);
+        }
+        ImageFormat format = ImageFormat.fromContentType(normalized.trim());
+        if (format == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST,
+                    "Content-Type 必须是 image/jpeg、image/png 或 image/webp");
+        }
+        return format;
+    }
+
+    private enum ImageFormat {
+        JPEG("jpg"),
+        PNG("png"),
+        WEBP("webp");
+
+        private final String extension;
+
+        ImageFormat(String extension) {
+            this.extension = extension;
+        }
+
+        String extension() {
+            return extension;
+        }
+
+        static ImageFormat fromExtension(String extension) {
+            return switch (extension) {
+                case "jpg", "jpeg" -> JPEG;
+                case "png" -> PNG;
+                case "webp" -> WEBP;
+                default -> null;
+            };
+        }
+
+        static ImageFormat fromContentType(String contentType) {
+            return switch (contentType) {
+                case "image/jpeg", "image/jpg", "image/pjpeg" -> JPEG;
+                case "image/png" -> PNG;
+                case "image/webp" -> WEBP;
+                default -> null;
+            };
+        }
+
+        static ImageFormat detect(byte[] signature) {
+            if (signature.length >= 3
+                    && signature[0] == (byte) 0xff
+                    && signature[1] == (byte) 0xd8
+                    && signature[2] == (byte) 0xff) {
+                return JPEG;
+            }
+            if (signature.length >= 8
+                    && signature[0] == (byte) 0x89
+                    && signature[1] == 0x50
+                    && signature[2] == 0x4e
+                    && signature[3] == 0x47
+                    && signature[4] == 0x0d
+                    && signature[5] == 0x0a
+                    && signature[6] == 0x1a
+                    && signature[7] == 0x0a) {
+                return PNG;
+            }
+            if (signature.length >= 12
+                    && signature[0] == 'R'
+                    && signature[1] == 'I'
+                    && signature[2] == 'F'
+                    && signature[3] == 'F'
+                    && signature[8] == 'W'
+                    && signature[9] == 'E'
+                    && signature[10] == 'B'
+                    && signature[11] == 'P') {
+                return WEBP;
+            }
+            return null;
+        }
     }
 }
