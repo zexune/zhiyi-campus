@@ -1,7 +1,7 @@
 package com.zhiyi.module.item.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.module.item.dto.PublishItemDTO;
 import com.zhiyi.module.item.entity.Category;
 import lombok.extern.slf4j.Slf4j;
@@ -64,13 +64,13 @@ public class AiReviewService {
             "(?i)(保护壳|手机壳|平板壳|键盘膜|贴膜|数据线|充电线|充电器|支架|配件|维修|模型|玩具|空盒|包装盒|零件|坏机|故障|损坏|碎屏|屏裂|进水|不开机|报废|拆机|仅供维修|尸体机)"
     );
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
     private final RestClient restClient;
     private final String endpoint;
     private final String apiKey;
     private final String model;
 
-    public AiReviewService(ObjectMapper objectMapper,
+    public AiReviewService(JsonMapper objectMapper,
                            @Value("${zhiyi.ai.api-url:https://api.deepseek.com}") String apiUrl,
                            @Value("${zhiyi.ai.api-key:}") String apiKey,
                            @Value("${zhiyi.ai.model:deepseek-v4-pro}") String model,
@@ -168,11 +168,11 @@ public class AiReviewService {
 
     ReviewResult parseResponse(JsonNode response) {
         JsonNode contentNode = response == null ? null : response.at("/choices/0/message/content");
-        if (contentNode == null || !contentNode.isTextual() || !StringUtils.hasText(contentNode.asText())) {
+        if (contentNode == null || !contentNode.isString() || !StringUtils.hasText(contentNode.asString())) {
             throw new IllegalArgumentException("AI 返回内容为空");
         }
 
-        String content = stripCodeFence(contentNode.asText().trim());
+        String content = stripCodeFence(contentNode.asString().trim());
         try {
             JsonNode payload = objectMapper.readTree(content);
             JsonNode violationNode = payload.get("is_violation");
@@ -183,8 +183,8 @@ public class AiReviewService {
 
             Set<String> tags = new LinkedHashSet<>();
             tagsNode.forEach(node -> {
-                if (node.isTextual()) {
-                    String tag = node.asText().trim();
+                if (node.isString()) {
+                    String tag = node.asString().trim();
                     if (StringUtils.hasText(tag) && tag.length() <= 20 && tags.size() < 6) {
                         tags.add(tag);
                     }
@@ -194,7 +194,7 @@ public class AiReviewService {
                 throw new IllegalArgumentException("AI 未返回有效标签");
             }
 
-            String reason = payload.path("violation_reason").asText("").trim();
+            String reason = payload.path("violation_reason").asString("").trim();
             if (violationNode.asBoolean() && !StringUtils.hasText(reason)) {
                 reason = "内容不符合校园交易发布规范";
             }

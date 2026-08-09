@@ -27,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -71,7 +72,8 @@ class AuthServiceTest {
         userStateCache = new RecordingUserStateCache(userMapper);
         schoolService = new SchoolService(schoolMapper);
         jwtUtils = new JwtUtils(
-                "01234567890123456789012345678901", 60_000);
+                "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
+                Duration.ofMinutes(1));
         service = new AuthService(
                 userMapper,
                 passwordEncoder,
@@ -160,8 +162,7 @@ class AuthServiceTest {
         assertEquals(1, captor.getValue().getLevel());
         assertEquals(0, captor.getValue().getExp());
         assertEquals(0, captor.getValue().getTokenVersion());
-        assertEquals(0, jwtUtils.parse(result.getToken()).get(
-                JwtUtils.TOKEN_VERSION_CLAIM, Integer.class));
+        assertEquals(0, jwtUtils.getTokenVersion(jwtUtils.parse(result.getToken())));
         assertNotNull(result.getToken());
         // 未填学校邮箱也可注册，VO 带学校名称
         assertEquals(null, captor.getValue().getSchoolEmail());
@@ -325,8 +326,7 @@ class AuthServiceTest {
 
         LoginVO result = service.login(dto);
 
-        assertEquals(4, jwtUtils.parse(result.getToken()).get(
-                JwtUtils.TOKEN_VERSION_CLAIM, Integer.class));
+        assertEquals(4, jwtUtils.getTokenVersion(jwtUtils.parse(result.getToken())));
     }
 
     private SysUser activeUser(Long id, String studentId) {

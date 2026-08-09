@@ -226,7 +226,6 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getViolations, confirmViolation, dismissViolation, forceOffShelf } from '@/api/admin'
 

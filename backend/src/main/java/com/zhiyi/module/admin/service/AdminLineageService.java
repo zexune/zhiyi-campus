@@ -73,7 +73,7 @@ public class AdminLineageService {
         List<Long> userIds = new ArrayList<>();
         userIds.add(item.getPublisherId());
         completedOrders.forEach(o -> userIds.add(o.getBuyerId()));
-        Map<Long, SysUser> userMap = userMapper.selectBatchIds(userIds).stream()
+        Map<Long, SysUser> userMap = userMapper.selectByIds(userIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, u -> u, (a, b) -> a));
 
         // 第一环：发布者

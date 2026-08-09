@@ -1,7 +1,7 @@
 package com.zhiyi.module.user.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -75,15 +74,13 @@ class UserServiceTest {
         when(userMapper.selectOne(any())).thenReturn(cardUser());
         UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
 
-        JsonNode json = new ObjectMapper().valueToTree(service.getPublicProfile(42L));
-        Set<String> fieldNames = new HashSet<>();
-        Iterator<String> iterator = json.fieldNames();
-        iterator.forEachRemaining(fieldNames::add);
+        JsonNode json = JsonMapper.builder().build().valueToTree(service.getPublicProfile(42L));
+        Set<String> fieldNames = new HashSet<>(json.propertyNames());
 
         assertEquals(
                 Set.of("id", "nickname", "level", "levelTitle", "schoolName"),
                 fieldNames);
-        assertEquals("上海大学", json.get("schoolName").asText());
+        assertEquals("上海大学", json.get("schoolName").asString());
     }
 
     @Test

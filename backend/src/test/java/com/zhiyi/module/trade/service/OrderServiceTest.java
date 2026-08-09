@@ -128,7 +128,7 @@ class OrderServiceTest {
             when(sysUserMapper.update(nullable(SysUser.class), any())).thenReturn(1);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b, b); // 两次回读
             when(sysUserMapper.selectById(SELLER_ID)).thenReturn(s);
-            when(orderMapper.insert(any())).thenAnswer(inv -> {
+            when(orderMapper.insert(any(TradeOrder.class))).thenAnswer(inv -> {
                 TradeOrder o = inv.getArgument(0);
                 o.setId(1L);
                 return 1;

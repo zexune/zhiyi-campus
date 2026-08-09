@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
@@ -62,7 +62,7 @@ class MarketplaceServiceTest {
                 "[\"iPad\",\"tablet\"]"
         ));
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
 
         var result = service.trendingAiTags(10, 7L);
 
@@ -101,7 +101,7 @@ class MarketplaceServiceTest {
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
         service.listOnSaleItems(null, null, null, null,
                 "random", null, null, 1, 12, 7L);
 
@@ -132,7 +132,7 @@ class MarketplaceServiceTest {
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
         service.listOnSaleItems(null, null, null, null,
                 "random", null, null, 1, 12, 7L);
 
@@ -156,7 +156,7 @@ class MarketplaceServiceTest {
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
         service.listOnSaleItems(null, null, null, null,
                 "latest", null, null, 1, 12, 7L);
 
@@ -182,7 +182,7 @@ class MarketplaceServiceTest {
         when(itemMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(emptyPage);
 
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
         service.listOnSaleItems(null, null, null, null,
                 "latest", null, null, 1, 12, 9L);
 
@@ -209,7 +209,7 @@ class MarketplaceServiceTest {
         when(userMapper.selectById(7L)).thenReturn(viewer);
 
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
 
         BusinessException error = assertThrows(
                 BusinessException.class, () -> service.toggleFavorite(7L, 100L));
@@ -229,7 +229,7 @@ class MarketplaceServiceTest {
         when(userMapper.selectById(7L)).thenReturn(viewer);
 
         MarketplaceService service = new MarketplaceService(
-                itemMapper, categoryMapper, favoriteMapper, userMapper, new ObjectMapper());
+                itemMapper, categoryMapper, favoriteMapper, userMapper, JsonMapper.builder().build());
 
         BusinessException error = assertThrows(
                 BusinessException.class, () -> service.getDetail(100L, 7L));

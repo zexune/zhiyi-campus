@@ -102,7 +102,7 @@ public class AdminDashboardService {
                     .map(ViolationReport::getUserId)
                     .distinct()
                     .collect(Collectors.toList());
-            List<SysUser> users = sysUserMapper.selectBatchIds(userIds);
+            List<SysUser> users = sysUserMapper.selectByIds(userIds);
             Map<Long, String> nickMap = users.stream()
                     .collect(Collectors.toMap(SysUser::getId, SysUser::getNickname, (a, b) -> a));
 

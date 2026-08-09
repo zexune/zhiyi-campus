@@ -71,7 +71,7 @@ class ReputationPenaltyServiceTest {
                 8L, 2L, 1L, "BAN_TEMP", "重复请求");
 
         assertSame(existing, result);
-        verify(penaltyMapper, never()).insert(any());
+        verify(penaltyMapper, never()).insert(any(ReputationPenalty.class));
     }
 
     @Test

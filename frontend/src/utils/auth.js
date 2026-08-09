@@ -6,6 +6,7 @@ const TOKEN_KEY = 'token'
 const ROLE_KEY = 'role'
 const USER_ID_KEY = 'userId'
 const NICKNAME_KEY = 'nickname'
+const PERSISTED_USER_KEY = 'zhiyi-user'
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -52,4 +53,5 @@ export function clearAuth() {
   localStorage.removeItem(ROLE_KEY)
   localStorage.removeItem(USER_ID_KEY)
   localStorage.removeItem(NICKNAME_KEY)
+  localStorage.removeItem(PERSISTED_USER_KEY)
 }

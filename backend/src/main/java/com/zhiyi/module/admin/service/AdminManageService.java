@@ -77,7 +77,7 @@ public class AdminManageService {
                 .map(Item::getPublisherId).distinct().collect(Collectors.toList());
         Map<Long, SysUser> userMap = publisherIds.isEmpty()
                 ? Collections.emptyMap()
-                : sysUserMapper.selectBatchIds(publisherIds).stream()
+                : sysUserMapper.selectByIds(publisherIds).stream()
                         .collect(Collectors.toMap(SysUser::getId, Function.identity()));
 
         return itemPage.convert(item -> toAdminItemVO(item, userMap));

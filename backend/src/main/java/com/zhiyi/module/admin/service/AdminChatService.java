@@ -78,7 +78,7 @@ public class AdminChatService {
         // 批量查对端用户
         Map<Long, SysUser> userMap = new HashMap<>();
         if (!peerIds.isEmpty()) {
-            userMap = sysUserMapper.selectBatchIds(peerIds).stream()
+            userMap = sysUserMapper.selectByIds(peerIds).stream()
                     .collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u, (a, b) -> a));
         }
 

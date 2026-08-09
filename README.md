@@ -29,9 +29,10 @@
 
 | 层级 | 技术 |
 | --- | --- |
-| 前端 | Vue 3、Vue Router 4、Pinia、Element Plus、Axios、Vite 5 |
-| 后端 | Java 17、Spring Boot 3.2、Spring MVC、MyBatis-Plus 3.5、Maven |
-| 数据与安全 | MySQL 8、JWT、BCrypt、Caffeine 本地缓存 |
+| 前端 | Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
+| 后端 | Java 25、Spring Boot 4.1.0、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.15 |
+| 基础库 | Lombok 1.18.46、JJWT 0.13.0、Hutool 5.8.47、Jackson 3 |
+| 数据与安全 | MySQL 8、JWT（HS256 + issuer/audience/tokenVersion）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
 | 文件存储 | 本地文件系统，通过 `/uploads/**` 提供访问 |
 | 接口风格 | RESTful JSON，统一返回 `{ code, message, data }` |
 
@@ -39,9 +40,9 @@
 
 ### 1. 环境要求
 
-- JDK 17 或更高版本
-- Maven 3.6.3 或更高版本
-- Node.js 18 或更高版本，以及 npm
+- JDK 25（构建会拒绝其他主版本）
+- Maven 3.9.15
+- Node.js 22.12 或更高版本，以及 npm
 - MySQL 8.0 或更高版本
 
 AI 服务不是本地启动的必要条件。未配置 `AI_API_KEY` 时，本地审核仍会运行，需要远程 AI 的内容会降级为人工复核。
@@ -64,13 +65,15 @@ SOURCE C:/path/to/zhiyi-campus/zhiyi_campus_init.sql;
 
 ### 3. 配置并启动后端
 
-后端通过环境变量读取敏感配置。PowerShell 示例：
+后端默认使用虚拟线程处理请求，并通过环境变量读取敏感配置。`JWT_SECRET` 没有开发默认值，必须是至少 32 字节随机数据的 Base64 编码。PowerShell 示例：
 
 ```powershell
 cd backend
 $env:MYSQL_USERNAME = "root"
 $env:MYSQL_PASSWORD = "<你的 MySQL 密码>"
-$env:JWT_SECRET = "<至少 32 个 ASCII 字符的随机密钥>"
+$jwtBytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Fill($jwtBytes)
+$env:JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
 mvn spring-boot:run
 ```
 
@@ -80,7 +83,7 @@ Bash / Zsh 示例：
 cd backend
 export MYSQL_USERNAME="root"
 export MYSQL_PASSWORD="<你的 MySQL 密码>"
-export JWT_SECRET="<至少 32 个 ASCII 字符的随机密钥>"
+export JWT_SECRET="$(openssl rand -base64 32)"
 mvn spring-boot:run
 ```
 
@@ -90,7 +93,9 @@ mvn spring-boot:run
 | --- | --- | --- |
 | `MYSQL_USERNAME` | MySQL 用户名 | `root` |
 | `MYSQL_PASSWORD` | MySQL 密码 | `password`（仅开发占位值） |
-| `JWT_SECRET` | JWT 签名密钥，非本地环境必须覆盖 | 配置文件内的开发示例值 |
+| `JWT_SECRET` | 必填；Base64 编码、解码后至少 32 字节的 JWT 签名密钥 | 无 |
+| `JWT_EXPIRATION` | Token 有效期，Spring Duration 格式 | `24h` |
+| `CORS_ALLOWED_ORIGINS` | 允许访问 API 的前端来源，多个值用逗号分隔 | `http://localhost:3000,http://127.0.0.1:3000` |
 | `AI_API_URL` | AI 服务基础地址，后端会追加 `/chat/completions` | `https://api.deepseek.com` |
 | `AI_API_KEY` | AI 服务密钥；留空时不调用远程审核 | 空 |
 | `AI_MODEL` | 审核模型名称 | `deepseek-v4-pro` |
@@ -176,7 +181,7 @@ zhiyi-campus/
 └── README.md
 ```
 
-`backend/target`、`frontend/dist` 和 `frontend/node_modules` 均为生成目录，不属于核心源码。
+`backend/target`、`frontend/dist` 和 `frontend/node_modules` 均为可重新生成的目录，已从源码版本控制中排除。
 
 ## API 与文档入口
 
@@ -234,7 +239,10 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 ## 开发注意事项
 
 - 上传文件默认保存在后端当前工作目录下的 `uploads` 文件夹；单文件上限为 5 MB，单次请求上限为 50 MB。
-- 初始化脚本中的管理员密码、默认 MySQL 密码和 JWT 密钥都只适合本地开发，部署前必须替换。
+- 初始化脚本中的管理员密码和默认 MySQL 密码只适合本地开发，部署前必须替换；JWT 密钥没有默认值，启动时必须注入。
+- Java 25 虚拟线程已开启，Tomcat 平台线程池参数不再使用；数据库吞吐仍受 HikariCP/MySQL 连接池上限约束。
+- API 统一响应和鉴权快照使用不可变 Record；后端 JSON 栈为 Jackson 3，不加载 Jackson 2 兼容层。
+- 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入，Pinia 仅持久化用户 ID、昵称和角色摘要。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。
 - 平台钱包是项目内部余额与流水机制，当前未接入第三方支付渠道。
 

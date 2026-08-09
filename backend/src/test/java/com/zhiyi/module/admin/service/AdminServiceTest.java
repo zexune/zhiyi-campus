@@ -107,7 +107,7 @@ class AdminServiceTest {
 
             service.forceOffShelf(1L, 99L);
 
-            verify(violationLogMapper).insert(argThat(log ->
+            verify(violationLogMapper).insert(argThat((ViolationLog log) ->
                     log.getUserId().equals(2L)
                     && log.getAdminId().equals(99L)
                     && "WARNING".equals(log.getType())
@@ -153,7 +153,7 @@ class AdminServiceTest {
             user.setNickname("测试用户");
             when(sysUserMapper.selectById(2L)).thenReturn(user);
             when(passwordEncoder.encode("123456")).thenReturn("$2a$10$hashed");
-            when(sysUserMapper.updateById(any())).thenReturn(1);
+            when(sysUserMapper.updateById(any(SysUser.class))).thenReturn(1);
             when(sysUserMapper.bumpTokenVersion(2L)).thenReturn(1);
 
             // userStateCache.invalidateAfterCommit is void
@@ -221,8 +221,8 @@ class AdminServiceTest {
             item.setStatus("OFF_SHELF");
 
             when(violationReportMapper.selectPage(any(Page.class), any())).thenReturn(page);
-            when(sysUserMapper.selectBatchIds(List.of(10L))).thenReturn(List.of(reporter));
-            when(itemMapper.selectBatchIds(List.of(100L))).thenReturn(List.of(item));
+            when(sysUserMapper.selectByIds(List.of(10L))).thenReturn(List.of(reporter));
+            when(itemMapper.selectByIds(List.of(100L))).thenReturn(List.of(item));
 
             IPage<ViolationVO> result = service.getViolations(1, 10, "PENDING");
 

@@ -73,7 +73,6 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { getMyItems, offShelfItem, relistItem, deleteItem } from '@/api/item'

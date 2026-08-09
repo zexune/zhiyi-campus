@@ -2,6 +2,7 @@ package com.zhiyi.config;
 
 import com.zhiyi.interceptor.JwtInterceptor;
 import com.zhiyi.interceptor.RoleInterceptor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -13,10 +14,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final JwtInterceptor jwtInterceptor;
     private final RoleInterceptor roleInterceptor;
+    private final String[] allowedOrigins;
 
-    public WebMvcConfig(JwtInterceptor jwtInterceptor, RoleInterceptor roleInterceptor) {
+    public WebMvcConfig(JwtInterceptor jwtInterceptor,
+                        RoleInterceptor roleInterceptor,
+                        @Value("${zhiyi.cors.allowed-origins}") String[] allowedOrigins) {
         this.jwtInterceptor = jwtInterceptor;
         this.roleInterceptor = roleInterceptor;
+        this.allowedOrigins = allowedOrigins.clone();
     }
 
     /**
@@ -25,10 +30,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOriginPatterns("*")
+                .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
+                .allowedHeaders("Authorization", "Content-Type", "Accept")
+                .allowCredentials(false)
+                .maxAge(3600);
     }
 
     /**

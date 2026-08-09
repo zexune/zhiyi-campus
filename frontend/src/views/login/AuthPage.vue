@@ -224,7 +224,7 @@
             </div>
             <div class="field">
               <label for="f-sid">学号</label>
-              <input id="f-sid" v-model.trim="forgotForm.studentId" class="input" type="text" placeholder="请输入注册时的学号" />
+              <input id="f-sid" v-model.trim="forgotForm.studentId" class="input" type="text" placeholder="请输入注册时的学号" autocomplete="username" />
             </div>
             <button class="btn btn--green btn--lg btn--block" type="submit" :disabled="loading || schoolsLoading">下一步</button>
           </form>
@@ -276,7 +276,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { login, register, getSecurityQuestion, getSecurityQuestions, resetPassword, getSchools } from '@/api/auth'
 import { useUserStore } from '@/stores/user'

@@ -127,7 +127,6 @@
 
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'

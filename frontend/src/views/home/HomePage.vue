@@ -281,7 +281,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import AiTagList from '@/components/common/AiTagList.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'

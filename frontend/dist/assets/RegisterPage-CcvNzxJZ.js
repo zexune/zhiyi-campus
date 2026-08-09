@@ -1,1 +1,0 @@
-import{A as t}from"./AuthPage-DuNhLept.js";import{o as e,e as r}from"./index-CodkJJA2.js";import"./AppSelect-YOdDhHL0.js";import"./user-C6DWG8R4.js";import"./_plugin-vue_export-helper-DlAUqK2U.js";const n={__name:"RegisterPage",setup(o){return(a,i)=>(e(),r(t,{"initial-tab":"register"}))}};export{n as default};

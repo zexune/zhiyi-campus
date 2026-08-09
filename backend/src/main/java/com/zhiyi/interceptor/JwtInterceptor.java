@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -26,6 +27,7 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     private static final Pattern PUBLIC_USER_CARD = Pattern.compile("^/api/user/\\d+/card$");
     private static final Pattern PUBLIC_USER_REPUTATION = Pattern.compile("^/api/user/\\d+/reputation$");
+    private static final int MAX_TOKEN_LENGTH = 4096;
 
     private final JwtUtils jwtUtils;
     private final UserStateCache userStateCache;
@@ -53,48 +55,63 @@ public class JwtInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        Claims claims = jwtUtils.parse(token.substring(7)); // 去掉 "Bearer " 前缀，只解析一次
+        String encodedToken = token.substring(7);
+        if (encodedToken.isBlank() || encodedToken.length() > MAX_TOKEN_LENGTH) {
+            WebResponseUtil.writeJson(response, 401, 401, "Token 格式无效");
+            return false;
+        }
+
+        Claims claims = jwtUtils.parse(encodedToken); // 单次验签并取得全部 Claims
         if (claims == null) {
             WebResponseUtil.writeJson(response, 401, 401, "Token 无效或已过期");
             return false;
         }
 
-        Long userId = Long.parseLong(claims.getSubject());
+        Long userId;
+        try {
+            userId = Long.parseLong(claims.getSubject());
+        } catch (NumberFormatException exception) {
+            WebResponseUtil.writeJson(response, 401, 401, "Token 格式无效");
+            return false;
+        }
         UserAuthState state = userStateCache.get(userId);
         if (state == null) {
             WebResponseUtil.writeJson(response, 401, 401, "用户不存在");
             return false;
         }
 
-        Integer claimVersion =
-                claims.get(JwtUtils.TOKEN_VERSION_CLAIM, Integer.class);
+        Integer claimVersion = jwtUtils.getTokenVersion(claims);
         int issuedVersion = claimVersion == null ? 0 : claimVersion;
-        int currentVersion =
-                state.getTokenVersion() == null ? 0 : state.getTokenVersion();
-        if (issuedVersion != currentVersion) {
+        if (claimVersion == null) {
+            WebResponseUtil.writeJson(response, 401, 401, "登录状态已失效，请重新登录");
+            return false;
+        }
+        int currentVersion = state.tokenVersion() == null ? 0 : state.tokenVersion();
+        String issuedRole = claims.get(JwtUtils.ROLE_CLAIM, String.class);
+        if (issuedVersion != currentVersion || !Objects.equals(issuedRole, state.role())) {
             WebResponseUtil.writeJson(response, 401, 401, "登录状态已失效，请重新登录");
             return false;
         }
 
         // 封禁/注销校验：永久封禁与已注销直接拒绝；临时封禁未到期拒绝（到期由登录流程恢复 ACTIVE）
-        if ("CANCELLED".equals(state.getStatus())) {
+        if ("CANCELLED".equals(state.status())) {
             WebResponseUtil.writeJson(response, 401, 1008, "该账户已注销");
             return false;
         }
-        if ("BANNED_PERM".equals(state.getStatus())) {
+        if ("BANNED_PERM".equals(state.status())) {
             WebResponseUtil.writeJson(response, 403, 1003, "该账户已被永久封禁");
             return false;
         }
-        if ("BANNED_TEMP".equals(state.getStatus())
-                && state.getBanUntilTime() != null
-                && state.getBanUntilTime().isAfter(LocalDateTime.now())) {
+        if ("BANNED_TEMP".equals(state.status())
+                && state.banUntilTime() != null
+                && state.banUntilTime().isAfter(LocalDateTime.now())) {
             WebResponseUtil.writeJson(response, 403, 1003, "账户已被封禁");
             return false;
         }
 
         // 把 userId 和 role 放入 request attribute，Controller 里直接取
         request.setAttribute("userId", userId);
-        request.setAttribute("role", claims.get("role", String.class));
+        request.setAttribute("role", state.role());
         return true;
     }
 
