@@ -5,6 +5,7 @@ import com.zhiyi.common.Result;
 import com.zhiyi.module.trade.dto.CreateOrderDTO;
 import com.zhiyi.module.trade.dto.ReviewDTO;
 import com.zhiyi.module.trade.service.OrderService;
+import com.zhiyi.module.trade.service.OrderQueryService;
 import com.zhiyi.module.trade.service.ReviewService;
 import com.zhiyi.module.trade.vo.OrderVO;
 import jakarta.validation.Valid;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderQueryService orderQueryService;
     private final ReviewService reviewService;
 
     @PostMapping("/create")
@@ -51,7 +53,7 @@ public class OrderController {
                                            @RequestParam(defaultValue = "1") int page,
                                            @RequestParam(defaultValue = "10") int size,
                                            @RequestParam(required = false) String status) {
-        return Result.ok(orderService.getBoughtOrders(userId, page, size, status));
+        return Result.ok(orderQueryService.getBoughtOrders(userId, page, size, status));
     }
 
     @GetMapping("/my-sold")
@@ -59,7 +61,7 @@ public class OrderController {
                                          @RequestParam(defaultValue = "1") int page,
                                          @RequestParam(defaultValue = "10") int size,
                                          @RequestParam(required = false) String status) {
-        return Result.ok(orderService.getSoldOrders(userId, page, size, status));
+        return Result.ok(orderQueryService.getSoldOrders(userId, page, size, status));
     }
 
     /** 买家确认收货后对卖家评价（A7） */

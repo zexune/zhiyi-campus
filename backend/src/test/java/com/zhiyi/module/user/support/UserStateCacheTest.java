@@ -3,6 +3,8 @@ package com.zhiyi.module.user.support;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.user.entity.SysUser;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -39,12 +41,12 @@ class UserStateCacheTest {
     @Test
     void invalidatesImmediatelyWithoutTransaction() {
         Fixture fixture = fixture("ACTIVE");
-        assertEquals("ACTIVE", fixture.cache().get(1L).status());
+        assertEquals(UserStatus.ACTIVE, fixture.cache().get(1L).status());
         fixture.database().set(user("BANNED_PERM"));
 
         fixture.cache().invalidateAfterCommit(1L);
 
-        assertEquals("BANNED_PERM", fixture.cache().get(1L).status());
+        assertEquals(UserStatus.BANNED_PERM, fixture.cache().get(1L).status());
     }
 
     @Test
@@ -55,11 +57,11 @@ class UserStateCacheTest {
         beginSynchronization();
 
         fixture.cache().invalidateAfterCommit(1L);
-        assertEquals("ACTIVE", fixture.cache().get(1L).status());
+        assertEquals(UserStatus.ACTIVE, fixture.cache().get(1L).status());
 
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(TransactionSynchronization::afterCommit);
-        assertEquals("BANNED_PERM", fixture.cache().get(1L).status());
+        assertEquals(UserStatus.BANNED_PERM, fixture.cache().get(1L).status());
     }
 
     @Test
@@ -74,7 +76,7 @@ class UserStateCacheTest {
                 sync -> sync.afterCompletion(
                         TransactionSynchronization.STATUS_ROLLED_BACK));
 
-        assertEquals("ACTIVE", fixture.cache().get(1L).status());
+        assertEquals(UserStatus.ACTIVE, fixture.cache().get(1L).status());
     }
 
     private void beginSynchronization() {
@@ -93,8 +95,8 @@ class UserStateCacheTest {
     private SysUser user(String status) {
         SysUser user = new SysUser();
         user.setId(1L);
-        user.setRole("USER");
-        user.setStatus(status);
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.valueOf(status));
         user.setTokenVersion(0);
         return user;
     }

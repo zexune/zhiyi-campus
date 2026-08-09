@@ -4,8 +4,11 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
 import com.zhiyi.module.user.dto.CancelAccountDTO;
@@ -45,6 +48,8 @@ class AccountSecurityServiceTest {
     private TradeOrderMapper orderMapper;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private TagQueryService tagQueryService;
 
     private RecordingUserStateCache userStateCache;
     private AccountSecurityService service;
@@ -72,7 +77,8 @@ class AccountSecurityServiceTest {
                 orderMapper,
                 passwordEncoder,
                 userStateCache,
-                new LoginAttemptService(5, 300));
+                new LoginAttemptService(5, 300),
+                tagQueryService);
     }
 
     @Test
@@ -104,7 +110,7 @@ class AccountSecurityServiceTest {
 
         ArgumentCaptor<SysUser> patch = ArgumentCaptor.forClass(SysUser.class);
         verify(userMapper).updateById(patch.capture());
-        assertEquals("CANCELLED", patch.getValue().getStatus());
+        assertEquals(UserStatus.CANCELLED, patch.getValue().getStatus());
         verify(itemMapper).update(any(Item.class), any());
         verify(userMapper).bumpTokenVersion(1L);
         assertEquals(List.of(1L), userStateCache.afterCommitInvalidations());
@@ -148,8 +154,8 @@ class AccountSecurityServiceTest {
         user.setId(1L);
         user.setStudentId("user01");
         user.setPassword("old-hash");
-        user.setRole("USER");
-        user.setStatus("ACTIVE");
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
         return user;
     }
 }

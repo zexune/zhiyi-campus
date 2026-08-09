@@ -32,7 +32,7 @@ public class AdminAuthController {
     }
 
     @PutMapping("/change-password")
-    @RoleRequired("ADMIN")
+    @RoleRequired
     public Result<Void> changePassword(@RequestAttribute("userId") Long adminId,
                                        @Valid @RequestBody ChangePasswordDTO request) {
         accountSecurityService.changePassword(adminId, request);

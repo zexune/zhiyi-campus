@@ -3,6 +3,8 @@ package com.zhiyi.module.user.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.dto.LoginDTO;
 import com.zhiyi.module.user.dto.RegisterDTO;
 import com.zhiyi.module.user.dto.ResetPasswordDTO;
@@ -76,7 +78,7 @@ public class AuthService {
                 .eq(SysUser::getSchoolId, school.getId())
                 .eq(SysUser::getStudentId, studentId));
         if (exists != null) {
-            if ("CANCELLED".equals(exists.getStatus())) {
+            if (exists.getStatus() == UserStatus.CANCELLED) {
                 throw new BusinessException(ResultCode.USER_CANCELLED, "该学号在当前学校的账户已注销，如需恢复请联系管理员");
             }
             throw new BusinessException(ResultCode.STUDENT_ID_EXISTS, "该学号已在当前学校注册，请直接登录或找回密码");
@@ -89,8 +91,8 @@ public class AuthService {
         user.setPhone(dto.getPhone());
         user.setSchoolId(school.getId());
         user.setSchoolEmail(schoolEmail);
-        user.setRole("USER");
-        user.setStatus("ACTIVE");
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
         user.setLevel(1);
         user.setExp(0);
         user.setTokenVersion(0);
@@ -105,7 +107,7 @@ public class AuthService {
         }
 
         String token = jwtUtils.generateToken(
-                user.getId(), user.getRole(), user.getTokenVersion());
+                user.getId(), user.getRole().code(), user.getTokenVersion());
         return new LoginVO(token, UserVO.from(user, school.getName()));
     }
 
@@ -125,7 +127,7 @@ public class AuthService {
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getSchoolId, school.getId())
                 .eq(SysUser::getStudentId, studentId)
-                .eq(SysUser::getRole, "USER"));
+                .eq(SysUser::getRole, UserRole.USER));
         if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             loginAttemptService.recordFailure(loginKey);
             // 不区分「用户不存在」与「密码错误」，防止学号枚举
@@ -133,13 +135,13 @@ public class AuthService {
         }
 
         // 封禁/注销状态检查
-        if ("CANCELLED".equals(user.getStatus())) {
+        if (user.getStatus() == UserStatus.CANCELLED) {
             throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
         }
-        if ("BANNED_PERM".equals(user.getStatus())) {
+        if (user.getStatus() == UserStatus.BANNED_PERM) {
             throw new BusinessException(ResultCode.USER_BANNED, "该账户已被永久封禁");
         }
-        if ("BANNED_TEMP".equals(user.getStatus())) {
+        if (user.getStatus() == UserStatus.BANNED_TEMP) {
             LocalDateTime until = user.getBanUntilTime();
             if (until != null && until.isAfter(LocalDateTime.now())) {
                 throw new BusinessException(ResultCode.USER_BANNED,
@@ -148,18 +150,18 @@ public class AuthService {
             // 到期自动恢复（需求 1.6）
             SysUser patch = new SysUser();
             patch.setId(user.getId());
-            patch.setStatus("ACTIVE");
+            patch.setStatus(UserStatus.ACTIVE);
             userMapper.update(patch, Wrappers.<SysUser>lambdaUpdate()
                     .eq(SysUser::getId, user.getId())
                     .set(SysUser::getBanUntilTime, null));
-            user.setStatus("ACTIVE");
+            user.setStatus(UserStatus.ACTIVE);
             user.setBanUntilTime(null);
             userStateCache.invalidateAfterCommit(user.getId());
         }
 
         loginAttemptService.reset(loginKey);
         String token = jwtUtils.generateToken(
-                user.getId(), user.getRole(), user.getTokenVersion());
+                user.getId(), user.getRole().code(), user.getTokenVersion());
         return new LoginVO(token, UserVO.from(user, school.getName()));
     }
 
@@ -173,11 +175,11 @@ public class AuthService {
                 .select(SysUser::getId, SysUser::getSecurityQuestion, SysUser::getStatus)
                 .eq(SysUser::getSchoolId, school.getId())
                 .eq(SysUser::getStudentId, studentId)
-                .eq(SysUser::getRole, "USER"));
+                .eq(SysUser::getRole, UserRole.USER));
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND, "该学号尚未注册");
         }
-        if ("CANCELLED".equals(user.getStatus())) {
+        if (user.getStatus() == UserStatus.CANCELLED) {
             throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
         }
         return user.getSecurityQuestion();
@@ -203,11 +205,11 @@ public class AuthService {
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getSchoolId, school.getId())
                 .eq(SysUser::getStudentId, studentId)
-                .eq(SysUser::getRole, "USER"));
+                .eq(SysUser::getRole, UserRole.USER));
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND, "该学号尚未注册");
         }
-        if ("CANCELLED".equals(user.getStatus())) {
+        if (user.getStatus() == UserStatus.CANCELLED) {
             throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
         }
         // 比对忽略首尾空格、不区分大小写（需求 1.3）

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.module.admin.vo.AdminLoginVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -80,13 +81,13 @@ class AdminAuthServiceTest {
         LambdaQueryWrapper<SysUser> wrapper = (LambdaQueryWrapper<SysUser>) query.getValue();
         String sql = wrapper.getSqlSegment();
         assertTrue(wrapper.getParamNameValuePairs().containsValue("admin"), () -> "sql=" + sql);
-        assertTrue(wrapper.getParamNameValuePairs().containsValue("ADMIN"), () -> "sql=" + sql);
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.ADMIN), () -> "sql=" + sql);
     }
 
     @Test
     void rejectsNonAdminEvenIfMapperReturnsIt() {
         SysUser user = adminUser();
-        user.setRole("USER");
+        user.setRole(com.zhiyi.common.enums.UserRole.USER);
         when(userMapper.selectOne(any())).thenReturn(user);
 
         BusinessException exception = assertThrows(
@@ -102,8 +103,8 @@ class AdminAuthServiceTest {
         admin.setStudentId("admin");
         admin.setPassword("admin-hash");
         admin.setNickname("系统管理员");
-        admin.setRole("ADMIN");
-        admin.setStatus("ACTIVE");
+        admin.setRole(com.zhiyi.common.enums.UserRole.ADMIN);
+        admin.setStatus(com.zhiyi.common.enums.UserStatus.ACTIVE);
         admin.setTokenVersion(2);
         return admin;
     }

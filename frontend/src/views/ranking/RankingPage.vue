@@ -76,7 +76,7 @@
               </span>
             </div>
             <div class="podium-card__body">
-              <span class="badge" :class="entry.item.type === 'BUY' ? 'badge--buy' : 'badge--sell'">{{ entry.item.type === 'BUY' ? '求购' : '出售' }}</span>
+              <span class="badge" :class="entry.item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">{{ entry.item.type === ITEM_TYPE.BUY ? '求购' : '出售' }}</span>
               <h2>{{ entry.item.title }}</h2>
               <TagList :tags="entry.item.tags" :limit="3" @select="goTag" />
               <div class="podium-card__meta">
@@ -156,6 +156,7 @@ import TagList from '@/components/common/TagList.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
+import { ITEM_TYPE } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
 
 const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']

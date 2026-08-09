@@ -3,6 +3,7 @@ package com.zhiyi.module.admin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.OrderStatus;
 import com.zhiyi.module.admin.vo.ItemLineageVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
@@ -66,7 +67,7 @@ public class AdminLineageService {
         List<TradeOrder> completedOrders = orderMapper.selectList(
                 new LambdaQueryWrapper<TradeOrder>()
                         .eq(TradeOrder::getItemId, itemId)
-                        .eq(TradeOrder::getStatus, "COMPLETED")
+                        .eq(TradeOrder::getStatus, OrderStatus.COMPLETED)
                         .orderByAsc(TradeOrder::getCompletedAt));
 
         // 批量查用户

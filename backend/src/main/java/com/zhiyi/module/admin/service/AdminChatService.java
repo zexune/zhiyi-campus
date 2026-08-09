@@ -1,6 +1,8 @@
 package com.zhiyi.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.vo.ChatUserVO;
@@ -32,8 +34,8 @@ public class AdminChatService {
     public List<ConversationVO> getSessions() {
         // 找到管理员
         SysUser admin = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getRole, "ADMIN")
-                .eq(SysUser::getStatus, "ACTIVE")
+                .eq(SysUser::getRole, UserRole.ADMIN)
+                .eq(SysUser::getStatus, UserStatus.ACTIVE)
                 .orderByAsc(SysUser::getId)
                 .last("LIMIT 1"));
         if (admin == null) {

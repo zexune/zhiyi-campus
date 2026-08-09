@@ -73,7 +73,7 @@
           <div class="order-actions">
             <span class="badge" :class="statusBadge(o.status)">{{ statusLabel(o.status) }}</span>
 
-            <template v-if="o.status === 'WAITING_MEET'">
+            <template v-if="o.status === ORDER_STATUS.WAITING_MEET">
               <button
                 class="btn btn--green btn--sm"
                 :disabled="actingId === o.id"
@@ -90,7 +90,7 @@
               </button>
             </template>
 
-            <template v-else-if="o.status === 'COMPLETED'">
+            <template v-else-if="o.status === ORDER_STATUS.COMPLETED">
               <button
                 v-if="o.reviewed === false"
                 class="btn btn--yellow btn--sm"
@@ -103,7 +103,7 @@
                 {{ fmtTime(o.completedAt) }} 完成
               </div>
             </template>
-            <div v-else-if="o.status === 'CANCELLED'" class="order-extra muted">
+            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-extra muted">
               {{ fmtTime(o.cancelledAt) }} 取消
             </div>
           </div>
@@ -139,6 +139,8 @@ import { ref, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import OrderReviewDialog from '@/components/trade/OrderReviewDialog.vue'
 import { getBoughtOrders, confirmReceipt, cancelOrder, reviewOrder } from '@/api/order'
+import { ORDER_STATUS, ORDER_STATUS_OPTIONS } from '@/constants/domain'
+import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
 
 // ---- 评价弹窗（A7）----
 const reviewVisible = ref(false)
@@ -167,9 +169,7 @@ async function handleSubmitReview(reviewForm) {
 // ---- 筛选 ----
 const filters = [
   { label: '全部', value: '' },
-  { label: '待见面', value: 'WAITING_MEET' },
-  { label: '已完成', value: 'COMPLETED' },
-  { label: '已取消', value: 'CANCELLED' },
+  ...ORDER_STATUS_OPTIONS,
 ]
 const currentFilter = ref('')
 
@@ -264,18 +264,12 @@ function fmtTime(val) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const STATUS_MAP = {
-  WAITING_MEET: { label: '待见面', cls: 'badge--warn' },
-  COMPLETED:    { label: '已完成', cls: 'badge--ok' },
-  CANCELLED:    { label: '已取消', cls: 'badge--muted' },
-}
-
 function statusLabel(s) {
-  return STATUS_MAP[s]?.label || s
+  return orderStatusLabel(s)
 }
 
 function statusBadge(s) {
-  return STATUS_MAP[s]?.cls || 'badge--muted'
+  return orderStatusBadge(s)
 }
 
 function phClass(id) {

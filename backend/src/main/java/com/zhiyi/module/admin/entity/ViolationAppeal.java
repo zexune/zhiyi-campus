@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.zhiyi.common.enums.AppealStatus;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -18,7 +19,7 @@ public class ViolationAppeal {
     private Long itemId;
     private Long userId;
     private String reason;
-    private String status;          // PENDING / APPROVED / REJECTED
+    private AppealStatus status;
     private Long handlerId;
     private String handleNote;
 

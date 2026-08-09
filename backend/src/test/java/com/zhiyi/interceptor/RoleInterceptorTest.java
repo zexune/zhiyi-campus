@@ -15,7 +15,7 @@ class RoleInterceptorTest {
     private final RoleInterceptor interceptor = new RoleInterceptor();
 
     private static class ProtectedController {
-        @RoleRequired("ADMIN")
+        @RoleRequired
         public void protectedAction() {
         }
 

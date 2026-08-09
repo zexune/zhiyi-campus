@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.SchoolStatus;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.module.user.dto.LoginDTO;
 import com.zhiyi.module.user.dto.RegisterDTO;
@@ -91,7 +94,7 @@ class AuthServiceTest {
         s.setName("上海大学");
         s.setCode("SHU");
         s.setEmailDomain("@shu.edu.cn");
-        s.setStatus("ACTIVE");
+        s.setStatus(SchoolStatus.ACTIVE);
         return s;
     }
 
@@ -118,7 +121,7 @@ class AuthServiceTest {
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
         assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-        assertTrue(wrapper.getParamNameValuePairs().containsValue("USER"),
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
                 () -> "ordinary login must exclude administrators: sql=" + sql);
         assertTrue(loginAttemptService.isLocked("1:admin"));
         assertTrue(loginAttemptService.isLocked("  1:ADMIN  "));
@@ -236,7 +239,7 @@ class AuthServiceTest {
     void securityQuestionUsesSchoolAndCanonicalIdForQuery() {
         SysUser user = new SysUser();
         user.setId(3L);
-        user.setStatus("ACTIVE");
+        user.setStatus(UserStatus.ACTIVE);
         user.setSecurityQuestion("你的出生地是哪个城市？");
         when(userMapper.selectOne(any())).thenReturn(user);
 
@@ -253,7 +256,7 @@ class AuthServiceTest {
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
         assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
                 () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-        assertTrue(wrapper.getParamNameValuePairs().containsValue("USER"),
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
                 () -> "password recovery must exclude administrators: sql=" + sql);
     }
 
@@ -276,7 +279,7 @@ class AuthServiceTest {
     @Test
     void expiredTemporaryBanInvalidatesStateAfterCommit() {
         SysUser user = activeUser(3L, "user01");
-        user.setStatus("BANNED_TEMP");
+        user.setStatus(UserStatus.BANNED_TEMP);
         user.setBanUntilTime(LocalDateTime.now().minusMinutes(1));
         when(userMapper.selectOne(any())).thenReturn(user);
         when(passwordEncoder.matches("secret", "old-hash")).thenReturn(true);
@@ -339,8 +342,8 @@ class AuthServiceTest {
         user.setStudentId(studentId);
         user.setPassword("old-hash");
         user.setNickname("测试用户");
-        user.setRole("USER");
-        user.setStatus("ACTIVE");
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
         user.setLevel(1);
         user.setExp(0);
         user.setWalletBalance(BigDecimal.ZERO);

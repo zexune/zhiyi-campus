@@ -3,6 +3,7 @@ package com.zhiyi.module.admin.vo;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 违规记录列表项
@@ -19,7 +20,7 @@ public class ViolationVO {
     private String source;
     private String violationType;
     private String violationReason;
-    private String matchedRules;
+    private List<String> matchedRules;
     private String ruleVersion;
     private String status;              // PENDING / CONFIRMED / DISMISSED / OVERTURNED
     private Long handlerId;

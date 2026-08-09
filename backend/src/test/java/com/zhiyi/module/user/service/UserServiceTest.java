@@ -8,6 +8,9 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.user.dto.UpdateProfileDTO;
 import com.zhiyi.module.user.entity.School;
+import com.zhiyi.common.enums.SchoolStatus;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -47,7 +50,7 @@ class UserServiceTest {
             School school = new School();
             school.setId(schoolId);
             school.setName(name);
-            school.setStatus("ACTIVE");
+            school.setStatus(SchoolStatus.ACTIVE);
             when(schoolMapper.selectById(schoolId)).thenReturn(school);
         }
         return new SchoolService(schoolMapper);
@@ -65,6 +68,8 @@ class UserServiceTest {
         user.setCollege("计算机学院");
         user.setGrade("2024级");
         user.setDormitory("南区3号楼");
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
         return user;
     }
 
@@ -300,7 +305,7 @@ class UserServiceTest {
         school.setId(id);
         school.setName(name);
         school.setEmailDomain(emailDomain);
-        school.setStatus("ACTIVE");
+        school.setStatus(SchoolStatus.ACTIVE);
         return school;
     }
 }

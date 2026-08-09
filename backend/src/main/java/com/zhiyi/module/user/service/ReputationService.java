@@ -3,6 +3,7 @@ package com.zhiyi.module.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.OrderStatus;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.entity.ChatMessage;
@@ -70,10 +71,10 @@ public class ReputationService {
     private int completionRate(Long userId) {
         long completed = orderMapper.selectCount(new LambdaQueryWrapper<TradeOrder>()
                 .eq(TradeOrder::getSellerId, userId)
-                .eq(TradeOrder::getStatus, "COMPLETED"));
+                .eq(TradeOrder::getStatus, OrderStatus.COMPLETED));
         long cancelled = orderMapper.selectCount(new LambdaQueryWrapper<TradeOrder>()
                 .eq(TradeOrder::getSellerId, userId)
-                .eq(TradeOrder::getStatus, "CANCELLED"));
+                .eq(TradeOrder::getStatus, OrderStatus.CANCELLED));
         long total = completed + cancelled;
         if (total == 0) {
             return NEUTRAL_BASELINE;
@@ -107,7 +108,7 @@ public class ReputationService {
                 .ge(Item::getCreatedAt, since));
         long traded = orderMapper.selectCount(new LambdaQueryWrapper<TradeOrder>()
                 .eq(TradeOrder::getSellerId, userId)
-                .eq(TradeOrder::getStatus, "COMPLETED")
+                .eq(TradeOrder::getStatus, OrderStatus.COMPLETED)
                 .ge(TradeOrder::getCompletedAt, since));
         return clamp((int) Math.min(100, published + traded));
     }

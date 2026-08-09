@@ -3,6 +3,11 @@ package com.zhiyi.module.item.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ItemType;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.ViolationSource;
+import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.admin.entity.ViolationReport;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.dto.PublishItemDTO;
@@ -22,7 +27,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -51,13 +55,14 @@ class ItemPublishServiceTest {
     @Mock private SysUserMapper userMapper;
     @Mock private ItemReservationMapper reservationMapper;
     @Mock private LocalContentAnalyzer contentAnalyzer;
+    @Mock private ItemTagService itemTagService;
 
     private ItemPublishService service;
 
     @BeforeEach
     void setUp() {
         service = new ItemPublishService(itemMapper, categoryMapper, violationReportMapper,
-                marketplaceService, userMapper, reservationMapper, JsonMapper.builder().build(), contentAnalyzer);
+                marketplaceService, userMapper, reservationMapper, contentAnalyzer, itemTagService);
     }
 
     @Test
@@ -78,9 +83,9 @@ class ItemPublishServiceTest {
         verify(itemMapper).insert(itemCaptor.capture());
         Item inserted = itemCaptor.getValue();
         assertEquals(2L, inserted.getSchoolId());
-        assertEquals("ON_SALE", inserted.getStatus());
-        assertEquals("PASSED", inserted.getModerationStatus());
-        assertEquals("[\"生活日用\",\"台灯\",\"出售\"]", inserted.getTags());
+        assertEquals(ItemStatus.ON_SALE, inserted.getStatus());
+        assertEquals(ModerationStatus.PASSED, inserted.getModerationStatus());
+        verify(itemTagService).replaceTags(91L, 2L, List.of("生活日用", "台灯", "出售"));
         verify(violationReportMapper, never()).insert(any(ViolationReport.class));
     }
 
@@ -103,10 +108,10 @@ class ItemPublishServiceTest {
         ArgumentCaptor<ViolationReport> reportCaptor = ArgumentCaptor.forClass(ViolationReport.class);
         verify(itemMapper).insert(itemCaptor.capture());
         verify(violationReportMapper).insert(reportCaptor.capture());
-        assertEquals("PENDING", itemCaptor.getValue().getModerationStatus());
-        assertEquals("ON_SALE", itemCaptor.getValue().getStatus());
-        assertEquals("LOCAL_RULE", reportCaptor.getValue().getSource());
-        assertEquals("PENDING", reportCaptor.getValue().getStatus());
+        assertEquals(ModerationStatus.PENDING, itemCaptor.getValue().getModerationStatus());
+        assertEquals(ItemStatus.ON_SALE, itemCaptor.getValue().getStatus());
+        assertEquals(ViolationSource.LOCAL_RULE, reportCaptor.getValue().getSource());
+        assertEquals(ViolationStatus.PENDING, reportCaptor.getValue().getStatus());
     }
 
     @Test
@@ -114,15 +119,16 @@ class ItemPublishServiceTest {
         Item item = new Item();
         item.setId(100L);
         item.setPublisherId(7L);
+        item.setSchoolId(2L);
         item.setCategoryId(3L);
-        item.setType("SELL");
+        item.setType(ItemType.SELL);
         item.setTitle("Dormitory lamp");
         item.setDescription("Works normally");
         item.setPrice(new BigDecimal("20.00"));
-        item.setImages("[\"/uploads/items/test.jpg\"]");
+        item.setImages(List.of("/uploads/items/test.jpg"));
         item.setTradeLocation("Canteen entrance");
-        item.setStatus("OFF_SHELF");
-        item.setModerationStatus("PASSED");
+        item.setStatus(ItemStatus.OFF_SHELF);
+        item.setModerationStatus(ModerationStatus.PASSED);
         Category category = new Category();
         category.setId(3L);
         category.setName("Daily goods");
@@ -134,8 +140,8 @@ class ItemPublishServiceTest {
 
         service.relist(7L, 100L);
 
-        assertEquals("ON_SALE", item.getStatus());
-        assertEquals("PASSED", item.getModerationStatus());
+        assertEquals(ItemStatus.ON_SALE, item.getStatus());
+        assertEquals(ModerationStatus.PASSED, item.getModerationStatus());
         verify(itemMapper).updateById(item);
         verify(violationReportMapper, never()).selectCount(any());
     }

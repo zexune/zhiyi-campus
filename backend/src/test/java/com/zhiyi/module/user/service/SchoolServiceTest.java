@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.user.entity.School;
+import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.vo.SchoolVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -64,7 +65,7 @@ class SchoolServiceTest {
         verify(schoolMapper).selectList(captor.capture());
         LambdaQueryWrapper<School> wrapper = (LambdaQueryWrapper<School>) captor.getValue();
         String sql = wrapper.getSqlSegment(); // 触发渲染，填充 paramNameValuePairs
-        assertTrue(wrapper.getParamNameValuePairs().containsValue("ACTIVE"),
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(SchoolStatus.ACTIVE),
                 () -> "query must filter status=ACTIVE, sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
     }
 
@@ -77,7 +78,7 @@ class SchoolServiceTest {
     @Test
     void getActiveSchoolReturnsNullForDisabledSchool() {
         School disabled = school(3L, "已停用大学", "OLD", null);
-        disabled.setStatus("DISABLED");
+        disabled.setStatus(SchoolStatus.DISABLED);
         when(schoolMapper.selectById(3L)).thenReturn(disabled);
         assertNull(service.getActiveSchool(3L));
     }
@@ -97,7 +98,7 @@ class SchoolServiceTest {
         s.setName(name);
         s.setCode(code);
         s.setEmailDomain(emailDomain);
-        s.setStatus("ACTIVE");
+        s.setStatus(SchoolStatus.ACTIVE);
         return s;
     }
 }

@@ -3,6 +3,11 @@ package com.zhiyi.module.item.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ItemType;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.ViolationSource;
+import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.admin.entity.ViolationReport;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.dto.PublishItemDTO;
@@ -22,8 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -37,6 +40,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 商品发布、整改、重新上架、举报与本地内容检测。
@@ -61,8 +65,8 @@ public class ItemPublishService {
     private final MarketplaceService marketplaceService;
     private final SysUserMapper userMapper;
     private final ItemReservationMapper reservationMapper;
-    private final JsonMapper objectMapper;
     private final LocalContentAnalyzer contentAnalyzer;
+    private final ItemTagService itemTagService;
 
     @Value("${zhiyi.upload-path:./uploads}")
     private String uploadPath;
@@ -98,12 +102,13 @@ public class ItemPublishService {
         validateImages(dto.getImages());
 
         LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
-        Item item = buildItem(publisherId, publisher.getSchoolId(), dto, analysis.tags());
-        item.setStatus("ON_SALE");
-        item.setModerationStatus(analysis.risky() ? "PENDING" : "PASSED");
+        Item item = buildItem(publisherId, publisher.getSchoolId(), dto);
+        item.setStatus(ItemStatus.ON_SALE);
+        item.setModerationStatus(analysis.risky() ? ModerationStatus.PENDING : ModerationStatus.PASSED);
         itemMapper.insert(item);
+        itemTagService.replaceTags(item.getId(), item.getSchoolId(), analysis.tags());
         if (analysis.risky()) {
-            saveReview(publisherId, null, item.getId(), dto, "LOCAL_RULE", "KEYWORD_MATCH",
+            saveReview(publisherId, null, item.getId(), dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
         }
         return marketplaceService.getSnapshot(item.getId(), publisherId);
@@ -113,37 +118,38 @@ public class ItemPublishService {
     public ItemCardVO update(Long publisherId, Long itemId, PublishItemDTO dto) {
         Item item = requireOwnedItem(publisherId, itemId);
         assertNotReserved(itemId);
-        if ("SOLD".equals(item.getStatus())) {
+        if (item.getStatus() == ItemStatus.SOLD) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "已售出的商品不能编辑");
         }
-        if ("PENDING".equals(item.getModerationStatus())) {
+        if (item.getModerationStatus() == ModerationStatus.PENDING) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "商品正在审核中，暂不能重复修改");
         }
 
         Category category = requireCategory(dto.getCategoryId());
         validateImages(dto.getImages());
-        boolean correction = "REJECTED".equals(item.getModerationStatus());
+        boolean correction = item.getModerationStatus() == ModerationStatus.REJECTED;
         LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
-        applyContent(item, dto, analysis.tags());
+        applyContent(item, dto);
 
         if (correction) {
-            item.setStatus("OFF_SHELF");
-            item.setModerationStatus("PENDING");
+            item.setStatus(ItemStatus.OFF_SHELF);
+            item.setModerationStatus(ModerationStatus.PENDING);
             itemMapper.updateById(item);
             String reason = analysis.risky()
                     ? analysis.reason()
                     : "卖家已提交整改内容，等待管理员复核";
-            saveReview(publisherId, null, itemId, dto, "CORRECTION", "CORRECTION_REVIEW",
+            saveReview(publisherId, null, itemId, dto, ViolationSource.CORRECTION, "CORRECTION_REVIEW",
                     reason, analysis.matchedRules(), analysis.ruleVersion());
         } else if (analysis.risky()) {
-            item.setModerationStatus("PENDING");
+            item.setModerationStatus(ModerationStatus.PENDING);
             itemMapper.updateById(item);
-            saveReview(publisherId, null, itemId, dto, "LOCAL_RULE", "KEYWORD_MATCH",
+            saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
         } else {
-            item.setModerationStatus("PASSED");
+            item.setModerationStatus(ModerationStatus.PASSED);
             itemMapper.updateById(item);
         }
+        itemTagService.replaceTags(itemId, item.getSchoolId(), analysis.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 
@@ -151,30 +157,30 @@ public class ItemPublishService {
     public ItemCardVO relist(Long publisherId, Long itemId) {
         Item item = requireOwnedItem(publisherId, itemId);
         assertNotReserved(itemId);
-        if (!"OFF_SHELF".equals(item.getStatus())) {
+        if (item.getStatus() != ItemStatus.OFF_SHELF) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "只有已下架商品可以重新上架");
         }
-        if ("PENDING".equals(item.getModerationStatus())) {
+        if (item.getModerationStatus() == ModerationStatus.PENDING) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "商品正在审核中");
         }
-        if ("REJECTED".equals(item.getModerationStatus())) {
+        if (item.getModerationStatus() == ModerationStatus.REJECTED) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该商品因内容违规下架，请先整改或申诉");
         }
 
         Category category = requireCategory(item.getCategoryId());
         PublishItemDTO dto = toReviewDTO(item);
         LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
-        item.setTags(toJson(analysis.tags()));
         if (analysis.risky()) {
-            item.setModerationStatus("PENDING");
+            item.setModerationStatus(ModerationStatus.PENDING);
             itemMapper.updateById(item);
-            saveReview(publisherId, null, itemId, dto, "LOCAL_RULE", "KEYWORD_MATCH",
+            saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
         } else {
-            item.setStatus("ON_SALE");
-            item.setModerationStatus("PASSED");
+            item.setStatus(ItemStatus.ON_SALE);
+            item.setModerationStatus(ModerationStatus.PASSED);
             itemMapper.updateById(item);
         }
+        itemTagService.replaceTags(itemId, item.getSchoolId(), analysis.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 
@@ -194,8 +200,8 @@ public class ItemPublishService {
         long existing = violationReportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
                 .eq(ViolationReport::getItemId, itemId)
                 .eq(ViolationReport::getReporterId, reporterId)
-                .eq(ViolationReport::getSource, "USER_REPORT")
-                .eq(ViolationReport::getStatus, "PENDING"));
+                .eq(ViolationReport::getSource, ViolationSource.USER_REPORT)
+                .eq(ViolationReport::getStatus, ViolationStatus.PENDING));
         if (existing > 0) {
             throw new BusinessException(ResultCode.CONFLICT, "你已经举报过该商品，管理员正在处理");
         }
@@ -206,15 +212,15 @@ public class ItemPublishService {
         report.setItemId(itemId);
         report.setOriginalTitle(item.getTitle());
         report.setOriginalDescription(item.getDescription());
-        report.setSource("USER_REPORT");
+        report.setSource(ViolationSource.USER_REPORT);
         report.setViolationType(dto.type());
         String label = REPORT_LABELS.getOrDefault(dto.type(), "其他问题");
         report.setViolationReason(StringUtils.hasText(dto.details())
                 ? label + "：" + dto.details().trim()
                 : label);
-        report.setMatchedRules("[]");
+        report.setMatchedRules(List.of());
         report.setRuleVersion(null);
-        report.setStatus("PENDING");
+        report.setStatus(ViolationStatus.PENDING);
         violationReportMapper.insert(report);
     }
 
@@ -222,15 +228,15 @@ public class ItemPublishService {
                             Long reporterId,
                             Long itemId,
                             PublishItemDTO dto,
-                            String source,
+                            ViolationSource source,
                             String violationType,
                             String reason,
                             List<String> matchedRules,
                             String ruleVersion) {
         long existing = violationReportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
                 .eq(ViolationReport::getItemId, itemId)
-                .in(ViolationReport::getSource, "LOCAL_RULE", "CORRECTION")
-                .eq(ViolationReport::getStatus, "PENDING"));
+                .in(ViolationReport::getSource, ViolationSource.LOCAL_RULE, ViolationSource.CORRECTION)
+                .eq(ViolationReport::getStatus, ViolationStatus.PENDING));
         if (existing > 0) {
             return;
         }
@@ -243,33 +249,32 @@ public class ItemPublishService {
         report.setSource(source);
         report.setViolationType(violationType);
         report.setViolationReason(reason);
-        report.setMatchedRules(toJson(matchedRules));
+        report.setMatchedRules(List.copyOf(matchedRules));
         report.setRuleVersion(ruleVersion);
-        report.setStatus("PENDING");
+        report.setStatus(ViolationStatus.PENDING);
         violationReportMapper.insert(report);
     }
 
     private Item buildItem(Long publisherId,
                            Long schoolId,
-                           PublishItemDTO dto,
-                           List<String> tags) {
+                           PublishItemDTO dto) {
         Item item = new Item();
         item.setPublisherId(publisherId);
         item.setSchoolId(schoolId);
-        applyContent(item, dto, tags);
+        applyContent(item, dto);
         item.setViewCount(0);
         item.setIsDeleted(false);
+        item.setFeedKey(ThreadLocalRandom.current().nextLong(Long.MAX_VALUE));
         return item;
     }
 
-    private void applyContent(Item item, PublishItemDTO dto, List<String> tags) {
-        item.setType(dto.getType());
+    private void applyContent(Item item, PublishItemDTO dto) {
+        item.setType(ItemType.from(dto.getType()));
         item.setTitle(dto.getTitle().trim());
         item.setDescription(dto.getDescription().trim());
         item.setCategoryId(dto.getCategoryId());
         item.setPrice(normalizePrice(dto));
-        item.setImages(toJson(dto.getImages()));
-        item.setTags(toJson(tags));
+        item.setImages(List.copyOf(dto.getImages()));
         item.setTradeLocation(trimToNull(dto.getTradeLocation()));
         item.setPickupLocation(trimToNull(dto.getPickupLocation()));
         item.setDeliveryLocation(trimToNull(dto.getDeliveryLocation()));
@@ -321,44 +326,24 @@ public class ItemPublishService {
 
     private PublishItemDTO toReviewDTO(Item item) {
         PublishItemDTO dto = new PublishItemDTO();
-        dto.setType(item.getType());
+        dto.setType(item.getType().code());
         dto.setTitle(item.getTitle());
         dto.setDescription(item.getDescription());
         dto.setCategoryId(item.getCategoryId());
         dto.setPrice(item.getPrice());
-        dto.setImages(parseJsonArray(item.getImages()));
+        dto.setImages(item.getImages());
         dto.setTradeLocation(item.getTradeLocation());
         dto.setPickupLocation(item.getPickupLocation());
         dto.setDeliveryLocation(item.getDeliveryLocation());
         return dto;
     }
 
-    private List<String> parseJsonArray(String json) {
-        if (!StringUtils.hasText(json)) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-        } catch (JacksonException e) {
-            throw new BusinessException(ResultCode.SERVER_ERROR, "商品图片数据格式错误");
-        }
-    }
-
     private BigDecimal normalizePrice(PublishItemDTO dto) {
-        return "SWAP".equals(dto.getType()) ? null : dto.getPrice().setScale(2);
+        return ItemType.from(dto.getType()) == ItemType.SWAP ? null : dto.getPrice().setScale(2);
     }
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JacksonException e) {
-            throw new BusinessException(ResultCode.SERVER_ERROR, "JSON 序列化失败");
-        }
     }
 
     private String extensionOf(String originalFilename, String contentType) {

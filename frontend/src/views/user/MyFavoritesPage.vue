@@ -8,7 +8,7 @@
           <article v-for="item in items" :key="item.id" class="card card--hover fav-card" @click="goDetail(item)">
             <div class="fav-card__img" :class="phClass(item.id)">
               <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" />
-              <span v-if="displayStatus(item) !== 'ON_SALE'" class="badge badge--muted fav-card__state">
+              <span v-if="displayStatus(item) !== ITEM_STATUS.ON_SALE" class="badge badge--muted fav-card__state">
                 {{ statusText(displayStatus(item)) }}
               </span>
             </div>
@@ -52,11 +52,12 @@ import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import TagList from '@/components/common/TagList.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { getMyFavorites, toggleFavorite } from '@/api/item'
+import { ITEM_STATUS, MODERATION_STATUS } from '@/constants/domain'
+import { itemStatusLabel } from '@/utils/trade'
 
 /**
  * 我的收藏（模块一页面归属 A；收藏接口由 C 提供，按附录 B 契约调用）
  */
-const STATUS_TEXT = { ON_SALE: '在售中', REVIEWING: '审核中', SOLD: '已售出', OFF_SHELF: '已下架' }
 const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 
 const router = useRouter()
@@ -67,16 +68,13 @@ const total = ref(0)
 const acting = ref(false)
 const loadError = ref('')
 
-function statusText(s) { return STATUS_TEXT[s] || s }
-function displayStatus(item) { return item.moderationStatus === 'PENDING' ? 'REVIEWING' : item.status }
+function statusText(status) { return itemStatusLabel(status) }
+function displayStatus(item) {
+  return item.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.status
+}
 function phClass(id) { return PH[Number(id) % PH.length] }
 
-function mainImage(item) {
-  try {
-    const arr = typeof item.images === 'string' ? JSON.parse(item.images) : item.images
-    return Array.isArray(arr) && arr.length ? arr[0] : ''
-  } catch { return '' }
-}
+function mainImage(item) { return Array.isArray(item.images) ? item.images[0] || '' : '' }
 
 function goDetail(item) {
   router.push(`/item/${item.id}`)

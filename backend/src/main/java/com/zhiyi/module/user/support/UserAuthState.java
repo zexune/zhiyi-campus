@@ -1,5 +1,8 @@
 package com.zhiyi.module.user.support;
 
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
+
 import java.time.LocalDateTime;
 
 /**
@@ -7,8 +10,8 @@ import java.time.LocalDateTime;
  */
 public record UserAuthState(
         Long userId,
-        String role,
-        String status,
+        UserRole role,
+        UserStatus status,
         LocalDateTime banUntilTime,
         Integer tokenVersion) {
 }

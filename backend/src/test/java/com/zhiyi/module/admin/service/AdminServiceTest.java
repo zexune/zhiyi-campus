@@ -11,6 +11,12 @@ import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.admin.vo.ViolationVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.TagQueryService;
+import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.ViolationSource;
+import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -57,11 +63,13 @@ class AdminServiceTest {
         @Mock private ItemReservationMapper reservationMapper;
         @Mock private PasswordEncoder passwordEncoder;
         @Mock private UserStateCache userStateCache;
+        @Mock private TagQueryService tagQueryService;
         private AdminManageService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminManageService(itemMapper, userMapper, reservationMapper, passwordEncoder, userStateCache);
+            service = new AdminManageService(itemMapper, userMapper, reservationMapper,
+                    passwordEncoder, userStateCache, tagQueryService);
         }
 
         @Test
@@ -71,7 +79,7 @@ class AdminServiceTest {
 
             service.forceOffShelf(1L, 99L);
 
-            assertEquals("OFF_SHELF", item.getStatus());
+            assertEquals(ItemStatus.OFF_SHELF, item.getStatus());
             verify(itemMapper).updateById(item);
             verifyNoInteractions(userMapper, userStateCache);
         }
@@ -92,7 +100,7 @@ class AdminServiceTest {
         @Test
         void rejectsAlreadyOffShelf() {
             Item item = onSaleItem();
-            item.setStatus("OFF_SHELF");
+            item.setStatus(ItemStatus.OFF_SHELF);
             when(itemMapper.selectById(1L)).thenReturn(item);
 
             assertThrows(BusinessException.class, () -> service.forceOffShelf(1L, 99L));
@@ -101,7 +109,7 @@ class AdminServiceTest {
         private Item onSaleItem() {
             Item item = new Item();
             item.setId(1L);
-            item.setStatus("ON_SALE");
+            item.setStatus(ItemStatus.ON_SALE);
             item.setTitle("测试商品");
             item.setPublisherId(2L);
             return item;
@@ -115,18 +123,20 @@ class AdminServiceTest {
         @Mock private ItemReservationMapper reservationMapper;
         @Mock private PasswordEncoder passwordEncoder;
         @Mock private UserStateCache userStateCache;
+        @Mock private TagQueryService tagQueryService;
         private AdminManageService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminManageService(itemMapper, userMapper, reservationMapper, passwordEncoder, userStateCache);
+            service = new AdminManageService(itemMapper, userMapper, reservationMapper,
+                    passwordEncoder, userStateCache, tagQueryService);
         }
 
         @Test
         void rejectsAdminPasswordReset() {
             SysUser admin = new SysUser();
             admin.setId(1L);
-            admin.setRole("ADMIN");
+            admin.setRole(UserRole.ADMIN);
             when(userMapper.selectById(1L)).thenReturn(admin);
 
             assertThrows(BusinessException.class, () -> service.resetPassword(1L, 99L));
@@ -136,7 +146,7 @@ class AdminServiceTest {
         void resetsRegularUserAndInvalidatesToken() {
             SysUser user = new SysUser();
             user.setId(2L);
-            user.setRole("USER");
+            user.setRole(UserRole.USER);
             when(userMapper.selectById(2L)).thenReturn(user);
             when(passwordEncoder.encode("123456")).thenReturn("hash");
             when(userMapper.updateById(any(SysUser.class))).thenReturn(1);
@@ -155,11 +165,13 @@ class AdminServiceTest {
         @Mock private ItemMapper itemMapper;
         @Mock private ViolationLogMapper violationLogMapper;
         @Mock private ReputationPenaltyService penaltyService;
+        @Mock private TagQueryService tagQueryService;
         private AdminViolationService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminViolationService(reportMapper, userMapper, itemMapper, violationLogMapper, penaltyService);
+            service = new AdminViolationService(reportMapper, userMapper, itemMapper,
+                    violationLogMapper, penaltyService, tagQueryService);
         }
 
         @Test
@@ -175,7 +187,7 @@ class AdminServiceTest {
         void mapsSellerReporterSourceAndRuleEvidence() {
             ViolationReport report = pendingReport("USER_REPORT");
             report.setReporterId(11L);
-            report.setMatchedRules("[]");
+            report.setMatchedRules(List.of());
             report.setRuleVersion("2026.1");
             Page<ViolationReport> page = new Page<>(1, 10, 1);
             page.setRecords(List.of(report));
@@ -183,7 +195,7 @@ class AdminServiceTest {
             SysUser reporter = user(11L, "举报人李四");
             Item item = new Item();
             item.setId(100L);
-            item.setStatus("ON_SALE");
+            item.setStatus(ItemStatus.ON_SALE);
             when(reportMapper.selectPage(any(Page.class), any())).thenReturn(page);
             when(userMapper.selectByIds(anyCollection())).thenReturn(List.of(seller, reporter));
             when(itemMapper.selectByIds(anyCollection())).thenReturn(List.of(item));
@@ -202,16 +214,16 @@ class AdminServiceTest {
             ViolationReport report = pendingReport("LOCAL_RULE");
             Item item = new Item();
             item.setId(100L);
-            item.setStatus("ON_SALE");
-            item.setModerationStatus("PENDING");
+            item.setStatus(ItemStatus.ON_SALE);
+            item.setModerationStatus(ModerationStatus.PENDING);
             when(reportMapper.selectById(1L)).thenReturn(report);
             when(reportMapper.update(isNull(), any())).thenReturn(1);
             when(itemMapper.selectById(100L)).thenReturn(item);
 
             service.dismissViolation(1L, 99L);
 
-            assertEquals("PASSED", item.getModerationStatus());
-            assertEquals("ON_SALE", item.getStatus());
+            assertEquals(ModerationStatus.PASSED, item.getModerationStatus());
+            assertEquals(ItemStatus.ON_SALE, item.getStatus());
             verify(itemMapper).updateById(item);
             verifyNoInteractions(penaltyService);
         }
@@ -221,8 +233,8 @@ class AdminServiceTest {
             ViolationReport report = pendingReport("LOCAL_RULE");
             Item item = new Item();
             item.setId(100L);
-            item.setStatus("ON_SALE");
-            item.setModerationStatus("PENDING");
+            item.setStatus(ItemStatus.ON_SALE);
+            item.setModerationStatus(ModerationStatus.PENDING);
             when(reportMapper.selectById(1L)).thenReturn(report);
             when(reportMapper.update(isNull(), any())).thenReturn(1);
             when(itemMapper.selectById(100L)).thenReturn(item);
@@ -232,8 +244,8 @@ class AdminServiceTest {
 
             service.confirmViolation(1L, dto, 99L);
 
-            assertEquals("REJECTED", item.getModerationStatus());
-            assertEquals("OFF_SHELF", item.getStatus());
+            assertEquals(ModerationStatus.REJECTED, item.getModerationStatus());
+            assertEquals(ItemStatus.OFF_SHELF, item.getStatus());
             verify(penaltyService).recordContentWarning(1L, 10L, 99L, "人工确认存在违规内容");
         }
 
@@ -246,8 +258,8 @@ class AdminServiceTest {
             report.setOriginalDescription("待审核描述");
             report.setViolationReason("检测或举报依据");
             report.setViolationType("KEYWORD_MATCH");
-            report.setSource(source);
-            report.setStatus("PENDING");
+            report.setSource(ViolationSource.valueOf(source));
+            report.setStatus(ViolationStatus.PENDING);
             return report;
         }
 

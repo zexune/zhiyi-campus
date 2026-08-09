@@ -1,6 +1,7 @@
 package com.zhiyi.module.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.zhiyi.common.enums.BanActionType;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -11,7 +12,7 @@ public class ViolationLog {
     private Long id;
     private Long userId;            // 被处罚用户
     private Long adminId;           // 操作管理员
-    private String type;            // BAN_TEMP / BAN_PERM
+    private BanActionType type;
     private String reason;
     private Integer banDays;
 

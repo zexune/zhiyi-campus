@@ -3,6 +3,8 @@ package com.zhiyi.module.user.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.user.entity.ReputationPenalty;
+import com.zhiyi.common.enums.PenaltyStatus;
+import com.zhiyi.common.enums.PenaltyType;
 import com.zhiyi.module.user.mapper.ReputationPenaltyMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -49,9 +51,9 @@ class ReputationPenaltyServiceTest {
         ReputationPenalty result = service.recordContentWarning(8L, 2L, 1L, "确认内容违规");
 
         assertEquals(8L, result.getReportId());
-        assertEquals("CONTENT_WARNING", result.getType());
+        assertEquals(PenaltyType.CONTENT_WARNING, result.getType());
         assertEquals(5, result.getPoints());
-        assertEquals("ACTIVE", result.getStatus());
+        assertEquals(PenaltyStatus.ACTIVE, result.getStatus());
         verify(penaltyMapper).insert(result);
     }
 
@@ -86,7 +88,7 @@ class ReputationPenaltyServiceTest {
     private ReputationPenalty penalty(int points) {
         ReputationPenalty penalty = new ReputationPenalty();
         penalty.setPoints(points);
-        penalty.setStatus("ACTIVE");
+        penalty.setStatus(PenaltyStatus.ACTIVE);
         return penalty;
     }
 }

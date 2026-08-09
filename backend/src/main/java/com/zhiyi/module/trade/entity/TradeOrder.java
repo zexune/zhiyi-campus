@@ -1,6 +1,7 @@
 package com.zhiyi.module.trade.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.zhiyi.common.enums.OrderStatus;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,7 +15,7 @@ public class TradeOrder {
     private Long buyerId;
     private Long sellerId;
     private BigDecimal price;
-    private String status;          // WAITING_MEET / COMPLETED / CANCELLED
+    private OrderStatus status;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

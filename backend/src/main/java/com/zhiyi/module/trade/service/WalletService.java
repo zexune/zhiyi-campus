@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.enums.WalletLogType;
 import com.zhiyi.module.trade.entity.WalletLog;
 import com.zhiyi.module.trade.mapper.WalletLogMapper;
 import com.zhiyi.module.trade.vo.WalletBalanceVO;
@@ -68,7 +69,7 @@ public class WalletService {
         // 3. 写入资金流水
         WalletLog log = new WalletLog();
         log.setUserId(userId);
-        log.setType("RECHARGE");
+        log.setType(WalletLogType.RECHARGE);
         log.setAmount(amount);
         log.setBalanceAfter(user.getWalletBalance());
         log.setRemark("模拟充值");

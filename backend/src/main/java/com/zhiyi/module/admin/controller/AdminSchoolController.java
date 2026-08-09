@@ -22,7 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@RoleRequired("ADMIN")
+@RoleRequired
 public class AdminSchoolController {
 
     private final AdminSchoolService schoolService;

@@ -1,6 +1,7 @@
 package com.zhiyi.module.trade.service;
 
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.WalletLogType;
 import com.zhiyi.module.trade.entity.WalletLog;
 import com.zhiyi.module.trade.mapper.WalletLogMapper;
 import com.zhiyi.module.trade.vo.WalletBalanceVO;
@@ -103,7 +104,7 @@ class WalletServiceTest {
             verify(walletLogMapper).insert(captor.capture());
             WalletLog log = captor.getValue();
             assertEquals(1L, log.getUserId());
-            assertEquals("RECHARGE", log.getType());
+            assertEquals(WalletLogType.RECHARGE, log.getType());
             assertEquals(amount, log.getAmount());
             assertEquals(new BigDecimal("250.00"), log.getBalanceAfter());
         }
