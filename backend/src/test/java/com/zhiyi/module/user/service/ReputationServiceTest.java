@@ -1,7 +1,5 @@
 package com.zhiyi.module.user.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.module.item.entity.Item;
@@ -15,7 +13,6 @@ import com.zhiyi.module.trade.mapper.TradeReviewMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.vo.ReputationVO;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -40,17 +38,10 @@ class ReputationServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initializeTableInfo(TradeOrder.class, "com.zhiyi.module.trade.mapper.TradeOrderMapper");
-        initializeTableInfo(TradeReview.class, "com.zhiyi.module.trade.mapper.TradeReviewMapper");
-        initializeTableInfo(ChatMessage.class, "com.zhiyi.module.social.mapper.ChatMessageMapper");
-        initializeTableInfo(Item.class, "com.zhiyi.module.item.mapper.ItemMapper");
-    }
-
-    private static void initializeTableInfo(Class<?> entityType, String namespace) {
-        MapperBuilderAssistant assistant =
-                new MapperBuilderAssistant(new MybatisConfiguration(), "reputation-service-test");
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entityType);
+        initialize(TradeOrder.class, TradeOrderMapper.class);
+        initialize(TradeReview.class, TradeReviewMapper.class);
+        initialize(ChatMessage.class, ChatMessageMapper.class);
+        initialize(Item.class, ItemMapper.class);
     }
 
     @Mock private TradeOrderMapper orderMapper;

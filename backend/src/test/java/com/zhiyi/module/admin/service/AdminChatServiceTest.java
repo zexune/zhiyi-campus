@@ -1,13 +1,10 @@
 package com.zhiyi.module.admin.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.vo.ConversationVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,14 +31,8 @@ class AdminChatServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initialize("com.zhiyi.module.social.mapper.ChatMessageMapper", ChatMessage.class);
-        initialize("com.zhiyi.module.user.mapper.SysUserMapper", SysUser.class);
-    }
-
-    private static void initialize(String namespace, Class<?> entity) {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entity);
+        initialize(ChatMessage.class, ChatMessageMapper.class);
+        initialize(SysUser.class, SysUserMapper.class);
     }
 
     @BeforeEach

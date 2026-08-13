@@ -1,7 +1,5 @@
 package com.zhiyi.module.item.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.ItemType;
@@ -28,7 +26,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -38,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,9 +49,7 @@ class ItemPublishServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace("com.zhiyi.module.admin.mapper.ViolationReportMapper");
-        TableInfoHelper.initTableInfo(assistant, ViolationReport.class);
+        initialize(ViolationReport.class, ViolationReportMapper.class);
     }
 
     @Mock private ItemMapper itemMapper;

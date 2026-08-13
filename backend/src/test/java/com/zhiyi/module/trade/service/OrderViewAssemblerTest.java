@@ -1,7 +1,5 @@
 package com.zhiyi.module.trade.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.enums.OrderStatus;
 import com.zhiyi.module.item.entity.Item;
@@ -12,7 +10,6 @@ import com.zhiyi.module.trade.mapper.TradeReviewMapper;
 import com.zhiyi.module.trade.vo.OrderVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.LongStream;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -40,10 +38,7 @@ class OrderViewAssemblerTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(
-                new MybatisConfiguration(), "order-view-assembler-test");
-        assistant.setCurrentNamespace(TradeReviewMapper.class.getName());
-        TableInfoHelper.initTableInfo(assistant, TradeReview.class);
+        initialize(TradeReview.class, TradeReviewMapper.class);
     }
 
     @BeforeEach

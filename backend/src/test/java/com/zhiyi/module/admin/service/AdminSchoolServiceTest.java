@@ -1,7 +1,5 @@
 package com.zhiyi.module.admin.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.module.admin.dto.SchoolDTO;
@@ -11,7 +9,6 @@ import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,15 +38,9 @@ class AdminSchoolServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initialize("com.zhiyi.module.user.mapper.SchoolMapper", School.class);
-        initialize("com.zhiyi.module.user.mapper.SysUserMapper", SysUser.class);
-        initialize("com.zhiyi.module.item.mapper.ItemMapper", Item.class);
-    }
-
-    private static void initialize(String namespace, Class<?> entity) {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entity);
+        initialize(School.class, SchoolMapper.class);
+        initialize(SysUser.class, SysUserMapper.class);
+        initialize(Item.class, ItemMapper.class);
     }
 
     @BeforeEach

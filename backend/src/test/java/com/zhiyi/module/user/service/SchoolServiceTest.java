@@ -1,14 +1,11 @@
 package com.zhiyi.module.user.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.user.entity.School;
 import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.vo.SchoolVO;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,10 +34,7 @@ class SchoolServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant =
-                new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace("com.zhiyi.module.user.mapper.SchoolMapper");
-        TableInfoHelper.initTableInfo(assistant, School.class);
+        initialize(School.class, SchoolMapper.class);
     }
 
     @BeforeEach

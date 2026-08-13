@@ -71,6 +71,7 @@ npm run test:system
 ## 测试数据与隔离
 
 - 单元测试只 mock 当前层之外的依赖，避免把数据库或 Spring 容器偷偷带入快速套件。
+- 使用 Mapper mock 执行 MyBatis-Plus Lambda Wrapper 的单元测试，必须在 `@BeforeAll` 中通过 `MybatisMetadata.initialize(实体类, Mapper类)` 显式初始化所需元数据，不能依赖其他测试留下的全局缓存。
 - MVC 契约测试只加载控制器切片，并显式 mock 服务、JWT 与角色拦截器，确保失败时能定位到 HTTP 边界。
 - Testcontainers 集成测试使用一次性数据库；HTTP 交易旅程使用唯一测试数据并在用例结束时显式清理。
 - 事务失败用例在钱包流水写入处制造数据库错误，并同时断言余额、订单和商品预留均未留下部分提交。
