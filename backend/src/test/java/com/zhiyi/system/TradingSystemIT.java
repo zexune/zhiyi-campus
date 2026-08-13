@@ -55,6 +55,7 @@ class TradingSystemIT {
 
     @Container
     @ServiceConnection
+    @SuppressWarnings("resource") // The JUnit Testcontainers extension owns and closes this container.
     static final MySQLContainer MYSQL = new MySQLContainer(DockerImageName.parse("mysql:8.4"))
             .withDatabaseName("zhiyi_campus")
             .withUsername("test")
@@ -96,7 +97,7 @@ class TradingSystemIT {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.url").value(org.hamcrest.Matchers.startsWith("/uploads/items/")))
                 .andReturn());
-        String imageUrl = uploaded.get("data").get("url").asText();
+        String imageUrl = uploaded.required("data").required("url").stringValue();
 
         JsonNode published = body(mockMvc.perform(post("/api/item/publish")
                         .header(HttpHeaders.AUTHORIZATION, bearer(seller.token()))
@@ -167,7 +168,7 @@ class TradingSystemIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.user.role").value("ADMIN"))
                 .andReturn());
-        String adminToken = adminLogin.get("data").get("token").asText();
+        String adminToken = adminLogin.required("data").required("token").stringValue();
         mockMvc.perform(get("/api/admin/dashboard")
                         .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
@@ -226,8 +227,10 @@ class TradingSystemIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andReturn());
-        JsonNode data = response.get("data");
-        return new Session(data.get("user").get("id").asLong(), data.get("token").asText());
+        JsonNode data = response.required("data");
+        return new Session(
+                data.required("user").required("id").asLong(),
+                data.required("token").stringValue());
     }
 
     private long insertUser(String studentId, String nickname, BigDecimal balance) {
