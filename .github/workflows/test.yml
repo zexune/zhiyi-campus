@@ -1,0 +1,160 @@
+name: Test Pyramid
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-unit-and-contract:
+    name: Backend unit + MVC contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Run fast backend suite and build coverage report
+        working-directory: backend
+        run: mvn -B verify
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-jacoco
+          path: backend/target/site/jacoco
+          if-no-files-found: ignore
+
+  backend-mysql-integration:
+    name: Backend real MySQL integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Run Testcontainers system and rollback tests
+        working-directory: backend
+        run: mvn -B verify -Pintegration
+      - name: Upload integration diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-integration-diagnostics
+          path: |
+            backend/target/failsafe-reports
+            backend/target/surefire-reports
+          if-no-files-found: ignore
+
+  frontend-unit-and-browser:
+    name: Frontend component + mocked browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Run component tests with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+      - name: Build production frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run deterministic browser tests
+        working-directory: frontend
+        run: npm run test:e2e
+      - name: Upload frontend test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-test-artifacts
+          path: |
+            frontend/coverage
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
+  full-system-e2e:
+    name: Full Vue + Spring + MySQL journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -ptest"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Initialize production MySQL schema and seed data
+        run: docker exec -i "${{ job.services.mysql.id }}" mysql --user=root --password=test --default-character-set=utf8mb4 < zhiyi_campus_init.sql
+      - name: Start backend
+        env:
+          MYSQL_USERNAME: root
+          MYSQL_PASSWORD: test
+          JWT_SECRET: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
+        run: |
+          cd backend
+          nohup mvn -B spring-boot:run > ../backend-system.log 2>&1 &
+          echo $! > ../backend-system.pid
+      - name: Wait for backend readiness
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/api/school/list > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat backend-system.log
+          exit 1
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run real full-system journey
+        working-directory: frontend
+        run: npm run test:system
+      - name: Upload full-system diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-system-e2e-diagnostics
+          path: |
+            backend-system.log
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore

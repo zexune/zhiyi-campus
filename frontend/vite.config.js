@@ -6,6 +6,16 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 const elementPlusResolver = ElementPlusResolver({ importStyle: 'css' })
+const backendProxy = {
+  '/api': {
+    target: 'http://localhost:8080',
+    changeOrigin: true,
+  },
+  '/uploads': {
+    target: 'http://localhost:8080',
+    changeOrigin: true,
+  },
+}
 
 export default defineConfig({
   plugins: [
@@ -38,15 +48,11 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/uploads': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-    },
+    proxy: backendProxy,
+  },
+  preview: {
+    host: '127.0.0.1',
+    port: 3000,
+    proxy: backendProxy,
   },
 })

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 超管学校管理服务 —— D1
@@ -49,16 +50,17 @@ public class AdminSchoolService {
     /** 新增学校 */
     @Transactional(rollbackFor = Exception.class)
     public SchoolVO create(SchoolDTO dto) {
+        String normalizedCode = normalizeCode(dto.getCode());
         // code 唯一性校验
         School existing = schoolMapper.selectOne(Wrappers.<School>lambdaQuery()
-                .eq(School::getCode, dto.getCode()));
+                .eq(School::getCode, normalizedCode));
         if (existing != null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学校代码 " + dto.getCode() + " 已存在");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学校代码 " + normalizedCode + " 已存在");
         }
 
         School school = new School();
         school.setName(dto.getName());
-        school.setCode(dto.getCode().toUpperCase());
+        school.setCode(normalizedCode);
         school.setEmailDomain(dto.getEmailDomain());
         school.setStatus(dto.getStatus() != null ? parseStatus(dto.getStatus()) : SchoolStatus.ACTIVE);
         schoolMapper.insert(school);
@@ -75,16 +77,17 @@ public class AdminSchoolService {
             throw new BusinessException(ResultCode.NOT_FOUND, "学校不存在");
         }
 
+        String normalizedCode = normalizeCode(dto.getCode());
         // code 唯一性校验（排除自身）
         School dup = schoolMapper.selectOne(Wrappers.<School>lambdaQuery()
-                .eq(School::getCode, dto.getCode())
+                .eq(School::getCode, normalizedCode)
                 .ne(School::getId, id));
         if (dup != null) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "学校代码 " + dto.getCode() + " 已被其他学校使用");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "学校代码 " + normalizedCode + " 已被其他学校使用");
         }
 
         school.setName(dto.getName());
-        school.setCode(dto.getCode().toUpperCase());
+        school.setCode(normalizedCode);
         school.setEmailDomain(dto.getEmailDomain());
         if (dto.getStatus() != null) {
             school.setStatus(parseStatus(dto.getStatus()));
@@ -130,5 +133,9 @@ public class AdminSchoolService {
         } catch (IllegalArgumentException invalidStatus) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "学校状态仅支持 ACTIVE 或 DISABLED");
         }
+    }
+
+    private String normalizeCode(String value) {
+        return value.trim().toUpperCase(Locale.ROOT);
     }
 }
