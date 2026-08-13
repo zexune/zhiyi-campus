@@ -1,7 +1,5 @@
 package com.zhiyi.module.admin.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.admin.dto.HandleAppealDTO;
 import com.zhiyi.module.admin.dto.SubmitAppealDTO;
@@ -18,7 +16,6 @@ import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +27,7 @@ import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,14 +49,8 @@ class ViolationAppealServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initialize(ViolationAppeal.class, "com.zhiyi.module.admin.mapper.ViolationAppealMapper");
-        initialize(ViolationReport.class, "com.zhiyi.module.admin.mapper.ViolationReportMapper");
-    }
-
-    private static void initialize(Class<?> entity, String namespace) {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entity);
+        initialize(ViolationAppeal.class, ViolationAppealMapper.class);
+        initialize(ViolationReport.class, ViolationReportMapper.class);
     }
 
     @BeforeEach

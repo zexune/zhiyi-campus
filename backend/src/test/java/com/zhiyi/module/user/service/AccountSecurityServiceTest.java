@@ -1,7 +1,5 @@
 package com.zhiyi.module.user.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.UserRole;
@@ -17,7 +15,6 @@ import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.LoginAttemptService;
 import com.zhiyi.module.user.support.RecordingUserStateCache;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,16 +54,9 @@ class AccountSecurityServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initialize(SysUser.class, "com.zhiyi.module.user.mapper.SysUserMapper");
-        initialize(Item.class, "com.zhiyi.module.item.mapper.ItemMapper");
-        initialize(TradeOrder.class, "com.zhiyi.module.trade.mapper.TradeOrderMapper");
-    }
-
-    private static void initialize(Class<?> entity, String namespace) {
-        MapperBuilderAssistant assistant =
-                new MapperBuilderAssistant(new MybatisConfiguration(), namespace);
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entity);
+        initialize(SysUser.class, SysUserMapper.class);
+        initialize(Item.class, ItemMapper.class);
+        initialize(TradeOrder.class, TradeOrderMapper.class);
     }
 
     @BeforeEach

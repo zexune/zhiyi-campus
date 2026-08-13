@@ -1,12 +1,9 @@
 package com.zhiyi.module.user.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.user.entity.ReputationPenalty;
 import com.zhiyi.common.enums.PenaltyStatus;
 import com.zhiyi.common.enums.PenaltyType;
 import com.zhiyi.module.user.mapper.ReputationPenaltyMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -31,9 +29,7 @@ class ReputationPenaltyServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace("com.zhiyi.module.user.mapper.ReputationPenaltyMapper");
-        TableInfoHelper.initTableInfo(assistant, ReputationPenalty.class);
+        initialize(ReputationPenalty.class, ReputationPenaltyMapper.class);
     }
 
     @Mock private ReputationPenaltyMapper penaltyMapper;

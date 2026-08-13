@@ -1,7 +1,5 @@
 package com.zhiyi.module.trade.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.ItemType;
@@ -22,7 +20,6 @@ import com.zhiyi.module.trade.vo.OrderVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.UserGrowthService;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -33,6 +30,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -62,15 +61,9 @@ class OrderServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initializeTableInfo(TradeOrder.class, "com.zhiyi.module.trade.mapper.TradeOrderMapper");
-        initializeTableInfo(SysUser.class, "com.zhiyi.module.user.mapper.SysUserMapper");
-        initializeTableInfo(Item.class, "com.zhiyi.module.item.mapper.ItemMapper");
-    }
-
-    private static void initializeTableInfo(Class<?> entityType, String namespace) {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entityType);
+        initialize(TradeOrder.class, TradeOrderMapper.class);
+        initialize(SysUser.class, SysUserMapper.class);
+        initialize(Item.class, ItemMapper.class);
     }
 
     @BeforeEach

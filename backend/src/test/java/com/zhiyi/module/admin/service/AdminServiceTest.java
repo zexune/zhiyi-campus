@@ -1,7 +1,5 @@
 package com.zhiyi.module.admin.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.admin.dto.ConfirmViolationDTO;
@@ -29,11 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -51,9 +49,7 @@ class AdminServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant reportAssistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        reportAssistant.setCurrentNamespace("com.zhiyi.module.admin.mapper.ViolationReportMapper");
-        TableInfoHelper.initTableInfo(reportAssistant, ViolationReport.class);
+        initialize(ViolationReport.class, ViolationReportMapper.class);
     }
 
     @Nested

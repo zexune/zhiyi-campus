@@ -2,9 +2,7 @@ package com.zhiyi.module.user.service;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.module.user.dto.UpdateProfileDTO;
 import com.zhiyi.module.user.entity.School;
@@ -16,7 +14,6 @@ import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.vo.SellerDetailVO;
 import com.zhiyi.module.user.vo.UserVO;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,9 +37,7 @@ class UserServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace("com.zhiyi.module.user.mapper.SysUserMapper");
-        TableInfoHelper.initTableInfo(assistant, SysUser.class);
+        initialize(SysUser.class, SysUserMapper.class);
     }
 
     /** 真实 SchoolService 包一个 mock 的 SchoolMapper，避免把服务内部行为一并 mock 掉。 */

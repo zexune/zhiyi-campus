@@ -1,9 +1,7 @@
 package com.zhiyi.module.user.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.common.enums.UserRole;
@@ -19,7 +17,6 @@ import com.zhiyi.module.user.support.LoginAttemptService;
 import com.zhiyi.module.user.support.RecordingUserStateCache;
 import com.zhiyi.module.user.vo.LoginVO;
 import com.zhiyi.utils.JwtUtils;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +31,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,10 +62,7 @@ class AuthServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant =
-                new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace("com.zhiyi.module.user.mapper.SysUserMapper");
-        TableInfoHelper.initTableInfo(assistant, SysUser.class);
+        initialize(SysUser.class, SysUserMapper.class);
     }
 
     @BeforeEach

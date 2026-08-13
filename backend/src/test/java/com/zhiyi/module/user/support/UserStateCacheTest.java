@@ -1,12 +1,9 @@
 package com.zhiyi.module.user.support;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -15,6 +12,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -24,10 +22,7 @@ class UserStateCacheTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        MapperBuilderAssistant assistant =
-                new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace("com.zhiyi.module.user.mapper.SysUserMapper");
-        TableInfoHelper.initTableInfo(assistant, SysUser.class);
+        initialize(SysUser.class, SysUserMapper.class);
     }
 
     @AfterEach

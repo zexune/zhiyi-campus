@@ -1,7 +1,5 @@
 package com.zhiyi.module.admin.service;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.module.admin.entity.ViolationReport;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.admin.vo.AdminDashboardVO;
@@ -13,7 +11,6 @@ import com.zhiyi.module.trade.vo.DailyTradeStatRow;
 import com.zhiyi.module.trade.vo.TradeLocationStatRow;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -44,15 +42,9 @@ class AdminDashboardServiceTest {
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
-        initialize("com.zhiyi.module.user.mapper.SysUserMapper", SysUser.class);
-        initialize("com.zhiyi.module.item.mapper.ItemMapper", Item.class);
-        initialize("com.zhiyi.module.admin.mapper.ViolationReportMapper", ViolationReport.class);
-    }
-
-    private static void initialize(String namespace, Class<?> entity) {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "test");
-        assistant.setCurrentNamespace(namespace);
-        TableInfoHelper.initTableInfo(assistant, entity);
+        initialize(SysUser.class, SysUserMapper.class);
+        initialize(Item.class, ItemMapper.class);
+        initialize(ViolationReport.class, ViolationReportMapper.class);
     }
 
     @BeforeEach
