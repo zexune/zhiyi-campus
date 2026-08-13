@@ -52,8 +52,8 @@
 
 ### 1. 环境要求
 
-- JDK 25（构建会拒绝其他主版本）
-- Maven 3.9.x（最低 3.9.0，推荐 3.9.15）
+- JDK 25
+- Maven 3.9.x
 - Node.js 22.12 或更高版本，以及 npm
 - MySQL 8.0 或更高版本
 
@@ -189,8 +189,8 @@ zhiyi-campus/
 │   │   └── utils/                     # JWT 等工具类
 │   ├── src/main/resources/
 │   │   └── application.yml            # 服务、数据库、上传与内容治理配置
-│   ├── src/test/java/                  # 后端单元、HTTP 契约与 MySQL 集成测试
-│   └── uploads/                        # 本地上传文件（运行时目录）
+│   ├── src/test/java/                 # 后端单元、HTTP 契约与 MySQL 集成测试
+│   └── uploads/                       # 本地上传文件（运行时目录）
 ├── frontend/                          # Vue 3 前端
 │   ├── src/
 │   │   ├── api/                       # 按业务模块封装的 API 请求
@@ -205,8 +205,8 @@ zhiyi-campus/
 │   ├── package.json                   # npm 脚本与依赖
 │   └── vite.config.js                 # Vite 配置与开发代理
 ├── zhiyi_campus_init.sql              # MySQL 初始化脚本
-├── .github/workflows/test.yml          # 四层 CI 测试门禁
-├── TESTING.md                          # 测试策略、命令与质量规范
+├── .github/workflows/test.yml         # 四层 CI 测试门禁
+├── TESTING.md                         # 测试策略、命令与质量规范
 ├── LICENSE                            # MIT 开源许可证
 └── README.md
 ```
