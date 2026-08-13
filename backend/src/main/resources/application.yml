@@ -30,6 +30,17 @@ spring:
       max-file-size: 5MB
       max-request-size: 50MB
 
+springdoc:
+  paths-to-match: /api/**
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    document-title: 智易校园 API 文档
+    tags-sorter: alpha
+    operations-sorter: method
+    persist-authorization: true
+
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   configuration:

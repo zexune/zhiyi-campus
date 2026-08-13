@@ -223,6 +223,8 @@ zhiyi-campus/
 - `POST /api/admin/auth/login`
 - `GET /api/school/list`
 - `GET /api/category/list`
+- `GET /api/user/{id}/card`
+- `GET /api/user/{id}/reputation`
 
 登录后访问受保护接口的示例：
 
@@ -243,7 +245,17 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 | `/api/order` | 下单、确认、取消、买卖订单与评价 | [`OrderController`](backend/src/main/java/com/zhiyi/module/trade/controller/OrderController.java) |
 | `/api/admin` | 独立管理员认证、看板、用户封禁、内容/申诉治理、学校、分类、活动与客服管理 | [`后台控制器`](backend/src/main/java/com/zhiyi/module/admin/controller/)、[`BanController`](backend/src/main/java/com/zhiyi/module/user/controller/BanController.java)、[`AdminCategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/AdminCategoryController.java)、[`EventTopicController`](backend/src/main/java/com/zhiyi/module/item/controller/EventTopicController.java) |
 
-当前项目尚未集成 Swagger / OpenAPI 页面。开发时可从以下位置查看完整、实时的接口定义：
+### Swagger / OpenAPI
+
+后端启动后可通过以下地址查看或获取实时接口定义：
+
+- Swagger UI：`http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON：`http://localhost:8080/v3/api-docs`
+- OpenAPI YAML：`http://localhost:8080/v3/api-docs.yaml`
+
+Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接口前，点击页面右上角的 **Authorize**，粘贴用户端或管理端登录接口返回的 JWT（无需手动添加 `Bearer ` 前缀）。公开接口可以直接调用。
+
+也可从以下位置交叉核对接口实现：
 
 - 后端控制器：[`backend/src/main/java/com/zhiyi/module`](backend/src/main/java/com/zhiyi/module/)
 - 前端请求封装：[`frontend/src/api`](frontend/src/api/)
@@ -259,7 +271,7 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 - 商品持久化状态只有 `ON_SALE`、`SOLD`、`OFF_SHELF`；内容审核为 `PASSED`、`PENDING`、`REJECTED`；订单为 `WAITING_MEET`、`COMPLETED`、`CANCELLED`。前端的“审核中”由审核状态派生。
 - 内容违规只执行可配置的固定合规扣分。商品强制下架不自动扣经验，账号封禁和解封只能在用户管理中独立执行。
 - Java 25 虚拟线程已开启，Tomcat 平台线程池参数不再使用；数据库吞吐仍受 HikariCP/MySQL 连接池上限约束。
-- API 统一响应和鉴权快照使用不可变 Record；后端 JSON 栈为 Jackson 3，不加载 Jackson 2 兼容层。
+- API 统一响应和鉴权快照使用不可变 Record；业务 JSON 栈使用 Jackson 3，Swagger/OpenAPI 的传递依赖由 springdoc 管理，业务代码不要引入 Jackson 2 类型。
 - 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入，Pinia 仅持久化用户 ID、昵称和角色摘要。
 - 首页交易大厅将视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护；新增复杂页面应沿用“页面编排 + 组合函数/子组件”的边界，避免重新形成千行单文件组件。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。
