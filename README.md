@@ -9,6 +9,7 @@
 - [性能与数据模型](#性能与数据模型)
 - [快速开始](#快速开始)
 - [常用命令](#常用命令)
+- [测试体系](#测试体系)
 - [项目目录结构](#项目目录结构)
 - [API 与文档入口](#api-与文档入口)
 - [开发注意事项](#开发注意事项)
@@ -155,6 +156,20 @@ npm run preview
 
 前端生产构建产物位于 `frontend/dist`。
 
+## 测试体系
+
+项目已建立后端单元/HTTP 契约、真实 MySQL 持久化与事务、前端组件、浏览器烟测和完整系统 E2E 六层测试。日常快速回归命令如下：
+
+```bash
+cd backend
+mvn verify
+
+cd ../frontend
+npm run test:all
+```
+
+需要 Docker 的真实 MySQL 集成测试使用 `mvn verify -Pintegration`；连接已启动的后端和专用测试数据库后，使用 `npm run test:system` 执行注册到评价及后台验收的完整业务旅程。覆盖范围、数据隔离、覆盖率门禁、CI 作业和新增用例规范见 [`TESTING.md`](TESTING.md)。
+
 ## 项目目录结构
 
 ```text
@@ -174,7 +189,7 @@ zhiyi-campus/
 │   │   └── utils/                     # JWT 等工具类
 │   ├── src/main/resources/
 │   │   └── application.yml            # 服务、数据库、上传与内容治理配置
-│   ├── src/test/java/                  # 后端测试
+│   ├── src/test/java/                  # 后端单元、HTTP 契约与 MySQL 集成测试
 │   └── uploads/                        # 本地上传文件（运行时目录）
 ├── frontend/                          # Vue 3 前端
 │   ├── src/
@@ -186,10 +201,12 @@ zhiyi-campus/
 │   │   ├── stores/                    # Pinia 状态管理
 │   │   ├── utils/                     # 请求、鉴权、信誉与交易工具
 │   │   └── views/                     # 首页、商品、聊天、钱包、后台等页面
-│   ├── tests/                         # Node.js 前端单元测试
+│   ├── tests/                         # Vitest 组件/工具测试与 Playwright E2E
 │   ├── package.json                   # npm 脚本与依赖
 │   └── vite.config.js                 # Vite 配置与开发代理
 ├── zhiyi_campus_init.sql              # MySQL 初始化脚本
+├── .github/workflows/test.yml          # 四层 CI 测试门禁
+├── TESTING.md                          # 测试策略、命令与质量规范
 ├── LICENSE                            # MIT 开源许可证
 └── README.md
 ```

@@ -8,6 +8,9 @@ node_modules/
 # 构建产物
 target/
 dist/
+coverage/
+playwright-report/
+test-results/
 
 # 运行时产物
 uploads/
