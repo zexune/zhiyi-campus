@@ -1,16 +1,22 @@
 package com.zhiyi.module.user.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
+import com.zhiyi.module.trade.entity.TradeOrder;
+import com.zhiyi.module.trade.entity.TradeReview;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
 import com.zhiyi.module.trade.mapper.TradeReviewMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.vo.ReputationVO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +37,21 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class ReputationServiceTest {
+
+    @BeforeAll
+    static void initializeMyBatisMetadata() {
+        initializeTableInfo(TradeOrder.class, "com.zhiyi.module.trade.mapper.TradeOrderMapper");
+        initializeTableInfo(TradeReview.class, "com.zhiyi.module.trade.mapper.TradeReviewMapper");
+        initializeTableInfo(ChatMessage.class, "com.zhiyi.module.social.mapper.ChatMessageMapper");
+        initializeTableInfo(Item.class, "com.zhiyi.module.item.mapper.ItemMapper");
+    }
+
+    private static void initializeTableInfo(Class<?> entityType, String namespace) {
+        MapperBuilderAssistant assistant =
+                new MapperBuilderAssistant(new MybatisConfiguration(), "reputation-service-test");
+        assistant.setCurrentNamespace(namespace);
+        TableInfoHelper.initTableInfo(assistant, entityType);
+    }
 
     @Mock private TradeOrderMapper orderMapper;
     @Mock private TradeReviewMapper reviewMapper;

@@ -1,5 +1,7 @@
 package com.zhiyi.module.user.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
@@ -10,6 +12,8 @@ import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.event.UserPunishedEvent;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.RecordingUserStateCache;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +35,14 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class BanServiceTest {
+
+    @BeforeAll
+    static void initializeMyBatisMetadata() {
+        MapperBuilderAssistant assistant =
+                new MapperBuilderAssistant(new MybatisConfiguration(), "ban-service-test");
+        assistant.setCurrentNamespace("com.zhiyi.module.user.mapper.SysUserMapper");
+        TableInfoHelper.initTableInfo(assistant, SysUser.class);
+    }
 
     @Mock
     private SysUserMapper userMapper;
