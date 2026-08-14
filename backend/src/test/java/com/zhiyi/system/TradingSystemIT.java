@@ -27,6 +27,7 @@ import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 真实系统边界测试：Spring 上下文、JWT/角色拦截器、MVC、事务、MyBatis 自定义 SQL
- * 与 MySQL 8 均参与执行。仅在 Maven integration profile 中运行。
+ * 与 MySQL 9.7 LTS 均参与执行。仅在 Maven integration profile 中运行。
  */
 @Testcontainers
 @SpringBootTest(properties = {
@@ -56,7 +57,7 @@ class TradingSystemIT {
     @Container
     @ServiceConnection
     @SuppressWarnings("resource") // The JUnit Testcontainers extension owns and closes this container.
-    static final MySQLContainer MYSQL = new MySQLContainer(DockerImageName.parse("mysql:8.4"))
+    static final MySQLContainer MYSQL = new MySQLContainer(DockerImageName.parse("mysql:9.7"))
             .withDatabaseName("zhiyi_campus")
             .withUsername("test")
             .withPassword("test")
@@ -65,6 +66,13 @@ class TradingSystemIT {
     @Autowired private MockMvc mockMvc;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private OrderService orderService;
+
+    @Test
+    @DisplayName("集成环境使用 MySQL 9.7 LTS 数据库基线")
+    void runsAgainstMySql97Lts() {
+        String version = scalar("SELECT VERSION()", String.class);
+        assertTrue(version.startsWith("9.7."), () -> "Expected MySQL 9.7.x but got " + version);
+    }
 
     @Test
     @DisplayName("OpenAPI 文档发布真实 HTTP 契约，并区分公开与 Bearer 受保护接口")
