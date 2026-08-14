@@ -97,7 +97,7 @@ jobs:
     timeout-minutes: 30
     services:
       mysql:
-        image: mysql:8.4
+        image: mysql:9.7
         env:
           MYSQL_ROOT_PASSWORD: test
         ports:

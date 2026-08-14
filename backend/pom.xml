@@ -29,6 +29,8 @@
         <lombok.version>1.18.46</lombok.version>
         <hutool.version>5.8.47</hutool.version>
         <testcontainers.version>2.0.5</testcontainers.version>
+        <!-- 与项目的 MySQL 9.7 LTS 基线保持一致，避免随父 BOM 隐式漂移。 -->
+        <mysql.version>9.7.0</mysql.version>
         <jacoco.version>0.8.15</jacoco.version>
         <!-- JaCoCo 会在 test 阶段覆盖该属性；保留空默认值以支持 -Djacoco.skip=true。 -->
         <jacocoArgLine></jacocoArgLine>

@@ -23,7 +23,7 @@
 - **内容发现**：提供本地生成的普通商品标签、近期爆款榜、标签趋势、换物匹配、跑腿专区与活动专题。
 - **本地内容治理**：使用版本化、确定性的本地规则检测违规关键词，不检查价格；命中风险后隐藏商品并交由管理员复核，同时支持用户举报、卖家整改和每次违规一次的限时申诉。
 - **收藏与站内沟通**：支持商品收藏、买卖双方会话、未读消息统计和管理员客服会话。
-- **交易闭环**：支持平台钱包、充值流水、数据库原子商品预留、创建/取消订单、确认收货以及交易评价；订单状态不再占用商品状态字段。
+- **交易闭环**：支持平台钱包、充值流水、数据库原子商品预留、创建/取消订单、确认收货以及交易评价；订单与商品状态独立建模。
 - **信誉与成长体系**：包含经验值、等级、六维信誉雷达、校园关系标签和违规处罚记录。
 - **运营管理后台**：提供数据看板、交易热力图、商品强制下架、商品流转谱系、独立用户封禁、内容审核与申诉复核、学校/分类/活动管理和客服收件箱。
 
@@ -34,30 +34,31 @@
 | 前端 | Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
 | 后端 | Java 25、Spring Boot 4.1.0、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.x（推荐 3.9.15） |
 | 基础库 | Lombok 1.18.46、JJWT 0.13.0、Hutool 5.8.47、Jackson 3 |
-| 数据与安全 | MySQL 8、JWT（HS256 + issuer/audience/tokenVersion）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
+| 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
 | 文件存储 | 本地文件系统，通过 `/uploads/**` 提供访问 |
 | 接口风格 | RESTful JSON，统一返回 `{ code, message, data }` |
 
 ## 性能与数据模型
 
-- **大厅推荐不做全表随机排序**：商品发布时生成不可变 `feed_key`，默认推荐按 `(school_id, status, moderation_status, is_deleted, feed_key, id)` 复合索引稳定分页；同楼、同校区与全校商品采用分层计数和有界切片查询，不再执行 `ORDER BY RAND()` 或先加载全校用户 ID。
-- **列表读模型统一批量组装**：商品卡片、买入/卖出订单和违规申诉先分页，再按 ID 集合批量读取关联商品、用户、评价、举报与标签。订单页无论返回多少条记录，都不会为每一行追加数据库往返。
-- **标签完全规范化**：`tag` 保存标准标签，`item_tag` 保存多对多关系；筛选使用等值索引与 `EXISTS`，不再在 JSON/TEXT 上执行前缀通配符 `LIKE`。校级标签聚合使用 Caffeine 短缓存，商品内容或可见性变化后在事务提交成功时精准失效。
-- **统计在数据库完成**：交易日趋势、成交额和地点热力由聚合 SQL 直接返回小结果集，并以半开时间区间匹配索引，不再把全部订单加载到 JVM 后按日期计算。
-- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端状态码集中在 `src/constants/domain.js`；JSON 数组统一由 Jackson 3/MyBatis TypeHandler 映射为 `List<String>`，业务代码不使用正则或字符串兼容分支解析 JSON。
+- **索引化大厅推荐**：商品发布时生成不可变 `feed_key`，默认推荐按 `(school_id, status, moderation_status, is_deleted, feed_key, id)` 复合索引稳定分页；同楼、同校区与全校商品使用分层计数和有界切片查询。
+- **批量组装列表读模型**：商品卡片、买入/卖出订单和违规申诉先分页，再按 ID 集合批量读取关联商品、用户、评价、举报与标签，以固定数量的数据库往返完成页面组装。
+- **规范化标签**：`tag` 保存标准标签，`item_tag` 保存多对多关系；筛选使用等值索引与 `EXISTS`。校级标签聚合使用 Caffeine 短缓存，并在商品内容或可见性变化的事务提交后精准失效。
+- **数据库聚合统计**：交易日趋势、成交额和地点热力由聚合 SQL 直接返回小结果集，并以半开时间区间匹配索引。
+- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端状态码集中在 `src/constants/domain.js`；JSON 数组由 Jackson 3/MyBatis TypeHandler 统一映射为 `List<String>`。
 
 初始化脚本中的复合索引与上述查询形状是一体设计。修改查询条件、排序字段或学校隔离规则时，应同步用 `EXPLAIN ANALYZE` 复核索引命中情况，而不是盲目新增单列索引。
 
 ## 快速开始
 
-### 1. 环境要求
+### 1. 开发环境
 
 - JDK 25
-- Maven 3.9.x
-- Node.js 22.12 或更高版本，以及 npm
-- MySQL 8.0 或更高版本
+- Maven 3.9.16
+- Node.js 24.17.0
+- npm 11.13.0
+- MySQL 9.7.2
 
-项目不调用任何远程 AI 服务，也不需要模型密钥。内容检测、规则命中与商品标签生成全部在后端进程内确定性完成。
+以上版本为本项目开发、构建与测试时所采用的开发配置，仅代表已经验证的环境组合，并非最低兼容版本要求。其他版本可能可以正常运行，但尚未经过完整验证。
 
 ### 2. 初始化数据库
 
@@ -73,9 +74,7 @@ mysql -u root -p --default-character-set=utf8mb4
 SOURCE C:/path/to/zhiyi-campus/zhiyi_campus_init.sql;
 ```
 
-也可以使用 MySQL Workbench、DataGrip 等数据库客户端直接运行 [`zhiyi_campus_init.sql`](zhiyi_campus_init.sql)。脚本会创建 `zhiyi_campus` 数据库、业务表以及学校、管理员和商品分类等种子数据，建议仅在新的开发数据库中执行一次。
-
-初始化脚本是非兼容的全量新结构：旧的 AI 字段、截止时间字段和商品 `PENDING` 状态均不再保留。开发环境应先备份需要的数据，再重新执行初始化脚本；项目不提供旧结构兼容层。
+也可以使用 MySQL Workbench、DataGrip 等数据库客户端直接运行 [`zhiyi_campus_init.sql`](zhiyi_campus_init.sql)。脚本会删除并重建 `zhiyi_campus` 数据库，然后创建业务表和种子数据，仅适用于可重置的开发环境。
 
 ### 3. 配置并启动后端
 
@@ -158,7 +157,7 @@ npm run preview
 
 ## 测试体系
 
-项目已建立后端单元/HTTP 契约、真实 MySQL 持久化与事务、前端组件、浏览器烟测和完整系统 E2E 六层测试。日常快速回归命令如下：
+项目采用后端单元、HTTP 契约、真实 MySQL 持久化与事务、前端组件、浏览器烟测和完整系统 E2E 六层测试。快速回归命令如下：
 
 ```bash
 cd backend
@@ -211,7 +210,7 @@ zhiyi-campus/
 └── README.md
 ```
 
-`backend/target`、`frontend/dist` 和 `frontend/node_modules` 均为可重新生成的目录，已从源码版本控制中排除。
+`backend/target`、`frontend/dist` 和 `frontend/node_modules` 均为可重新生成的目录，不纳入源码版本控制。
 
 ## API 与文档入口
 
@@ -284,15 +283,15 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 - 上传文件默认保存在后端当前工作目录下的 `uploads` 文件夹；单文件上限为 5 MB，单次请求上限为 50 MB。
 - 初始化脚本中的管理员密码和默认 MySQL 密码只适合本地开发，部署前必须替换；JWT 密钥没有默认值，启动时必须注入。
 - 管理员与普通用户使用不同登录入口和 API 空间：`ADMIN` Token 只能访问 `/api/admin/**`，`USER` Token 不能访问管理接口。
-- 数据库结构为非兼容全量版本：已删除 `deadline_time`、`ai_tags`、`ai_reviewed` 等旧字段；商品、内容审核、订单和订单预留分别建模，旧数据库应备份后重建。
+- 数据库分别建模商品、内容审核、订单和订单预留，状态与交易约束由对应业务表管理。
 - 商品持久化状态只有 `ON_SALE`、`SOLD`、`OFF_SHELF`；内容审核为 `PASSED`、`PENDING`、`REJECTED`；订单为 `WAITING_MEET`、`COMPLETED`、`CANCELLED`。前端的“审核中”由审核状态派生。
 - 内容违规只执行可配置的固定合规扣分。商品强制下架不自动扣经验，账号封禁和解封只能在用户管理中独立执行。
-- Java 25 虚拟线程已开启，Tomcat 平台线程池参数不再使用；数据库吞吐仍受 HikariCP/MySQL 连接池上限约束。
+- 后端使用 Java 25 虚拟线程处理请求；数据库吞吐受 HikariCP/MySQL 连接池上限约束。
 - API 统一响应和鉴权快照使用不可变 Record；业务 JSON 栈使用 Jackson 3，Swagger/OpenAPI 的传递依赖由 springdoc 管理，业务代码不要引入 Jackson 2 类型。
 - 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入，Pinia 仅持久化用户 ID、昵称和角色摘要。
-- 首页交易大厅将视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护；新增复杂页面应沿用“页面编排 + 组合函数/子组件”的边界，避免重新形成千行单文件组件。
+- 首页交易大厅的视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护；复杂页面采用“页面编排 + 组合函数/子组件”边界。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。
-- 平台钱包是项目内部余额与流水机制，当前未接入第三方支付渠道。
+- 平台钱包仅处理项目内部余额与流水，不接入第三方支付渠道。
 
 ## 开源许可
 
@@ -300,4 +299,4 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 
 ## 致谢
 
-本项目由 [zhiyi-school](https://github.com/kwang888210/zhiyi-school) 进一步开发而来，感谢原项目及其贡献者提供的基础实现与实践经验。我们在此基础上持续完善功能、架构与用户体验。
+感谢 [zhiyi-school](https://github.com/kwang888210/zhiyi-school) 项目及其贡献者提供的开源实现与实践经验。

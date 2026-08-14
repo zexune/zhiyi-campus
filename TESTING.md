@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | 后端单元测试 | JUnit 5、Mockito；`mvn test` | 用户、交易、内容治理、后台治理、查询组装、边界与异常 | 否 |
 | HTTP 契约测试 | Spring MVC Test、MockMvc；`mvn test` | 参数校验、统一响应结构、金额/状态序列化、业务异常、用户端与管理端登录契约 | 否 |
-| 持久化与事务集成测试 | Spring Boot Test、Testcontainers、MySQL 8.4；`mvn verify -Pintegration` | 真实建表 SQL、MyBatis 映射、唯一约束、钱包/订单/预留/流水原子性、事务回滚 | Docker |
+| 持久化与事务集成测试 | Spring Boot Test、Testcontainers、MySQL 9.7 LTS；`mvn verify -Pintegration` | 真实建表 SQL、MyBatis 映射、唯一约束、钱包/订单/预留/流水原子性、事务回滚 | Docker |
 | 前端工具与组件测试 | Vitest、Vue Test Utils、happy-dom；`npm test` | 领域映射、评价弹窗、钱包、买入订单、后台数据大盘及失败/空态 | 否 |
 | 浏览器烟测 | Playwright Chromium；`npm run test:e2e` | 生产构建、路由守卫、钱包加载/充值/刷新、浏览器运行时错误 | 否，API 使用确定性 mock |
 | 全系统 E2E | Playwright → Vue → Spring Boot → MySQL；`npm run test:system` | 注册、发布、充值、下单、确认收货、评价、后台看板与角色隔离 | MySQL 与后端 |
@@ -43,7 +43,7 @@ cd backend
 mvn verify -Pintegration
 ```
 
-该 profile 会启动一次性 MySQL 8.4 容器，并直接运行根目录的 `zhiyi_campus_init.sql`。测试不会使用 H2 模拟 MySQL 行为，因此能够发现真实 SQL、索引、触发器和事务语义问题。
+该 profile 启动一次性 MySQL 9.7 LTS 容器，直接运行根目录的 `zhiyi_campus_init.sql`，并使用真实 SQL、索引、约束和事务语义。套件通过 `SELECT VERSION()` 校验数据库环境为 9.7.x。
 
 ### 完整系统 E2E
 
@@ -63,10 +63,6 @@ npm run test:system
 - 后端 `mvn verify` 要求全项目行覆盖率不低于 60%、分支覆盖率不低于 45%；HTML 报告位于 `backend/target/site/jacoco/index.html`。
 - 前端 `npm run test:coverage` 要求全源码语句/函数/行覆盖率不低于 12%，分支覆盖率不低于 8%；评价弹窗、钱包、买入订单、后台大盘和交易工具函数另设 65%–100% 的定向门禁。HTML 报告位于 `frontend/coverage/index.html`。
 - 覆盖率是回归下限，不是完成标准。涉及资金、权限、状态机或事务的改动，即使覆盖率未下降，也必须补充能验证业务结果和失败回滚的断言。
-
-当前基线（2026-08-14）：后端 188 个快速测试，行/分支覆盖率为 63.09%/49.44%；前端 41 个 Vitest 测试，行/分支覆盖率为 14.49%/9.78%，关键直接测试组件的行覆盖率为 84%–100%。真实 MySQL 集成与全系统 E2E 单独统计，不用数量或覆盖率稀释快速套件的信号。
-
-同日已在 Docker Desktop 29.7.2 与 MySQL 8.4 上完成本地实测：3 个真实数据库集成用例全部通过，覆盖 OpenAPI 契约、完整交易持久化和失败回滚；1 个全系统浏览器 E2E 通过，覆盖注册、图片上传、发布、充值、预约、支付、确认收货、评价及管理员看板。
 
 ## 测试数据与隔离
 
