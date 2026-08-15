@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.ConcurrencyFailureException;
-import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
@@ -42,7 +42,9 @@ class RetryConfigTest {
         @RetryOnDeadlock
         public String flaky(Object a, Object b) {
             if (flakyAttempts.incrementAndGet() < 3) {
-                throw new DeadlockLoserDataAccessException("模拟死锁回滚", null);
+                // ConcurrencyFailureException 家族（MySQL 1205/1213 翻译产物）均触发重试；
+                // 不使用 6.0.3 起废弃的 DeadlockLoserDataAccessException
+                throw new CannotAcquireLockException("模拟锁竞争失败后自动回滚");
             }
             return "ok";
         }
