@@ -27,8 +27,9 @@
         <springdoc.version>3.0.3</springdoc.version>
         <jjwt.version>0.13.0</jjwt.version>
         <lombok.version>1.18.46</lombok.version>
-        <hutool.version>5.8.47</hutool.version>
         <testcontainers.version>2.0.5</testcontainers.version>
+        <!-- Spring Boot 4 BOM 不再管理 spring-retry，显式钉版本。 -->
+        <spring-retry.version>2.0.12</spring-retry.version>
         <!-- 与项目的 MySQL 9.7 LTS 基线保持一致，避免随父 BOM 隐式漂移。 -->
         <mysql.version>9.7.0</mysql.version>
         <jacoco.version>0.8.15</jacoco.version>
@@ -104,16 +105,26 @@
         </dependency>
 
         <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+            <version>${spring-retry.version}</version>
+        </dependency>
+        <!-- @EnableRetry 的 advisor 依赖 spring-aop 与 AspectJ 注解类。 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
             <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>${hutool.version}</version>
         </dependency>
 
         <dependency>
@@ -201,6 +212,29 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!-- 轻量代码卫生门禁：未用导入 / 行尾空白 / 缺失换行。
+                 刻意不启用全量格式化，避免无关大范围重排。 -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.44.5</version>
+                <configuration>
+                    <java>
+                        <removeUnusedImports/>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -1,37 +1,15 @@
 <template>
   <Teleport to="body">
     <Transition name="seller-dialog">
-      <div
-        v-if="visible"
-        class="seller-dialog__overlay"
-        role="presentation"
-        @click.self="emit('close')"
-      >
-        <section
-          ref="dialogSheet"
-          class="seller-dialog__sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="seller-dialog-title"
-          :aria-busy="loading"
-        >
+      <div v-if="visible" class="seller-dialog__overlay" role="presentation" @click.self="emit('close')">
+        <section ref="dialogSheet" class="seller-dialog__sheet" role="dialog" aria-modal="true" aria-labelledby="seller-dialog-title" :aria-busy="loading">
           <span class="seller-dialog__tape" aria-hidden="true"></span>
           <span class="seller-dialog__file-tag" aria-hidden="true">SELLER FILE</span>
 
-          <button
-            ref="closeButton"
-            class="seller-dialog__close"
-            type="button"
-            aria-label="关闭卖家详情"
-            @click="emit('close')"
-          >×</button>
+          <button ref="closeButton" class="seller-dialog__close" type="button" aria-label="关闭卖家详情" @click="emit('close')">×</button>
 
           <header class="seller-dialog__header">
-            <UserAvatar
-              :nickname="seller?.nickname || '同学'"
-              :user-id="seller?.id || 0"
-              size="l"
-            />
+            <UserAvatar :nickname="seller?.nickname || '同学'" :user-id="seller?.id || 0" size="l" />
             <div class="seller-dialog__identity">
               <span class="seller-dialog__eyebrow">校园卖家档案</span>
               <div class="seller-dialog__name-row">
@@ -74,11 +52,7 @@
                 <span aria-hidden="true">02</span>
                 <h3 id="seller-reputation-title">信誉雷达</h3>
               </div>
-              <ReputationRadar
-                v-if="reputation"
-                :reputation="reputation"
-                :size="250"
-              />
+              <ReputationRadar v-if="reputation" :reputation="reputation" :size="250" />
               <div v-else class="seller-dialog__radar-empty" aria-label="暂无信誉数据"></div>
             </section>
           </div>
@@ -99,7 +73,7 @@ const props = defineProps({
   seller: { type: Object, default: null },
   reputation: { type: Object, default: null },
   loading: { type: Boolean, default: false },
-  error: { type: Boolean, default: false },
+  error: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['close', 'retry'])
@@ -115,7 +89,7 @@ const detailFields = computed(() => [
   { label: '校区', value: props.seller?.campus },
   { label: '学院', value: props.seller?.college },
   { label: '年级', value: props.seller?.grade },
-  { label: '宿舍楼', value: props.seller?.dormitory },
+  { label: '宿舍楼', value: props.seller?.dormitory }
 ])
 
 function handleKeydown(event) {
@@ -124,9 +98,7 @@ function handleKeydown(event) {
     return
   }
   if (props.visible && event.key === 'Tab') {
-    const focusable = [...(dialogSheet.value?.querySelectorAll(
-      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
-    ) || [])]
+    const focusable = [...(dialogSheet.value?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])') || [])]
     if (!focusable.length) return
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
@@ -174,9 +146,7 @@ onBeforeUnmount(() => {
   place-items: center;
   padding: 28px;
   overflow-y: auto;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(255, 201, 77, .22), transparent 28%),
-    rgba(38, 34, 28, .66);
+  background: radial-gradient(circle at 15% 20%, rgba(255, 201, 77, 0.22), transparent 28%), rgba(38, 34, 28, 0.66);
   backdrop-filter: blur(4px);
 }
 
@@ -188,7 +158,7 @@ onBeforeUnmount(() => {
   padding: 34px;
   color: var(--ink);
   background-color: var(--paper);
-  background-image: radial-gradient(rgba(38, 34, 28, .07) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(38, 34, 28, 0.07) 1px, transparent 1px);
   background-size: 18px 18px;
   border: 3px solid var(--ink);
   border-radius: var(--r-l);
@@ -203,8 +173,8 @@ onBeforeUnmount(() => {
   height: 30px;
   translate: -50% 0;
   rotate: -2deg;
-  background: rgba(255, 201, 77, .82);
-  border: 1px solid rgba(38, 34, 28, .22);
+  background: rgba(255, 201, 77, 0.82);
+  border: 1px solid rgba(38, 34, 28, 0.22);
 }
 
 .seller-dialog__file-tag {
@@ -238,7 +208,10 @@ onBeforeUnmount(() => {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
-  transition: transform .15s, box-shadow .15s, background .15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
 }
 
 .seller-dialog__close:hover {
@@ -304,7 +277,7 @@ onBeforeUnmount(() => {
 .seller-dialog__content,
 .seller-dialog__loading {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(300px, .95fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
   gap: 28px;
   padding-top: 28px;
 }
@@ -340,7 +313,7 @@ onBeforeUnmount(() => {
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 400;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
 }
 
 .seller-dialog__grid {
@@ -357,11 +330,11 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 82px;
   padding: 13px 15px;
-  border-bottom: 1.5px dashed rgba(38, 34, 28, .45);
+  border-bottom: 1.5px dashed rgba(38, 34, 28, 0.45);
 }
 
 .seller-dialog__field:nth-child(odd) {
-  border-right: 1.5px dashed rgba(38, 34, 28, .45);
+  border-right: 1.5px dashed rgba(38, 34, 28, 0.45);
 }
 
 .seller-dialog__field:nth-last-child(-n + 2) {
@@ -373,7 +346,7 @@ onBeforeUnmount(() => {
   color: var(--ink-soft);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: .8px;
+  letter-spacing: 0.8px;
 }
 
 .seller-dialog__field dd {
@@ -386,11 +359,7 @@ onBeforeUnmount(() => {
 }
 
 .seller-dialog__field dd.is-empty {
-  background-image: linear-gradient(
-    to bottom,
-    transparent calc(100% - 1px),
-    rgba(38, 34, 28, .2) 1px
-  );
+  background-image: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(38, 34, 28, 0.2) 1px);
 }
 
 .seller-dialog__reputation {
@@ -422,7 +391,7 @@ onBeforeUnmount(() => {
   min-height: 82px;
   background: linear-gradient(100deg, var(--paper-deep) 25%, var(--white) 40%, var(--paper-deep) 55%);
   background-size: 220% 100%;
-  border: 1px dashed rgba(38, 34, 28, .24);
+  border: 1px dashed rgba(38, 34, 28, 0.24);
   animation: seller-shimmer 1.2s linear infinite;
 }
 
@@ -430,9 +399,7 @@ onBeforeUnmount(() => {
   min-height: 330px;
   border: var(--bw) solid var(--ink);
   border-radius: var(--r-m);
-  background:
-    radial-gradient(circle, transparent 28%, rgba(245, 86, 46, .11) 29% 30%, transparent 31%),
-    var(--white);
+  background: radial-gradient(circle, transparent 28%, rgba(245, 86, 46, 0.11) 29% 30%, transparent 31%), var(--white);
   animation: seller-pulse 1.2s ease-in-out infinite alternate;
 }
 
@@ -462,12 +429,14 @@ onBeforeUnmount(() => {
 
 .seller-dialog-enter-active,
 .seller-dialog-leave-active {
-  transition: opacity .2s ease;
+  transition: opacity 0.2s ease;
 }
 
 .seller-dialog-enter-active .seller-dialog__sheet,
 .seller-dialog-leave-active .seller-dialog__sheet {
-  transition: opacity .2s ease, transform .28s cubic-bezier(.2, .8, .2, 1);
+  transition:
+    opacity 0.2s ease,
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .seller-dialog-enter-from,
@@ -478,15 +447,19 @@ onBeforeUnmount(() => {
 .seller-dialog-enter-from .seller-dialog__sheet,
 .seller-dialog-leave-to .seller-dialog__sheet {
   opacity: 0;
-  transform: translateY(22px) rotate(-1deg) scale(.98);
+  transform: translateY(22px) rotate(-1deg) scale(0.98);
 }
 
 @keyframes seller-shimmer {
-  to { background-position: -120% 0; }
+  to {
+    background-position: -120% 0;
+  }
 }
 
 @keyframes seller-pulse {
-  to { opacity: .58; }
+  to {
+    opacity: 0.58;
+  }
 }
 
 @media (max-width: 760px) {
@@ -541,7 +514,7 @@ onBeforeUnmount(() => {
   .seller-dialog__field:nth-last-child(-n + 2) {
     min-height: 72px;
     border-right: none;
-    border-bottom: 1.5px dashed rgba(38, 34, 28, .45);
+    border-bottom: 1.5px dashed rgba(38, 34, 28, 0.45);
   }
 
   .seller-dialog__field:last-child {

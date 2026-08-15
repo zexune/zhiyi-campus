@@ -11,6 +11,7 @@ import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.dto.ChatSendDTO;
 import com.zhiyi.module.social.dto.ChatStartDTO;
+import com.zhiyi.module.social.dto.ConversationAggregate;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.vo.ChatItemSummaryVO;
@@ -29,8 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,10 +40,18 @@ import java.util.stream.Collectors;
 
 /**
  * 模块三：站内聊天。使用 chat_message 聚合会话，不额外建会话表。
+ *
+ * 有界查询约定：
+ * - 会话列表 / 未读总数：SQL GROUP BY 聚合（每会话一行）+ 固定次数批量装配，不加载消息明细；
+ * - 会话消息历史：按 id 倒序 keyset 分页（默认最近 MESSAGE_PAGE_SIZE 条，beforeId 向前翻页）；
+ * - 未读明细：单会话查询天然有界；跨会话兜底 LIMIT UNREAD_LIMIT。
  */
 @Service
 @RequiredArgsConstructor
 public class ChatService {
+
+    private static final int MESSAGE_PAGE_SIZE = 50;
+    private static final int UNREAD_LIMIT = 200;
 
     private final ChatMessageMapper chatMessageMapper;
     private final ItemMapper itemMapper;
@@ -120,26 +127,45 @@ public class ChatService {
 
     @Transactional
     public ChatThreadVO messages(Long userId, String conversationId, Long peerId, Long relatedItemId) {
-        return messagesInternal(userId, conversationId, peerId, relatedItemId, false);
+        return messagesInternal(userId, conversationId, peerId, relatedItemId, null, false);
+    }
+
+    @Transactional
+    public ChatThreadVO messages(Long userId, String conversationId, Long peerId,
+                                  Long relatedItemId, Long beforeId) {
+        return messagesInternal(userId, conversationId, peerId, relatedItemId, beforeId, false);
     }
 
     /** 管理后台读取客服会话：由 /api/admin/** 入口鉴权，不受学校范围限制。 */
     @Transactional
     public ChatThreadVO messagesAsAdmin(Long userId, String conversationId,
                                         Long peerId, Long relatedItemId) {
-        return messagesInternal(userId, conversationId, peerId, relatedItemId, true);
+        return messagesInternal(userId, conversationId, peerId, relatedItemId, null, true);
+    }
+
+    @Transactional
+    public ChatThreadVO messagesAsAdmin(Long userId, String conversationId,
+                                        Long peerId, Long relatedItemId, Long beforeId) {
+        return messagesInternal(userId, conversationId, peerId, relatedItemId, beforeId, true);
     }
 
     private ChatThreadVO messagesInternal(Long userId, String conversationId,
                                           Long peerId, Long relatedItemId,
-                                          boolean adminScope) {
+                                          Long beforeId, boolean adminScope) {
         if (!StringUtils.hasText(conversationId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "会话ID不能为空");
         }
-        List<ChatMessage> messages = chatMessageMapper.selectList(new LambdaQueryWrapper<ChatMessage>()
+        // keyset 分页：按 id 倒序取一页（多取 1 条探测 hasMore），再反转为时间正序返回。
+        List<ChatMessage> page = chatMessageMapper.selectList(new LambdaQueryWrapper<ChatMessage>()
                 .eq(ChatMessage::getConversationId, conversationId)
-                .orderByAsc(ChatMessage::getCreatedAt)
-                .orderByAsc(ChatMessage::getId));
+                .lt(beforeId != null, ChatMessage::getId, beforeId)
+                .orderByDesc(ChatMessage::getId)
+                .last("LIMIT " + (MESSAGE_PAGE_SIZE + 1)));
+        boolean hasMore = page.size() > MESSAGE_PAGE_SIZE;
+        if (hasMore) {
+            page = page.subList(0, MESSAGE_PAGE_SIZE);
+        }
+        List<ChatMessage> messages = page.reversed();
 
         Long actualPeerId = peerId;
         Long actualItemId = relatedItemId;
@@ -190,73 +216,98 @@ public class ChatService {
         vo.setPeer(toUserVO(requireUser(actualPeerId)));
         vo.setRelatedItem(actualItemId == null ? null : toItemSummary(itemMapper.selectById(actualItemId)));
         vo.setMessages(messages.stream().map(message -> toMessageVO(message, userId)).toList());
+        vo.setHasMore(hasMore);
         return vo;
     }
 
+    /**
+     * 会话列表：SQL 聚合（每会话一行）+ 按集合批量装配对端与商品，固定次数数据库往返。
+     */
     public List<ConversationVO> conversations(Long userId) {
-        List<ChatMessage> messages = chatMessageMapper.selectList(new LambdaQueryWrapper<ChatMessage>()
-                .and(w -> w.eq(ChatMessage::getSenderId, userId).or().eq(ChatMessage::getReceiverId, userId))
-                .orderByDesc(ChatMessage::getCreatedAt)
-                .orderByDesc(ChatMessage::getId));
-        if (messages.isEmpty()) {
-            return List.of();
-        }
         SysUser currentUser = requireUser(userId);
         SchoolScopeGuard.requireAssigned(currentUser.getSchoolId());
 
-        Map<String, ChatMessage> latestByConversation = new LinkedHashMap<>();
-        Map<String, Long> unreadByConversation = new LinkedHashMap<>();
-        Map<String, Long> itemByConversation = new LinkedHashMap<>();
-        Set<Long> peerIds = new LinkedHashSet<>();
-        Set<Long> itemIds = new LinkedHashSet<>();
+        List<ConversationSnapshot> snapshots = loadAccessibleSnapshots(userId, currentUser);
+        if (snapshots.isEmpty()) {
+            return List.of();
+        }
+        return snapshots.stream().map(snapshot -> {
+            ConversationVO vo = new ConversationVO();
+            vo.setConversationId(snapshot.aggregate().getConversationId());
+            vo.setPeer(toUserVO(snapshot.peer()));
+            vo.setRelatedItem(toItemSummary(snapshot.relatedItem()));
+            vo.setLastMessage(snapshot.lastMessage().getContent());
+            vo.setLastMessageTime(snapshot.lastMessage().getCreatedAt());
+            vo.setUnreadCount(snapshot.aggregate().getUnreadCount());
+            return vo;
+        }).toList();
+    }
 
-        for (ChatMessage message : messages) {
-            latestByConversation.putIfAbsent(message.getConversationId(), message);
-            Long peerId = Objects.equals(message.getSenderId(), userId) ? message.getReceiverId() : message.getSenderId();
-            peerIds.add(peerId);
-            if (message.getRelatedItemId() != null) {
-                itemByConversation.putIfAbsent(message.getConversationId(), message.getRelatedItemId());
-                itemIds.add(message.getRelatedItemId());
-            }
-            if (Objects.equals(message.getReceiverId(), userId) && !Boolean.TRUE.equals(message.getIsRead())) {
-                unreadByConversation.merge(message.getConversationId(), 1L, Long::sum);
-            }
+    public Long unreadCount(Long userId) {
+        SysUser currentUser = requireUser(userId);
+        SchoolScopeGuard.requireAssigned(currentUser.getSchoolId());
+
+        return loadAccessibleSnapshots(userId, currentUser).stream()
+                .mapToLong(snapshot -> snapshot.aggregate().getUnreadCount())
+                .sum();
+    }
+
+    /** 会话快照：聚合行 + 批量回填的最近消息 / 对端用户 / 关联商品，并已套用普通入口的可见性过滤。 */
+    private record ConversationSnapshot(
+            ConversationAggregate aggregate,
+            ChatMessage lastMessage,
+            SysUser peer,
+            Item relatedItem) {
+    }
+
+    private List<ConversationSnapshot> loadAccessibleSnapshots(Long userId, SysUser currentUser) {
+        List<ConversationAggregate> aggregates = chatMessageMapper.aggregateConversations(userId);
+        if (aggregates.isEmpty()) {
+            return List.of();
         }
 
-        Map<Long, SysUser> users = userMapper.selectByIds(peerIds).stream()
-                .collect(Collectors.toMap(SysUser::getId, Function.identity()));
+        Map<Long, ChatMessage> lastMessages = chatMessageMapper
+                .selectByIds(aggregates.stream().map(ConversationAggregate::getLastMessageId).toList())
+                .stream()
+                .collect(Collectors.toMap(ChatMessage::getId, Function.identity()));
+
+        Set<Long> peerIds = aggregates.stream()
+                .map(ConversationAggregate::getPeerId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> itemIds = aggregates.stream()
+                .map(ConversationAggregate::getRelatedItemId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, SysUser> users = peerIds.isEmpty()
+                ? Map.of()
+                : userMapper.selectByIds(peerIds).stream()
+                        .collect(Collectors.toMap(SysUser::getId, Function.identity()));
         Map<Long, Item> items = itemIds.isEmpty()
                 ? Map.of()
                 : itemMapper.selectByIds(itemIds).stream()
-                .collect(Collectors.toMap(Item::getId, Function.identity()));
+                        .collect(Collectors.toMap(Item::getId, Function.identity()));
 
-        List<ConversationVO> result = new ArrayList<>();
-        for (ChatMessage latest : latestByConversation.values()) {
-            Long peerId = Objects.equals(latest.getSenderId(), userId) ? latest.getReceiverId() : latest.getSenderId();
-            SysUser peer = users.get(peerId);
-            Long relItemId = itemByConversation.get(latest.getConversationId());
-            Item relatedItem = relItemId == null ? null : items.get(relItemId);
-            if (relItemId != null && relatedItem == null) {
+        List<ConversationSnapshot> snapshots = new ArrayList<>(aggregates.size());
+        for (ConversationAggregate aggregate : aggregates) {
+            ChatMessage lastMessage = lastMessages.get(aggregate.getLastMessageId());
+            // lastMessage 是该会话存在的凭证（聚合行由消息聚合而来），防御性跳过理论上的空行。
+            if (lastMessage == null) {
+                continue;
+            }
+            SysUser peer = users.get(aggregate.getPeerId());
+            Item relatedItem = aggregate.getRelatedItemId() == null
+                    ? null
+                    : items.get(aggregate.getRelatedItemId());
+            if (aggregate.getRelatedItemId() != null && relatedItem == null) {
                 continue;
             }
             if (!canAccessOrdinaryConversation(currentUser, peer, relatedItem)) {
                 continue;
             }
-            ConversationVO vo = new ConversationVO();
-            vo.setConversationId(latest.getConversationId());
-            vo.setPeer(toUserVO(peer));
-            vo.setRelatedItem(toItemSummary(relatedItem));
-            vo.setLastMessage(latest.getContent());
-            vo.setLastMessageTime(latest.getCreatedAt());
-            vo.setUnreadCount(unreadByConversation.getOrDefault(latest.getConversationId(), 0L));
-            result.add(vo);
+            snapshots.add(new ConversationSnapshot(aggregate, lastMessage, peer, relatedItem));
         }
-        result.sort(Comparator.comparing(ConversationVO::getLastMessageTime).reversed());
-        return result;
-    }
-
-    public Long unreadCount(Long userId) {
-        return (long) filterOrdinaryMessages(userId, findUnreadMessages(userId, null)).size();
+        return snapshots;
     }
 
     public List<ChatMessageVO> unreadMessages(Long userId, String conversationId) {
@@ -280,7 +331,8 @@ public class ChatService {
         if (StringUtils.hasText(conversationId)) {
             wrapper.eq(ChatMessage::getConversationId, conversationId);
         }
-        return chatMessageMapper.selectList(wrapper);
+        // 单会话查询天然有界；不指定会话时按未读积压上限兜底，避免全表加载。
+        return chatMessageMapper.selectList(wrapper.last("LIMIT " + UNREAD_LIMIT));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

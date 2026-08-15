@@ -31,13 +31,14 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '请选择日期和时间' },
   clearable: { type: Boolean, default: true },
-  min: { type: String, default: '' },
+  min: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const pickerRef = ref(null)
-const popperInstanceClass = `app-date-picker-${++pickerSequence}`
+pickerSequence += 1
+const popperInstanceClass = `app-date-picker-${pickerSequence}`
 const popperClass = `app-date-picker ${popperInstanceClass}`
 let emptyTimeSession = false
 
@@ -56,9 +57,7 @@ function markEmptyTimeSession(event) {
   if (props.modelValue) return
   const panel = ownPanelFor(event.target)
   if (!panel) return
-  const timeInput = event.target.closest(
-    '.el-date-picker__time-header .el-date-picker__editor-wrap:last-child input',
-  )
+  const timeInput = event.target.closest('.el-date-picker__time-header .el-date-picker__editor-wrap:last-child input')
   if (timeInput) emptyTimeSession = true
 }
 
@@ -79,9 +78,7 @@ function handlePanelClick(event) {
   const cancelButton = event.target.closest('.el-time-panel__btn.cancel')
   if (!cancelButton) {
     const insideTimePanel = event.target.closest('.el-time-panel')
-    const insideTimeInput = event.target.closest(
-      '.el-date-picker__time-header .el-date-picker__editor-wrap:last-child',
-    )
+    const insideTimeInput = event.target.closest('.el-date-picker__time-header .el-date-picker__editor-wrap:last-child')
     if (!insideTimePanel && !insideTimeInput) emptyTimeSession = false
     return
   }

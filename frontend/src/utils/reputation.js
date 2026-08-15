@@ -13,7 +13,7 @@ export const REPUTATION_DIMENSIONS = [
   { key: 'accuracy', label: '描述准确度' },
   { key: 'praise', label: '历史好评' },
   { key: 'activity', label: '活跃度' },
-  { key: 'compliance', label: '合规度' },
+  { key: 'compliance', label: '合规度' }
 ]
 
 const AXES = REPUTATION_DIMENSIONS.length
@@ -40,10 +40,12 @@ export function radarPoint(value, i, { radius, cx, cy }) {
 
 /** 一组分值 → SVG polygon 的 points 串（"x,y x,y ..."） */
 export function radarPolygon(values, geom) {
-  return values.map((v, i) => {
-    const p = radarPoint(v, i, geom)
-    return `${p.x},${p.y}`
-  }).join(' ')
+  return values
+    .map((v, i) => {
+      const p = radarPoint(v, i, geom)
+      return `${p.x},${p.y}`
+    })
+    .join(' ')
 }
 
 /** ReputationVO → 规范顺序的六维数组 */

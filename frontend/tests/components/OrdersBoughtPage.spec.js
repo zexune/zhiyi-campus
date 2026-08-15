@@ -4,18 +4,13 @@ import { beforeEach, test, vi } from 'vitest'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import OrdersBoughtPage from '@/views/wallet/OrdersBoughtPage.vue'
-import {
-  cancelOrder,
-  confirmReceipt,
-  getBoughtOrders,
-  reviewOrder,
-} from '@/api/order'
+import { cancelOrder, confirmReceipt, getBoughtOrders, reviewOrder } from '@/api/order'
 
 vi.mock('@/api/order', () => ({
   cancelOrder: vi.fn(),
   confirmReceipt: vi.fn(),
   getBoughtOrders: vi.fn(),
-  reviewOrder: vi.fn(),
+  reviewOrder: vi.fn()
 }))
 
 const ReviewStub = {
@@ -28,7 +23,7 @@ const ReviewStub = {
         提交测试评价
       </button>
     </aside>
-  `,
+  `
 }
 
 const global = {
@@ -36,8 +31,8 @@ const global = {
     DefaultLayout: { template: '<main><slot /></main>' },
     RouterLink: { template: '<a><slot /></a>' },
     ElPagination: { template: '<nav data-test="pagination" />' },
-    OrderReviewDialog: ReviewStub,
-  },
+    OrderReviewDialog: ReviewStub
+  }
 }
 
 function order(overrides = {}) {
@@ -52,7 +47,7 @@ function order(overrides = {}) {
     reviewed: false,
     createdAt: '2026-08-13T10:00:00',
     completedAt: '2026-08-13T11:00:00',
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -76,11 +71,14 @@ test('已完成未评价订单可打开评价框，提交后刷新列表', async
   await wrapper.get('[data-test="review-dialog"] button').trigger('click')
   await flushPromises()
 
-  assert.deepEqual(reviewOrder.mock.calls[0], [71, {
-    rating: 5,
-    accurate: true,
-    comment: '组件测试评价',
-  }])
+  assert.deepEqual(reviewOrder.mock.calls[0], [
+    71,
+    {
+      rating: 5,
+      accurate: true,
+      comment: '组件测试评价'
+    }
+  ])
   assert.equal(getBoughtOrders.mock.calls.length, 2)
   assert.equal(success.mock.calls.length, 1)
 })
@@ -89,22 +87,23 @@ test('订单状态筛选会回到第一页，并仅在选择时发送 status', a
   const wrapper = mount(OrdersBoughtPage, { global })
   await flushPromises()
 
-  const completed = wrapper.findAll('.filter-bar button')
-    .find((button) => button.text() === '已完成')
+  const completed = wrapper.findAll('.filter-bar button').find((button) => button.text() === '已完成')
   assert.ok(completed)
   await completed.trigger('click')
   await flushPromises()
 
-  assert.deepEqual(getBoughtOrders.mock.calls.at(-1), [{
-    page: 1,
-    size: 10,
-    status: 'COMPLETED',
-  }])
+  assert.deepEqual(getBoughtOrders.mock.calls.at(-1), [
+    {
+      page: 1,
+      size: 10,
+      status: 'COMPLETED'
+    }
+  ])
 })
 
 test('待见面订单经二次确认后调用确认收货并刷新', async () => {
   getBoughtOrders.mockResolvedValue({
-    data: { records: [order({ status: 'WAITING_MEET', reviewed: null })], total: 1 },
+    data: { records: [order({ status: 'WAITING_MEET', reviewed: null })], total: 1 }
   })
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
   vi.spyOn(ElMessage, 'success').mockImplementation(() => {})

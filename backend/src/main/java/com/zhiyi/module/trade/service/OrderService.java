@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
+import com.zhiyi.common.annotation.RetryOnDeadlock;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.ItemType;
 import com.zhiyi.common.enums.ModerationStatus;
@@ -25,6 +26,8 @@ import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.UserGrowthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.retry.annotation.Recover;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,12 @@ import java.time.LocalDateTime;
  *
  * 并发安全：confirmReceipt / cancelOrder 的状态更新使用
  * WHERE status = 'WAITING_MEET' 原子条件，防止重复执行。
+ *
+ * 死锁防护（双层）：
+ * 1. 锁序约定 —— 三个资金方法一致地"先取 sys_user 行锁，后取 item_reservation 行锁"，
+ *    消除"下单 vs 取消"并发时 user→reservation 与 reservation→user 的交叉等待；
+ * 2. 残余死锁（如并发 INSERT IGNORE 的间隙锁竞争）由 @RetryOnDeadlock 自动重试兜底，
+ *    每次重试开启全新事务，失败轮次的写入已全部回滚。
  */
 @Slf4j
 @Service
@@ -60,8 +69,9 @@ public class OrderService {
     // ================================================================
 
     /**
-     * 买家下单：原子预占商品 → 扣款冻结 → 创建订单。商品状态不承载订单状态。
+     * 买家下单：扣款冻结 → 原子预占商品 → 创建订单。商品状态不承载订单状态。
      */
+    @RetryOnDeadlock
     @Transactional(rollbackFor = Exception.class)
     public OrderVO createOrder(Long buyerId, CreateOrderDTO dto) {
         // 1. 加载商品，校验可购买
@@ -103,12 +113,8 @@ public class OrderService {
         SchoolScopeGuard.requireSame(
                 buyer.getSchoolId(), seller.getSchoolId(), "仅支持同校交易");
 
-        // 5. 数据库主键保证同一商品只能存在一个有效预占。
-        if (reservationMapper.tryReserve(item.getId(), buyerId) == 0) {
-            throw new BusinessException(ResultCode.CONFLICT, "该商品已被他人抢先下单");
-        }
-
-        // 6. 原子扣款（WHERE 条件兜底余额不足的并发竞态）
+        // 5. 原子扣款（WHERE 条件兜底余额不足的并发竞态）。
+        //    先于预占执行，保证与 confirmReceipt / cancelOrder 的行锁获取顺序一致（见类注释）。
         LambdaUpdateWrapper<SysUser> deduct = new LambdaUpdateWrapper<>();
         deduct.setSql("wallet_balance = wallet_balance - {0}", price)
               .eq(SysUser::getId, buyerId)
@@ -117,8 +123,13 @@ public class OrderService {
             throw new BusinessException(ResultCode.BALANCE_NOT_ENOUGH);
         }
 
-        // 7. 回读最新余额
+        // 6. 回读最新余额
         SysUser buyerAfter = sysUserMapper.selectById(buyerId);
+
+        // 7. 数据库主键保证同一商品只能存在一个有效预占；冲突时整体回滚（含扣款）。
+        if (reservationMapper.tryReserve(item.getId(), buyerId) == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "该商品已被他人抢先下单");
+        }
 
         // 8. 创建订单
         TradeOrder order = new TradeOrder();
@@ -163,6 +174,7 @@ public class OrderService {
      *
      * 使用原子 UPDATE（WHERE status = 'WAITING_MEET'）防止并发重复打款。
      */
+    @RetryOnDeadlock
     @Transactional(rollbackFor = Exception.class)
     public OrderVO confirmReceipt(Long orderId, Long buyerId) {
         // 1. 加载订单，校验
@@ -238,6 +250,7 @@ public class OrderService {
      *
      * 使用原子 UPDATE（WHERE status = 'WAITING_MEET'）防止并发重复退款。
      */
+    @RetryOnDeadlock
     @Transactional(rollbackFor = Exception.class)
     public OrderVO cancelOrder(Long orderId, Long buyerId) {
         // 1. 加载订单，校验
@@ -294,6 +307,20 @@ public class OrderService {
         log.info("订单取消 orderId={} buyer={} refund={}", orderId, buyerId, price);
 
         return orderViewAssembler.assemble(order, item, sellerNickname);
+    }
+
+    // ================================================================
+    // 死锁重试兜底
+    // ================================================================
+
+    /**
+     * @RetryOnDeadlock 重试耗尽后不再向上抛 500，转为明确的业务冲突提示。
+     * 匹配签名：三个资金方法均为双参数方法。
+     */
+    @Recover
+    public OrderVO recoverFromDeadlock(ConcurrencyFailureException e, Object first, Object second) {
+        log.warn("资金事务重试后仍遭遇锁冲突 first={} second={}", first, second, e);
+        throw new BusinessException(ResultCode.CONFLICT, "当前交易繁忙，请稍后重试");
     }
 
 }

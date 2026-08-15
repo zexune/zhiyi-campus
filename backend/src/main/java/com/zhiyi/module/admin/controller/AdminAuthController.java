@@ -1,11 +1,13 @@
 package com.zhiyi.module.admin.controller;
 
+import com.zhiyi.common.AuthTokenCookieWriter;
 import com.zhiyi.common.Result;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminAuthService;
 import com.zhiyi.module.admin.vo.AdminLoginVO;
 import com.zhiyi.module.user.dto.ChangePasswordDTO;
 import com.zhiyi.module.user.service.AccountSecurityService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -17,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 管理员专用认证入口，不参与普通用户的学校登录与密保流程。 */
+/** 管理员专用认证入口，不参与普通用户的学校登录与密保流程。登录同时下发 httpOnly 会话 Cookie。 */
 @RestController
 @RequestMapping("/api/admin/auth")
 @RequiredArgsConstructor
@@ -25,10 +27,21 @@ public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
     private final AccountSecurityService accountSecurityService;
+    private final AuthTokenCookieWriter cookieWriter;
 
     @PostMapping("/login")
-    public Result<AdminLoginVO> login(@Valid @RequestBody AdminLoginRequest request) {
-        return Result.ok("登录成功", adminAuthService.login(request.username(), request.password()));
+    public Result<AdminLoginVO> login(@Valid @RequestBody AdminLoginRequest request,
+                                      HttpServletResponse response) {
+        AdminLoginVO vo = adminAuthService.login(request.username(), request.password());
+        cookieWriter.write(response, vo.token());
+        return Result.ok("登录成功", vo);
+    }
+
+    /** 管理员登出：清除会话 Cookie，幂等。 */
+    @PostMapping("/logout")
+    public Result<Void> logout(HttpServletResponse response) {
+        cookieWriter.clear(response);
+        return Result.ok("已退出登录", null);
     }
 
     @PutMapping("/change-password")

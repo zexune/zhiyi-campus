@@ -8,14 +8,14 @@ import { getDashboard, getSchools, getTradeHeatmap } from '@/api/admin'
 vi.mock('@/api/admin', () => ({
   getDashboard: vi.fn(),
   getSchools: vi.fn(),
-  getTradeHeatmap: vi.fn(),
+  getTradeHeatmap: vi.fn()
 }))
 
 const global = {
   stubs: {
     AdminLayout: { template: '<main><slot /></main>' },
-    RouterLink: { template: '<a><slot /></a>' },
-  },
+    RouterLink: { template: '<a><slot /></a>' }
+  }
 }
 
 function dashboard(overrides = {}) {
@@ -24,16 +24,18 @@ function dashboard(overrides = {}) {
     onSaleItems: 7,
     todayTradeAmount: '39.80',
     pendingViolations: 1,
-    recentViolations: [{
-      id: 1,
-      reporterName: '张同学',
-      originalTitle: '待复核教材',
-      violationType: '虚假信息',
-      violationReason: '描述需人工核验',
-      createdAt: '2026-08-13T10:00:00',
-    }],
+    recentViolations: [
+      {
+        id: 1,
+        reporterName: '张同学',
+        originalTitle: '待复核教材',
+        violationType: '虚假信息',
+        violationReason: '描述需人工核验',
+        createdAt: '2026-08-13T10:00:00'
+      }
+    ],
     trend: [{ date: '2026-08-13', count: 2, totalAmount: '39.80' }],
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -61,8 +63,7 @@ test('切换学校后用同一 schoolId 重新查询大盘和热力图', async (
   const wrapper = mount(DashboardPage, { global })
   await flushPromises()
 
-  const schoolButton = wrapper.findAll('.school-chip')
-    .find((button) => button.text().includes('上海大学'))
+  const schoolButton = wrapper.findAll('.school-chip').find((button) => button.text().includes('上海大学'))
   assert.ok(schoolButton)
   await schoolButton.trigger('click')
   await flushPromises()

@@ -24,13 +24,7 @@
               <span v-if="item.images?.length" class="gallery__count">{{ activeImageIndex + 1 }} / {{ item.images.length }}</span>
             </div>
             <div v-if="item.images?.length > 1" class="gallery__thumbs">
-              <button
-                v-for="image in item.images"
-                :key="image"
-                class="th"
-                :class="{ active: image === activeImage }"
-                @click="activeImage = image"
-              >
+              <button v-for="image in item.images" :key="image" class="th" :class="{ active: image === activeImage }" @click="activeImage = image">
                 <img :src="image" :alt="item.title" />
               </button>
             </div>
@@ -55,26 +49,25 @@
               <div class="meta-row">
                 <span class="lab">商品标签</span>
                 <div v-if="item.tags?.length" class="item-tags">
-                  <button
-                    v-for="tag in item.tags"
-                    :key="tag"
-                    class="tag"
-                    @click="goTag(tag)"
-                  >{{ tag }}</button>
+                  <button v-for="tag in item.tags" :key="tag" class="tag" @click="goTag(tag)">{{ tag }}</button>
                 </div>
                 <span v-else>暂无标签</span>
               </div>
               <div v-if="item.type !== ITEM_TYPE.ERRAND" class="meta-row">
-                <span class="lab">交易地点</span><strong>{{ item.tradeLocation || '待沟通' }}</strong>
+                <span class="lab">交易地点</span>
+                <strong>{{ item.tradeLocation || '待沟通' }}</strong>
               </div>
               <div v-if="item.type === ITEM_TYPE.ERRAND" class="meta-row">
-                <span class="lab">取送路线</span><strong>{{ item.pickupLocation }} → {{ item.deliveryLocation }}</strong>
+                <span class="lab">取送路线</span>
+                <strong>{{ item.pickupLocation }} → {{ item.deliveryLocation }}</strong>
               </div>
               <div class="meta-row">
-                <span class="lab">发布时间</span><span>{{ formatDate(item.createdAt) }}</span>
+                <span class="lab">发布时间</span>
+                <span>{{ formatDate(item.createdAt) }}</span>
               </div>
               <div class="meta-row">
-                <span class="lab">浏览 / 收藏</span><span>{{ item.viewCount || 0 }} 次浏览 · {{ favoriteCount }} 人收藏</span>
+                <span class="lab">浏览 / 收藏</span>
+                <span>{{ item.viewCount || 0 }} 次浏览 · {{ favoriteCount }} 人收藏</span>
               </div>
             </div>
 
@@ -84,17 +77,12 @@
                 <div class="seller-card__name">
                   {{ item.publisherNickname || '同学' }}
                   <span v-if="item.publisherVerified" class="seller-card__verified" title="已填写本校邮箱">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6" /></svg>
                     已认证
                   </span>
                   <LevelBadge :level="item.publisherLevel || 1" show-title />
                   <template v-if="canCompareSeller">
-                    <span
-                      v-for="relation in sellerRelations"
-                      :key="relation"
-                      class="seller-card__relation-tag"
-                      :aria-label="`校园关系：${relation}`"
-                    >{{ relation }}</span>
+                    <span v-for="relation in sellerRelations" :key="relation" class="seller-card__relation-tag" :aria-label="`校园关系：${relation}`">{{ relation }}</span>
                   </template>
                 </div>
               </div>
@@ -109,9 +97,7 @@
               <p>{{ item.description }}</p>
             </div>
 
-            <p v-if="item.reserved" class="reservation-note">
-              该商品已有进行中的订单，订单取消前不会接受新的购买或商品变更。
-            </p>
+            <p v-if="item.reserved" class="reservation-note">该商品已有进行中的订单，订单取消前不会接受新的购买或商品变更。</p>
 
             <div class="action-bar">
               <template v-if="isOwner">
@@ -119,29 +105,20 @@
               </template>
               <template v-else>
                 <button class="btn" :disabled="!isTradable || favoriteLoading" @click="handleFavorite">
-                  <el-icon><StarFilled v-if="favorite" /><Star v-else /></el-icon>
+                  <el-icon>
+                    <StarFilled v-if="favorite" />
+                    <Star v-else />
+                  </el-icon>
                   {{ favorite ? '已收藏' : '收藏' }}
                 </button>
-                <button
-                  class="btn"
-                  :class="item.type === ITEM_TYPE.BUY ? 'btn--primary' : 'btn--green'"
-                  :disabled="displayStatus === ITEM_STATUS.REVIEWING || chatLoading"
-                  @click="contactSeller"
-                >
+                <button class="btn" :class="item.type === ITEM_TYPE.BUY ? 'btn--primary' : 'btn--green'" :disabled="displayStatus === ITEM_STATUS.REVIEWING || chatLoading" @click="contactSeller">
                   <el-icon><ChatDotRound /></el-icon>
                   {{ item.type === ITEM_TYPE.BUY ? '我要出售' : '联系卖家' }}
                 </button>
-                <button
-              v-if="item.type === ITEM_TYPE.SELL"
-                  class="btn btn--primary"
-                  :disabled="!isTradable || buyLoading"
-                  @click="handleBuy"
-                >
+                <button v-if="item.type === ITEM_TYPE.SELL" class="btn btn--primary" :disabled="!isTradable || buyLoading" @click="handleBuy">
                   {{ buyLoading ? '下单中...' : '立即购买' }}
                 </button>
-                <button class="btn btn--danger" :disabled="reportForm.submitting" @click="openReportDialog">
-                  举报
-                </button>
+                <button class="btn btn--danger" :disabled="reportForm.submitting" @click="openReportDialog">举报</button>
               </template>
             </div>
             <p class="muted escrow-note">
@@ -154,7 +131,11 @@
         <section v-if="Number(item.categoryId) === 2" class="lineage-section" aria-labelledby="lineage-title">
           <div class="lineage-section__head">
             <span class="lineage-section__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M9 7h7M9 11h5"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+                <path d="M9 7h7M9 11h5" />
+              </svg>
             </span>
             <div>
               <small>BOOK LINEAGE</small>
@@ -172,7 +153,10 @@
                   <strong>{{ node.nickname || '校园同学' }}</strong>
                   <span>{{ node.role === 'PUBLISHER' ? '最初发布' : '完成接力' }}</span>
                 </div>
-                <small>{{ formatDate(node.time) }}<template v-if="node.price != null"> · 成交 ¥{{ Number(node.price).toFixed(2) }}</template></small>
+                <small>
+                  {{ formatDate(node.time) }}
+                  <template v-if="node.price != null">· 成交 ¥{{ Number(node.price).toFixed(2) }}</template>
+                </small>
               </div>
             </li>
           </ol>
@@ -195,12 +179,7 @@
         @retry="loadSellerDetail"
       />
 
-      <el-dialog
-        v-model="reportForm.visible"
-        title="举报商品"
-        width="min(520px, 92vw)"
-        :close-on-click-modal="!reportForm.submitting"
-      >
+      <el-dialog v-model="reportForm.visible" title="举报商品" width="min(520px, 92vw)" :close-on-click-modal="!reportForm.submitting">
         <div class="report-form">
           <p class="muted">举报不会自动下架商品，管理员核实后再处理，防止恶意举报影响正常交易。</p>
           <label>
@@ -209,14 +188,7 @@
           </label>
           <label>
             <span>补充说明</span>
-            <el-input
-              v-model="reportForm.details"
-              type="textarea"
-              :rows="4"
-              maxlength="500"
-              show-word-limit
-              placeholder="请说明具体问题；选择“其他”时必填"
-            />
+            <el-input v-model="reportForm.details" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="请说明具体问题；选择“其他”时必填" />
           </label>
         </div>
         <template #footer>
@@ -254,7 +226,7 @@ const REPORT_TYPE_OPTIONS = [
   { label: '违禁物品', value: 'PROHIBITED_ITEM' },
   { label: '图片违规', value: 'IMAGE_VIOLATION' },
   { label: '广告引流', value: 'ADVERTISING' },
-  { label: '其他问题', value: 'OTHER' },
+  { label: '其他问题', value: 'OTHER' }
 ]
 const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 
@@ -280,14 +252,8 @@ const reportForm = reactive({ visible: false, type: 'PRICE_FRAUD', details: '', 
 
 const isOwner = computed(() => String(item.value?.publisherId || '') === String(getUserId() || ''))
 const canCompareSeller = computed(() => !!item.value?.publisherId && !isOwner.value && isLoggedIn())
-const displayStatus = computed(() => item.value?.moderationStatus === MODERATION_STATUS.PENDING
-  ? ITEM_STATUS.REVIEWING
-  : item.value?.status)
-const isTradable = computed(() => (
-  item.value?.status === ITEM_STATUS.ON_SALE
-  && item.value?.moderationStatus === MODERATION_STATUS.PASSED
-  && !item.value?.reserved
-))
+const displayStatus = computed(() => (item.value?.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.value?.status))
+const isTradable = computed(() => item.value?.status === ITEM_STATUS.ON_SALE && item.value?.moderationStatus === MODERATION_STATUS.PASSED && !item.value?.reserved)
 const activeImageIndex = computed(() => {
   const images = item.value?.images || []
   const index = images.indexOf(activeImage.value)
@@ -396,8 +362,8 @@ async function contactSeller() {
       query: {
         conversationId: res.data.conversationId,
         peerId: res.data.peer?.id,
-        relatedItemId: res.data.relatedItem?.id,
-      },
+        relatedItemId: res.data.relatedItem?.id
+      }
     })
   } finally {
     chatLoading.value = false
@@ -411,10 +377,7 @@ async function loadSellerDetail() {
   sellerDetailLoading.value = true
   sellerDetailError.value = false
   try {
-    const [detailResult, reputationResult] = await Promise.allSettled([
-      getSellerDetail(sellerId),
-      getUserReputation(sellerId),
-    ])
+    const [detailResult, reputationResult] = await Promise.allSettled([getSellerDetail(sellerId), getUserReputation(sellerId)])
 
     if (detailResult.status === 'fulfilled') {
       sellerDetail.value = detailResult.value.data
@@ -422,9 +385,7 @@ async function loadSellerDetail() {
       sellerDetailError.value = true
     }
 
-    sellerReputation.value = reputationResult.status === 'fulfilled'
-      ? reputationResult.value.data
-      : null
+    sellerReputation.value = reputationResult.status === 'fulfilled' ? reputationResult.value.data : null
   } finally {
     sellerDetailLoading.value = false
   }
@@ -435,7 +396,7 @@ function openSellerDetail() {
   sellerDetail.value = {
     id: item.value.publisherId,
     nickname: item.value.publisherNickname,
-    level: item.value.publisherLevel,
+    level: item.value.publisherLevel
   }
   sellerReputation.value = null
   sellerDialogVisible.value = true
@@ -449,11 +410,11 @@ function closeSellerDetail() {
 async function handleBuy() {
   if (!requireLogin()) return
   try {
-    await ElMessageBox.confirm(
-      `确认购买「${item.value.title}」？\n\n金额：¥${Number(item.value.price).toFixed(2)}\n确认后资金将由平台担保冻结，当面验货满意后再确认收货。`,
-      '确认下单',
-      { confirmButtonText: '确认购买', cancelButtonText: '再想想', type: 'warning' }
-    )
+    await ElMessageBox.confirm(`确认购买「${item.value.title}」？\n\n金额：¥${Number(item.value.price).toFixed(2)}\n确认后资金将由平台担保冻结，当面验货满意后再确认收货。`, '确认下单', {
+      confirmButtonText: '确认购买',
+      cancelButtonText: '再想想',
+      type: 'warning'
+    })
   } catch {
     return // 用户取消
   }
@@ -593,8 +554,12 @@ onMounted(() => {
   background: var(--yellow);
 }
 
-.gallery__nav--prev { left: 14px; }
-.gallery__nav--next { right: 14px; }
+.gallery__nav--prev {
+  left: 14px;
+}
+.gallery__nav--next {
+  right: 14px;
+}
 
 .gallery__count {
   position: absolute;
@@ -623,12 +588,12 @@ onMounted(() => {
   overflow: hidden;
   background: var(--paper-deep);
   cursor: pointer;
-  opacity: .55;
-  transition: all .15s;
+  opacity: 0.55;
+  transition: all 0.15s;
 }
 
 .th:hover {
-  opacity: .85;
+  opacity: 0.85;
 }
 
 .th.active {
@@ -676,7 +641,7 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 700;
   color: var(--green-deep);
-  background: #D6F2DF;
+  background: #d6f2df;
   border: 1.5px solid var(--green);
   padding: 4px 12px;
   border-radius: 999px;
@@ -710,16 +675,25 @@ onMounted(() => {
 .reservation-note {
   margin: -8px 0 18px;
   padding: 10px 14px;
-  border: 1.5px solid #C88719;
+  border: 1.5px solid #c88719;
   border-radius: var(--r-s);
-  background: #FFF4CE;
-  color: #6A4700;
+  background: #fff4ce;
+  color: #6a4700;
   font-size: 13px;
   font-weight: 700;
 }
 
-.report-form { display: flex; flex-direction: column; gap: 18px; }
-.report-form label { display: flex; flex-direction: column; gap: 7px; font-weight: 800; }
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.report-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-weight: 800;
+}
 
 .seller-card {
   display: flex;
@@ -765,20 +739,23 @@ onMounted(() => {
   padding: 3px 8px;
   border: 1.5px solid var(--ink);
   border-radius: 6px;
-  background: #D6F2DF;
+  background: #d6f2df;
   box-shadow: 1px 1px 0 var(--ink);
   font-size: 11px;
   font-weight: 900;
 }
 
-.seller-card__verified svg { width: 12px; height: 12px; }
+.seller-card__verified svg {
+  width: 12px;
+  height: 12px;
+}
 
 .seller-card__relation-tag:nth-of-type(3n + 2) {
-  background: #DCEEFF;
+  background: #dceeff;
 }
 
 .seller-card__relation-tag:nth-of-type(3n) {
-  background: #D6F2DF;
+  background: #d6f2df;
 }
 
 .seller-card__detail {
@@ -804,7 +781,7 @@ onMounted(() => {
   align-items: center;
   gap: 14px;
   padding-bottom: 18px;
-  border-bottom: 1.5px dashed #D8CEBB;
+  border-bottom: 1.5px dashed #d8cebb;
 }
 
 .lineage-section__icon {
@@ -820,10 +797,24 @@ onMounted(() => {
   transform: rotate(-4deg);
 }
 
-.lineage-section__icon svg { width: 27px; height: 27px; }
-.lineage-section__head small { color: var(--primary); font-size: 10.5px; font-weight: 900; }
-.lineage-section__head h2 { font-family: var(--font-display); font-size: 24px; }
-.lineage-section__head p { margin-top: 2px; color: var(--ink-soft); font-size: 13px; }
+.lineage-section__icon svg {
+  width: 27px;
+  height: 27px;
+}
+.lineage-section__head small {
+  color: var(--primary);
+  font-size: 10.5px;
+  font-weight: 900;
+}
+.lineage-section__head h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+}
+.lineage-section__head p {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
 
 .lineage-timeline {
   display: flex;
@@ -841,7 +832,7 @@ onMounted(() => {
 }
 
 .lineage-timeline li:not(:last-child)::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 17px;
   left: 34px;
@@ -863,12 +854,37 @@ onMounted(() => {
   font-family: var(--font-display);
 }
 
-.lineage-timeline__content { margin-top: 12px; }
-.lineage-timeline__content > div { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.lineage-timeline__content strong { font-size: 14px; }
-.lineage-timeline__content span { padding: 2px 6px; border: 1px solid var(--ink); border-radius: 5px; background: var(--paper-deep); font-size: 10px; font-weight: 800; }
-.lineage-timeline__content small { display: block; margin-top: 5px; color: var(--ink-soft); font-size: 11px; }
-.lineage-section__empty { margin: 22px 0 2px; color: var(--ink-soft); font-size: 13px; }
+.lineage-timeline__content {
+  margin-top: 12px;
+}
+.lineage-timeline__content > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.lineage-timeline__content strong {
+  font-size: 14px;
+}
+.lineage-timeline__content span {
+  padding: 2px 6px;
+  border: 1px solid var(--ink);
+  border-radius: 5px;
+  background: var(--paper-deep);
+  font-size: 10px;
+  font-weight: 800;
+}
+.lineage-timeline__content small {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.lineage-section__empty {
+  margin: 22px 0 2px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
 
 .desc-block h2 {
   font-family: var(--font-display);
@@ -880,7 +896,7 @@ onMounted(() => {
 .desc-block p {
   font-size: 15px;
   line-height: 1.9;
-  color: #3D372E;
+  color: #3d372e;
   white-space: pre-wrap;
 }
 

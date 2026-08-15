@@ -11,7 +11,7 @@ import {
   formatPrice,
   isExpense,
   buildOrderParams,
-  expProgress,
+  expProgress
 } from '../src/utils/trade.js'
 
 // ================================================================
@@ -115,10 +115,7 @@ test('isExpense detects negative amounts', () => {
 // ================================================================
 
 test('buildOrderParams includes status when provided', () => {
-  assert.deepEqual(
-    buildOrderParams(2, 10, 'COMPLETED'),
-    { page: 2, size: 10, status: 'COMPLETED' },
-  )
+  assert.deepEqual(buildOrderParams(2, 10, 'COMPLETED'), { page: 2, size: 10, status: 'COMPLETED' })
 })
 
 test('buildOrderParams omits status when empty', () => {

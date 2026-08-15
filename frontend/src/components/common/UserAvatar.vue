@@ -13,7 +13,7 @@ import { computed } from 'vue'
 const props = defineProps({
   nickname: { type: String, default: '?' },
   userId: { type: [Number, String], default: 0 },
-  size: { type: String, default: 's' }, // s / m / l
+  size: { type: String, default: 's' } // s / m / l
 })
 
 const COLORS = ['orange', 'green', 'blue', 'yellow', 'ink']

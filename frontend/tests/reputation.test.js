@@ -1,18 +1,9 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 
-import {
-  REPUTATION_DIMENSIONS,
-  axisAngle,
-  radarPoint,
-  radarPolygon,
-  reputationValues,
-  overallScore,
-  reputationGrade,
-} from '../src/utils/reputation.js'
+import { REPUTATION_DIMENSIONS, axisAngle, radarPoint, radarPolygon, reputationValues, overallScore, reputationGrade } from '../src/utils/reputation.js'
 
-const approx = (a, b, eps = 1e-6) =>
-  assert.ok(Math.abs(a - b) <= eps, `${a} !~= ${b}`)
+const approx = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} !~= ${b}`)
 
 // ================================================================
 // 维度定义
@@ -21,7 +12,7 @@ const approx = (a, b, eps = 1e-6) =>
 test('exposes exactly the six backend reputation dimensions in order', () => {
   assert.deepEqual(
     REPUTATION_DIMENSIONS.map((d) => d.key),
-    ['completionRate', 'responseSpeed', 'accuracy', 'praise', 'activity', 'compliance'],
+    ['completionRate', 'responseSpeed', 'accuracy', 'praise', 'activity', 'compliance']
   )
   REPUTATION_DIMENSIONS.forEach((d) => assert.ok(d.label && typeof d.label === 'string'))
 })
@@ -80,7 +71,7 @@ test('reputationValues pulls the six dimensions in canonical order', () => {
     praise: 60,
     activity: 50,
     compliance: 40,
-    reviewCount: 4,
+    reviewCount: 4
   }
   assert.deepEqual(reputationValues(vo), [90, 80, 70, 60, 50, 40])
 })

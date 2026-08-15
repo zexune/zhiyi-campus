@@ -14,7 +14,7 @@ const DialogStub = {
       <slot />
       <slot name="footer" />
     </section>
-  `,
+  `
 }
 
 function mountDialog(props = {}) {
@@ -23,11 +23,11 @@ function mountDialog(props = {}) {
       visible: true,
       order: { id: 42, itemTitle: '九成新教材', peerNickname: '张同学' },
       submitting: false,
-      ...props,
+      ...props
     },
     global: {
-      stubs: { ElDialog: DialogStub },
-    },
+      stubs: { ElDialog: DialogStub }
+    }
   })
 }
 
@@ -43,11 +43,15 @@ test('评价对话框展示订单，并提交用户选择的完整语义载荷',
   await wrapper.get('#review-comment').setValue('  当面交易很顺利  ')
   await wrapper.get('.review-dialog__footer .btn--primary').trigger('click')
 
-  assert.deepEqual(wrapper.emitted('submit'), [[{
-    rating: 3,
-    accurate: false,
-    comment: '当面交易很顺利',
-  }]])
+  assert.deepEqual(wrapper.emitted('submit'), [
+    [
+      {
+        rating: 3,
+        accurate: false,
+        comment: '当面交易很顺利'
+      }
+    ]
+  ])
 })
 
 test('每次重新打开都会清空上次草稿并恢复五星默认值', async () => {

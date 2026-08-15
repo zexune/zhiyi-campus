@@ -33,8 +33,8 @@
 | --- | --- |
 | 前端 | Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
 | 后端 | Java 25、Spring Boot 4.1.0、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.x（推荐 3.9.15） |
-| 基础库 | Lombok 1.18.46、JJWT 0.13.0、Hutool 5.8.47、Jackson 3 |
-| 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
+| 基础库 | Lombok 1.18.46、JJWT 0.13.0、Jackson 3 |
+| 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion，httpOnly Cookie 下发 + Bearer 双通道）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
 | 文件存储 | 本地文件系统，通过 `/uploads/**` 提供访问 |
 | 接口风格 | RESTful JSON，统一返回 `{ code, message, data }` |
 
@@ -136,6 +136,8 @@ npm run dev
 cd backend
 mvn test
 mvn clean package
+mvn spotless:check   # 代码卫生门禁（CI 同款）
+mvn spotless:apply   # 自动修复未用导入/行尾空白
 ```
 
 构建产物位于 `backend/target/zhiyi-campus-1.0.0.jar`。在 `backend` 目录启动可确保默认上传目录仍为 `backend/uploads`：
@@ -151,6 +153,10 @@ cd frontend
 npm test
 npm run build
 npm run preview
+npm run lint          # ESLint（CI 同款）
+npm run lint:fix      # 自动修复可修复问题
+npm run format:check  # Prettier 检查（CI 同款）
+npm run format        # 按 Prettier 格式化
 ```
 
 前端生产构建产物位于 `frontend/dist`。
@@ -282,14 +288,18 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 
 - 上传文件默认保存在后端当前工作目录下的 `uploads` 文件夹；单文件上限为 5 MB，单次请求上限为 50 MB。
 - 初始化脚本中的管理员密码和默认 MySQL 密码只适合本地开发，部署前必须替换；JWT 密钥没有默认值，启动时必须注入。
+- 登录凭证采用双通道：浏览器使用登录/注册时下发的 httpOnly 会话 Cookie（`SameSite=Lax`、`Path=/api`，前端 JavaScript 不持有 token）；`Authorization: Bearer` 仍保留给 Swagger 与编程客户端。登出接口（`/api/auth/logout`、`/api/admin/auth/logout`）清除 Cookie，幂等可匿名调用。生产 HTTPS 部署时设置 `AUTH_COOKIE_SECURE=true`。
 - 管理员与普通用户使用不同登录入口和 API 空间：`ADMIN` Token 只能访问 `/api/admin/**`，`USER` Token 不能访问管理接口。
+- 资金事务（下单/确认/取消）遵循统一锁序“先 `sys_user` 行锁、后 `item_reservation` 行锁”，并对死锁/锁等待超时自动重试（见 `@RetryOnDeadlock` 与 `RetryConfig`）；新增资金方法时应保持该锁序并评估是否需要重试。
 - 数据库分别建模商品、内容审核、订单和订单预留，状态与交易约束由对应业务表管理。
 - 商品持久化状态只有 `ON_SALE`、`SOLD`、`OFF_SHELF`；内容审核为 `PASSED`、`PENDING`、`REJECTED`；订单为 `WAITING_MEET`、`COMPLETED`、`CANCELLED`。前端的“审核中”由审核状态派生。
+- 聊天会话列表与未读数使用 SQL `GROUP BY` 聚合（每会话一行），消息历史按 `id` 倒序 keyset 分页（`beforeId` 向前翻页）；新增查询必须保持有界，不得全量加载消息明细。
 - 内容违规只执行可配置的固定合规扣分。商品强制下架不自动扣经验，账号封禁和解封只能在用户管理中独立执行。
 - 后端使用 Java 25 虚拟线程处理请求；数据库吞吐受 HikariCP/MySQL 连接池上限约束。
 - API 统一响应和鉴权快照使用不可变 Record；业务 JSON 栈使用 Jackson 3，Swagger/OpenAPI 的传递依赖由 springdoc 管理，业务代码不要引入 Jackson 2 类型。
-- 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入，Pinia 仅持久化用户 ID、昵称和角色摘要。
+- 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入；登录态与用户摘要由 `src/utils/auth.js` 统一管理（响应式，唯一真相源），Pinia 不再持久化。
 - 首页交易大厅的视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护；复杂页面采用“页面编排 + 组合函数/子组件”边界。
+- 代码卫生由工具链强制：后端 `mvn spotless:check`（未用导入/行尾空白/文件换行），前端 `npm run lint`（ESLint）与 `npm run format:check`（Prettier），CI 的 lint 作业拦截。仓库统一 LF 行尾（见 `.gitattributes` 与 `.editorconfig`）。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。
 - 平台钱包仅处理项目内部余额与流水，不接入第三方支付渠道。
 

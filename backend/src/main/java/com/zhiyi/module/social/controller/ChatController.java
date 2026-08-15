@@ -47,8 +47,9 @@ public class ChatController {
     public Result<ChatThreadVO> messages(@RequestAttribute("userId") Long userId,
                                          @RequestParam String conversationId,
                                          @RequestParam(required = false) Long peerId,
-                                         @RequestParam(required = false) Long relatedItemId) {
-        return Result.ok(chatService.messages(userId, conversationId, peerId, relatedItemId));
+                                         @RequestParam(required = false) Long relatedItemId,
+                                         @RequestParam(required = false) Long beforeId) {
+        return Result.ok(chatService.messages(userId, conversationId, peerId, relatedItemId, beforeId));
     }
 
     @PostMapping("/send")

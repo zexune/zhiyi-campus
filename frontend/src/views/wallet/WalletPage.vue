@@ -29,16 +29,22 @@
         <!-- 正常 -->
         <div v-else class="balance-card__amount">
           <span class="price">
-            <span class="rmb">¥</span>{{ balanceText }}
+            <span class="rmb">¥</span>
+            {{ balanceText }}
           </span>
         </div>
         <div class="balance-card__actions">
           <button class="btn btn--primary" @click="showRecharge = true">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
             充值
           </button>
           <button class="btn" @click="fetchLogs">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+            </svg>
             刷新流水
           </button>
           <router-link to="/orders/bought" class="btn btn--dark">📋 我的订单</router-link>
@@ -46,20 +52,13 @@
       </div>
 
       <!-- 充值弹窗 -->
-      <el-dialog
-        v-model="showRecharge"
-        class="app-dialog"
-        modal-class="app-modal"
-        title="模拟充值"
-        width="420px"
-        append-to-body
-        align-center
-        :close-on-click-modal="false"
-        destroy-on-close
-      >
+      <el-dialog v-model="showRecharge" class="app-dialog" modal-class="app-modal" title="模拟充值" width="420px" append-to-body align-center :close-on-click-modal="false" destroy-on-close>
         <div class="recharge-form">
           <div class="field">
-            <label>充值金额 <span class="req">*</span></label>
+            <label>
+              充值金额
+              <span class="req">*</span>
+            </label>
             <input
               v-model="rechargeAmount"
               type="number"
@@ -73,17 +72,17 @@
             />
             <div class="hint">单次充值范围：¥0.01 ~ ¥10,000.00</div>
           </div>
-          <div class="recharge-preview" v-if="rechargeAmount > 0">
-            充值后余额：<span class="price"><span class="rmb">¥</span>{{ previewBalance }}</span>
+          <div v-if="rechargeAmount > 0" class="recharge-preview">
+            充值后余额：
+            <span class="price">
+              <span class="rmb">¥</span>
+              {{ previewBalance }}
+            </span>
           </div>
         </div>
         <template #footer>
           <button class="btn" @click="showRecharge = false">取消</button>
-          <button
-            class="btn btn--primary"
-            :disabled="!canRecharge || recharging"
-            @click="handleRecharge"
-          >
+          <button class="btn btn--primary" :disabled="!canRecharge || recharging" @click="handleRecharge">
             {{ recharging ? '充值中...' : '确认充值' }}
           </button>
         </template>
@@ -99,7 +98,7 @@
 
         <div v-else-if="logsError" class="card card--flat logs-empty">
           <div class="muted">流水加载失败</div>
-          <button class="btn btn--sm" style="margin-top:12px" @click="fetchLogs">重新加载</button>
+          <button class="btn btn--sm" style="margin-top: 12px" @click="fetchLogs">重新加载</button>
         </div>
 
         <div v-else-if="logs.length === 0" class="card card--flat logs-empty">
@@ -107,12 +106,8 @@
         </div>
 
         <!-- 流水列表 -->
-        <div class="log-list" v-if="logs.length > 0">
-          <div
-            v-for="log in logs"
-            :key="log.id"
-            class="log-item card card--flat"
-          >
+        <div v-if="logs.length > 0" class="log-list">
+          <div v-for="log in logs" :key="log.id" class="log-item card card--flat">
             <div class="log-item__left">
               <span class="log-type-badge" :class="typeClass(log.type)">
                 {{ typeLabel(log.type) }}
@@ -120,9 +115,7 @@
               <span class="log-remark">{{ log.remark || '—' }}</span>
             </div>
             <div class="log-item__right">
-              <span class="log-amount" :class="{ 'is-income': isIncome(log.type) }">
-                {{ isIncome(log.type) ? '+' : '' }}¥{{ fmt(log.amount) }}
-              </span>
+              <span class="log-amount" :class="{ 'is-income': isIncome(log.type) }">{{ isIncome(log.type) ? '+' : '' }}¥{{ fmt(log.amount) }}</span>
               <span class="log-balance muted">余额 ¥{{ fmt(log.balanceAfter) }}</span>
               <span class="log-time muted">{{ fmtTime(log.createdAt) }}</span>
             </div>
@@ -130,15 +123,8 @@
         </div>
 
         <!-- 分页 -->
-        <div class="logs-pagination" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="currentPage"
-            :page-size="pageSize"
-            :total="total"
-            layout="prev, pager, next"
-            background
-            @current-change="fetchLogs"
-          />
+        <div v-if="total > 0" class="logs-pagination">
+          <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="total" layout="prev, pager, next" background @current-change="fetchLogs" />
         </div>
       </div>
     </div>
@@ -243,15 +229,15 @@ function fmt(val) {
 function fmtTime(val) {
   if (!val) return ''
   const d = new Date(val)
-  const pad = n => String(n).padStart(2, '0')
+  const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const TYPE_MAP = {
   RECHARGE: { label: '充值', cls: 'badge--ok' },
-  PAYMENT:  { label: '支出', cls: 'badge--sell' },
-  REFUND:   { label: '退款', cls: 'badge--buy' },
-  INCOME:   { label: '收入', cls: 'badge--ok' },
+  PAYMENT: { label: '支出', cls: 'badge--sell' },
+  REFUND: { label: '退款', cls: 'badge--buy' },
+  INCOME: { label: '收入', cls: 'badge--ok' }
 }
 
 function typeLabel(type) {
@@ -297,7 +283,7 @@ onMounted(() => {
   color: var(--ink);
   cursor: pointer;
   text-decoration: none;
-  transition: all .15s;
+  transition: all 0.15s;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -371,7 +357,7 @@ onMounted(() => {
 .logs-title {
   font-family: var(--font-display);
   font-size: 22px;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
   margin-bottom: var(--spacing-md);
 }
 

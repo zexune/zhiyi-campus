@@ -4,10 +4,7 @@ import assert from 'node:assert/strict'
 import { buildMyItemsParams } from '../src/views/user/myItemsQuery.js'
 
 test('includes a selected status in paginated item requests', () => {
-  assert.deepEqual(
-    buildMyItemsParams(2, 10, 'SOLD'),
-    { page: 2, size: 10, status: 'SOLD' },
-  )
+  assert.deepEqual(buildMyItemsParams(2, 10, 'SOLD'), { page: 2, size: 10, status: 'SOLD' })
 })
 
 test('omits status for the all-items tab', () => {

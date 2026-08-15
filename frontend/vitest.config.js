@@ -14,8 +14,8 @@ export default mergeConfig(
       server: {
         deps: {
           // Element Plus 从包内导入样式；内联后由 Vite 处理 CSS，而不是交给 Node 直接加载。
-          inline: [/element-plus/],
-        },
+          inline: [/element-plus/]
+        }
       },
       coverage: {
         provider: 'v8',
@@ -32,34 +32,34 @@ export default mergeConfig(
             lines: 90,
             functions: 80,
             branches: 75,
-            statements: 90,
+            statements: 90
           },
           'src/views/admin/DashboardPage.vue': {
             lines: 80,
             functions: 80,
             branches: 65,
-            statements: 75,
+            statements: 75
           },
           'src/views/wallet/OrdersBoughtPage.vue': {
             lines: 80,
             functions: 80,
             branches: 65,
-            statements: 80,
+            statements: 80
           },
           'src/views/wallet/WalletPage.vue': {
             lines: 90,
             functions: 80,
             branches: 75,
-            statements: 85,
+            statements: 85
           },
           'src/utils/trade.js': {
             lines: 100,
             functions: 100,
             branches: 80,
-            statements: 100,
-          },
-        },
-      },
-    },
-  }),
+            statements: 100
+          }
+        }
+      }
+    }
+  })
 )

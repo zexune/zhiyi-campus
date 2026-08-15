@@ -6,7 +6,7 @@
 @keyframes app-surface-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(.97) rotate(-.4deg);
+    transform: translateY(12px) scale(0.97) rotate(-0.4deg);
   }
   to {
     opacity: 1;
@@ -45,7 +45,7 @@ html:has(> body.el-message-box-parent--hidden) {
   background-size: 18px 18px;
   box-shadow: 9px 9px 0 var(--ink);
   color: var(--ink);
-  animation: app-surface-in .22s cubic-bezier(.2, .75, .25, 1) both;
+  animation: app-surface-in 0.22s cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
 .app-dialog.el-dialog::before,
@@ -93,7 +93,7 @@ html:has(> body.el-message-box-parent--hidden) {
   color: var(--ink);
   font-family: var(--font-display);
   font-size: 27px;
-  letter-spacing: .8px;
+  letter-spacing: 0.8px;
   line-height: 1.2;
 }
 
@@ -109,7 +109,10 @@ html:has(> body.el-message-box-parent--hidden) {
   border-radius: 50%;
   background: var(--white);
   box-shadow: 2px 2px 0 var(--ink);
-  transition: transform .15s, background-color .15s, box-shadow .15s;
+  transition:
+    transform 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .app-dialog .el-dialog__headerbtn:hover,
@@ -180,7 +183,7 @@ html:has(> body.el-message-box-parent--hidden) {
   background-size: 18px 18px;
   box-shadow: 9px 9px 0 var(--ink);
   color: var(--ink);
-  animation: app-surface-in .22s cubic-bezier(.2, .75, .25, 1) both;
+  animation: app-surface-in 0.22s cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
 .el-message-box__header {
@@ -212,7 +215,7 @@ html:has(> body.el-message-box-parent--hidden) {
   color: var(--ink);
   font-family: var(--font-display);
   font-size: 27px;
-  letter-spacing: .8px;
+  letter-spacing: 0.8px;
   line-height: 1.2;
 }
 
@@ -300,7 +303,10 @@ html:has(> body.el-message-box-parent--hidden) {
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 800;
-  transition: transform .15s, box-shadow .15s, background-color .15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
 }
 
 .el-message-box__btns .el-button:hover {
@@ -358,7 +364,10 @@ html:has(> body.el-message-box-parent--hidden) {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
-  transition: background-color .15s, border-color .15s, transform .15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
 }
 
 .app-dropdown .el-dropdown-menu__item:not(.is-disabled):focus,
@@ -392,7 +401,10 @@ html:has(> body.el-message-box-parent--hidden) {
   background: var(--white);
   box-shadow: none;
   color: var(--ink);
-  transition: transform .15s, box-shadow .15s, background-color .15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
 }
 
 .app-select .el-select__wrapper:hover {
@@ -467,7 +479,10 @@ html:has(> body.el-message-box-parent--hidden) {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
-  transition: background-color .15s, border-color .15s, transform .15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
 }
 
 .app-select-popper .el-select-dropdown__item.is-hovering {
@@ -486,7 +501,7 @@ html:has(> body.el-message-box-parent--hidden) {
 
 .app-select-popper .el-select-dropdown__item.is-disabled {
   color: var(--ink-soft);
-  opacity: .55;
+  opacity: 0.55;
 }
 
 .app-select-popper .el-select-dropdown__empty {
@@ -509,7 +524,10 @@ html:has(> body.el-message-box-parent--hidden) {
   border-radius: var(--r-s);
   background: var(--white);
   box-shadow: none;
-  transition: transform .15s, box-shadow .15s, background-color .15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
 }
 
 .app-date-time .el-input__wrapper:hover {
@@ -621,7 +639,10 @@ html:has(> body.el-message-box-parent--hidden) {
   border-radius: 7px;
   color: var(--ink);
   font-size: 15px;
-  transition: background-color .15s, border-color .15s, transform .15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
 }
 
 .app-date-picker .el-picker-panel__icon-btn:hover {
@@ -825,7 +846,11 @@ html:has(> body.el-message-box-parent--hidden) {
   box-shadow: 2px 2px 0 var(--ink);
   color: var(--ink-soft);
   font-size: 16px;
-  transition: color .15s, background-color .15s, box-shadow .15s, transform .15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 
 .el-message .el-message__closeBtn:hover {

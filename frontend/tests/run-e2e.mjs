@@ -28,12 +28,13 @@ await new Promise((resolveReady, reject) => {
   server.listen(port, host, resolveReady)
 })
 
-let exitCode = 1
+// run() 抛异常时进程以非零码退出，初始值无需预设
+let exitCode
 try {
   exitCode = await run(process.execPath, [playwrightCli, 'test', ...process.argv.slice(2)])
 } finally {
   await new Promise((resolveClose, reject) => {
-    server.close((error) => error ? reject(error) : resolveClose())
+    server.close((error) => (error ? reject(error) : resolveClose()))
   })
 }
 
@@ -54,27 +55,28 @@ function serveFrontend(response, pathname) {
     return
   }
 
-  const file = existsSync(candidate) && statSync(candidate).isFile()
-    ? candidate
-    : resolve(distDir, 'index.html')
+  const file = existsSync(candidate) && statSync(candidate).isFile() ? candidate : resolve(distDir, 'index.html')
   response.writeHead(200, {
     'Content-Type': contentType(file),
-    'Cache-Control': 'no-store',
+    'Cache-Control': 'no-store'
   })
   createReadStream(file).pipe(response)
 }
 
 function proxyToBackend(incoming, outgoing, url) {
-  const proxy = httpRequest({
-    hostname: '127.0.0.1',
-    port: 8080,
-    path: url.pathname + url.search,
-    method: incoming.method,
-    headers: { ...incoming.headers, host: '127.0.0.1:8080' },
-  }, (backendResponse) => {
-    outgoing.writeHead(backendResponse.statusCode || 502, backendResponse.headers)
-    backendResponse.pipe(outgoing)
-  })
+  const proxy = httpRequest(
+    {
+      hostname: '127.0.0.1',
+      port: 8080,
+      path: url.pathname + url.search,
+      method: incoming.method,
+      headers: { ...incoming.headers, host: '127.0.0.1:8080' }
+    },
+    (backendResponse) => {
+      outgoing.writeHead(backendResponse.statusCode || 502, backendResponse.headers)
+      backendResponse.pipe(outgoing)
+    }
+  )
   proxy.on('error', (error) => {
     if (!outgoing.headersSent) {
       outgoing.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' })
@@ -89,7 +91,7 @@ function run(command, args) {
     const child = spawn(command, args, {
       cwd: frontendDir,
       stdio: 'inherit',
-      windowsHide: true,
+      windowsHide: true
     })
     child.once('error', reject)
     child.once('exit', (code, signal) => {
@@ -100,21 +102,23 @@ function run(command, args) {
 }
 
 function contentType(file) {
-  return ({
-    '.css': 'text/css; charset=utf-8',
-    '.gif': 'image/gif',
-    '.html': 'text/html; charset=utf-8',
-    '.ico': 'image/x-icon',
-    '.jpeg': 'image/jpeg',
-    '.jpg': 'image/jpeg',
-    '.js': 'text/javascript; charset=utf-8',
-    '.json': 'application/json; charset=utf-8',
-    '.png': 'image/png',
-    '.svg': 'image/svg+xml',
-    '.webp': 'image/webp',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-  })[extname(file).toLowerCase()] || 'application/octet-stream'
+  return (
+    {
+      '.css': 'text/css; charset=utf-8',
+      '.gif': 'image/gif',
+      '.html': 'text/html; charset=utf-8',
+      '.ico': 'image/x-icon',
+      '.jpeg': 'image/jpeg',
+      '.jpg': 'image/jpeg',
+      '.js': 'text/javascript; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.png': 'image/png',
+      '.svg': 'image/svg+xml',
+      '.webp': 'image/webp',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2'
+    }[extname(file).toLowerCase()] || 'application/octet-stream'
+  )
 }
 
 function writeText(response, status, body) {
