@@ -88,11 +88,12 @@ npm run test:system
 
 ## CI 门禁
 
-`.github/workflows/test.yml` 在 push 和 pull request 上执行四条独立流水线：
+`.github/workflows/test.yml` 在 push 和 pull request 上执行五条独立流水线：
 
 | 作业 | 阻断内容 |
 | --- | --- |
-| Backend unit + MVC contract | 编译、188 个快速测试、JaCoCo 门禁 |
+| Lint（Spotless + ESLint/Prettier） | 后端代码卫生检查、前端 lint 与格式检查 |
+| Backend unit + MVC contract | 编译、快速测试套件、JaCoCo 门禁 |
 | Backend real MySQL integration | Testcontainers 全链路与事务回滚 |
 | Frontend component + mocked browser | Vitest 覆盖率门禁、生产构建、Playwright 烟测 |
 | Full Vue + Spring + MySQL journey | 真实浏览器、真实后端和真实 MySQL 的关键交易闭环 |

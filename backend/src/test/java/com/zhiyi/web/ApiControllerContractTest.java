@@ -1,6 +1,7 @@
 package com.zhiyi.web;
 
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.AuthTokenCookieWriter;
 import com.zhiyi.common.GlobalExceptionHandler;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.config.WebMvcConfig;
@@ -35,10 +36,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,7 +63,8 @@ class ApiControllerContractTest {
             OrderController.class,
             AdminAuthController.class,
             GlobalExceptionHandler.class,
-            WebMvcConfig.class
+            WebMvcConfig.class,
+            AuthTokenCookieWriter.class
     })
     static class MvcTestConfiguration {
     }
@@ -95,6 +100,65 @@ class ApiControllerContractTest {
                 .andExpect(jsonPath("$.data").doesNotExist());
 
         verify(authService, never()).register(any());
+    }
+
+    @Test
+    @DisplayName("畸形 JSON 请求体映射为 400 而非兜底 500")
+    void malformedJsonMapsToBadRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\": 1, "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        verify(authService, never()).login(any());
+    }
+
+    @Test
+    @DisplayName("查询参数类型不匹配映射为 400 而非兜底 500")
+    void requestParamTypeMismatchMapsToBadRequest() throws Exception {
+        mockMvc.perform(get("/api/order/my-bought")
+                        .requestAttr("userId", 7L)
+                        .param("page", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("page")))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        verify(orderQueryService, never()).getBoughtOrders(anyLong(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("登录成功同时下发 httpOnly 会话 Cookie，登出立即清除")
+    void loginIssuesHttpOnlyCookieAndLogoutClearsIt() throws Exception {
+        UserVO user = new UserVO();
+        user.setId(7L);
+        user.setRole("USER");
+        when(authService.login(any())).thenReturn(new LoginVO("user.jwt.token", user));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"schoolId":1,"studentId":"20260001","password":"123456"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(result -> {
+                    String setCookie = result.getResponse().getHeader("Set-Cookie");
+                    org.junit.jupiter.api.Assertions.assertNotNull(setCookie, "登录应下发 Set-Cookie");
+                    org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("HttpOnly"));
+                    org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("SameSite=Lax"));
+                    org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("Path=/api"));
+                });
+
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(result -> {
+                    String setCookie = result.getResponse().getHeader("Set-Cookie");
+                    org.junit.jupiter.api.Assertions.assertNotNull(setCookie, "登出应清除 Cookie");
+                    org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("Max-Age=0"));
+                });
     }
 
     @Test

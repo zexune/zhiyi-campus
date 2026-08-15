@@ -1,57 +1,75 @@
+import { ref } from 'vue'
+
 /**
- * Token & 用户信息管理（localStorage 存取）
+ * 登录态管理（唯一真相源）
+ *
+ * 凭证（JWT）由后端写入 httpOnly Cookie，前端 JavaScript 不持有、不存储 token，
+ * 从根上消除 XSS 窃取凭证的攻击面；请求自动携带 Cookie（同源或 withCredentials）。
+ *
+ * localStorage 只保存非敏感的展示信息（userId / 昵称 / 角色），并由此派生响应式登录态；
+ * 登录态真实有效性仍由服务端校验，会话过期时接口返回 401 并清理本地展示信息。
  */
 
-const TOKEN_KEY = 'token'
 const ROLE_KEY = 'role'
 const USER_ID_KEY = 'userId'
 const NICKNAME_KEY = 'nickname'
-const PERSISTED_USER_KEY = 'zhiyi-user'
+// 旧版本遗留的 token 键，清理以免残留过期凭证
+const LEGACY_TOKEN_KEY = 'token'
+const LEGACY_PERSISTED_USER_KEY = 'zhiyi-user'
 
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY)
+function hasStoredUser() {
+  return !!localStorage.getItem(USER_ID_KEY)
 }
 
-export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token)
-}
-
-export function getRole() {
-  return localStorage.getItem(ROLE_KEY)
-}
-
-export function setRole(role) {
-  localStorage.setItem(ROLE_KEY, role)
-}
-
-export function getUserId() {
-  return localStorage.getItem(USER_ID_KEY)
-}
-
-export function setUserId(id) {
-  localStorage.setItem(USER_ID_KEY, id)
-}
-
-export function getNickname() {
-  return localStorage.getItem(NICKNAME_KEY)
-}
-
-export function setNickname(name) {
-  localStorage.setItem(NICKNAME_KEY, name)
-}
+// 模块级 ref：所有调用 isLoggedIn() 的 computed / 模板都会自动响应登录/登出
+const loggedIn = ref(hasStoredUser())
 
 export function isLoggedIn() {
-  return !!getToken()
+  return loggedIn.value
 }
 
 export function isAdmin() {
   return getRole() === 'ADMIN'
 }
 
+export function getRole() {
+  return localStorage.getItem(ROLE_KEY)
+}
+
+export function getUserId() {
+  return localStorage.getItem(USER_ID_KEY)
+}
+
+export function getNickname() {
+  return localStorage.getItem(NICKNAME_KEY)
+}
+
+/** localStorage 中的用户摘要（刷新页面后恢复 Pinia user 状态用） */
+export function getStoredUser() {
+  if (!hasStoredUser()) return null
+  return {
+    id: Number(getUserId()),
+    nickname: getNickname() || '',
+    role: getRole() || 'USER'
+  }
+}
+
+/** 登录/注册成功后写入用户摘要并置为已登录；token 由 httpOnly Cookie 承载，此处忽略。 */
+export function setLoginUser(user) {
+  if (!user) return
+  localStorage.setItem(USER_ID_KEY, String(user.id))
+  localStorage.setItem(NICKNAME_KEY, user.nickname || '')
+  localStorage.setItem(ROLE_KEY, user.role || 'USER')
+  localStorage.removeItem(LEGACY_TOKEN_KEY)
+  localStorage.removeItem(LEGACY_PERSISTED_USER_KEY)
+  loggedIn.value = true
+}
+
 export function clearAuth() {
-  localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(ROLE_KEY)
   localStorage.removeItem(USER_ID_KEY)
   localStorage.removeItem(NICKNAME_KEY)
-  localStorage.removeItem(PERSISTED_USER_KEY)
+  localStorage.removeItem(LEGACY_TOKEN_KEY)
+  localStorage.removeItem(LEGACY_PERSISTED_USER_KEY)
+  loggedIn.value = false
 }

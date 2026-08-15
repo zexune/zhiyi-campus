@@ -1,7 +1,10 @@
 <template>
   <DefaultLayout>
     <div class="fav-page">
-      <h1 class="page-title">我的收藏 <span class="stamp">FAVS</span></h1>
+      <h1 class="page-title">
+        我的收藏
+        <span class="stamp">FAVS</span>
+      </h1>
 
       <template v-if="items.length">
         <div class="fav-grid">
@@ -17,21 +20,12 @@
               <TagList :tags="item.tags" :limit="3" @select="goTag" />
               <div class="fav-card__foot">
                 <PriceTag :value="item.price" />
-                <button class="btn btn--sm" :disabled="acting" @click.stop="handleUnfavorite(item)">
-                  取消收藏
-                </button>
+                <button class="btn btn--sm" :disabled="acting" @click.stop="handleUnfavorite(item)">取消收藏</button>
               </div>
             </div>
           </article>
         </div>
-        <el-pagination
-          v-if="total > pageSize"
-          v-model:current-page="page"
-          :page-size="pageSize"
-          :total="total"
-          layout="prev, pager, next"
-          @current-change="fetchFavorites"
-        />
+        <el-pagination v-if="total > pageSize" v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchFavorites" />
       </template>
 
       <div v-else class="card empty-card">
@@ -68,13 +62,19 @@ const total = ref(0)
 const acting = ref(false)
 const loadError = ref('')
 
-function statusText(status) { return itemStatusLabel(status) }
+function statusText(status) {
+  return itemStatusLabel(status)
+}
 function displayStatus(item) {
   return item.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.status
 }
-function phClass(id) { return PH[Number(id) % PH.length] }
+function phClass(id) {
+  return PH[Number(id) % PH.length]
+}
 
-function mainImage(item) { return Array.isArray(item.images) ? item.images[0] || '' : '' }
+function mainImage(item) {
+  return Array.isArray(item.images) ? item.images[0] || '' : ''
+}
 
 function goDetail(item) {
   router.push(`/item/${item.id}`)
@@ -90,7 +90,7 @@ async function fetchFavorites() {
     items.value = res.data?.records || res.data || []
     total.value = Number(res.data?.total ?? items.value.length)
     loadError.value = ''
-  } catch (e) {
+  } catch {
     // C 模块接口未就绪时优雅降级
     loadError.value = '「我的收藏」列表接口（模块 C）尚未就绪，联调后即可展示'
   }
@@ -102,14 +102,22 @@ async function handleUnfavorite(item) {
     await toggleFavorite(item.id)
     ElMessage.success('已取消收藏')
     fetchFavorites()
-  } catch (e) { /* 提示由 request.js 处理 */ } finally { acting.value = false }
+  } catch {
+    /* 提示由 request.js 处理 */
+  } finally {
+    acting.value = false
+  }
 }
 
 onMounted(fetchFavorites)
 </script>
 
 <style scoped>
-.fav-page { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+.fav-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
 
 .fav-grid {
   display: grid;
@@ -117,17 +125,32 @@ onMounted(fetchFavorites)
   gap: var(--spacing-md);
 }
 
-.fav-card { overflow: hidden; }
+.fav-card {
+  overflow: hidden;
+}
 
 .fav-card__img {
   position: relative;
   aspect-ratio: 1 / 1;
   border-bottom: var(--bw) solid var(--ink);
 }
-.fav-card__img img { width: 100%; height: 100%; object-fit: cover; }
-.fav-card__state { position: absolute; top: 10px; left: 10px; }
+.fav-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fav-card__state {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
 
-.fav-card__body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.fav-card__body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .fav-card__title {
   font-weight: 700;

@@ -7,7 +7,35 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    name: Lint (Spotless + ESLint/Prettier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Backend Spotless check
+        working-directory: backend
+        run: mvn -B -q spotless:check
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
+      - name: Prettier check
+        working-directory: frontend
+        run: npm run format:check
+
   backend-unit-and-contract:
     name: Backend unit + MVC contract
     runs-on: ubuntu-latest

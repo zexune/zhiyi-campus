@@ -18,7 +18,7 @@ import DefaultLayout from '@/components/layout/DefaultLayout.vue'
  */
 defineProps({
   title: { type: String, default: '页面建设中' },
-  owner: { type: String, default: 'B/C/D' },
+  owner: { type: String, default: 'B/C/D' }
 })
 </script>
 
@@ -33,5 +33,9 @@ defineProps({
   gap: 14px;
   align-items: center;
 }
-.wip h2 { font-family: var(--font-display); font-size: 26px; letter-spacing: 1px; }
+.wip h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 1px;
+}
 </style>

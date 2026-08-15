@@ -1,5 +1,6 @@
 package com.zhiyi.interceptor;
 
+import com.zhiyi.common.AuthTokenCookieWriter;
 import com.zhiyi.common.WebResponseUtil;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.support.UserAuthState;
@@ -18,6 +19,8 @@ import java.util.regex.Pattern;
 /**
  * JWT 登录拦截器 —— 校验每个请求的 Token，把 userId 和 role 放入 Request 供后续 Controller 使用。
  *
+ * 凭证来源（按优先级）：Authorization: Bearer 头（Swagger / 编程客户端）→ httpOnly 会话 Cookie（浏览器）。
+ *
  * 高并发设计：
  * - Token 只解析一次（一次签名验证拿到全部 Claims）；
  * - 封禁状态 / Token 版本走 Caffeine 本地缓存（UserStateCache），不逐请求查库；
@@ -32,10 +35,13 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     private final JwtUtils jwtUtils;
     private final UserStateCache userStateCache;
+    private final AuthTokenCookieWriter cookieWriter;
 
-    public JwtInterceptor(JwtUtils jwtUtils, UserStateCache userStateCache) {
+    public JwtInterceptor(JwtUtils jwtUtils, UserStateCache userStateCache,
+                          AuthTokenCookieWriter cookieWriter) {
         this.jwtUtils = jwtUtils;
         this.userStateCache = userStateCache;
+        this.cookieWriter = cookieWriter;
     }
 
     @Override
@@ -50,14 +56,12 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String token = request.getHeader("Authorization");
-        if (token == null || !token.startsWith("Bearer ")) {
+        String encodedToken = resolveToken(request);
+        if (encodedToken == null) {
             WebResponseUtil.writeJson(response, 401, 401, "未登录");
             return false;
         }
-
-        String encodedToken = token.substring(7);
-        if (encodedToken.isBlank() || encodedToken.length() > MAX_TOKEN_LENGTH) {
+        if (encodedToken.length() > MAX_TOKEN_LENGTH) {
             WebResponseUtil.writeJson(response, 401, 401, "Token 格式无效");
             return false;
         }
@@ -114,6 +118,16 @@ public class JwtInterceptor implements HandlerInterceptor {
         request.setAttribute("userId", userId);
         request.setAttribute("role", state.role().code());
         return true;
+    }
+
+    /** Bearer 头优先（Swagger / 编程客户端），无头时回退 httpOnly 会话 Cookie（浏览器）。 */
+    private String resolveToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+            return token.isBlank() ? null : token;
+        }
+        return cookieWriter.read(request);
     }
 
     private boolean isDynamicPublicGet(HttpServletRequest request) {

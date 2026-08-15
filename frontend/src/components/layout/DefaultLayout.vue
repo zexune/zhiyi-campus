@@ -5,7 +5,8 @@
       <div class="topbar__inner">
         <router-link to="/" class="logo" aria-label="智易校园首页">
           <span class="logo__mark">智</span>
-          智易<em>校园</em>
+          智易
+          <em>校园</em>
         </router-link>
 
         <nav class="nav-links" aria-label="主导航">
@@ -24,7 +25,7 @@
         <div class="topbar__user">
           <template v-if="loggedIn">
             <router-link to="/publish" class="btn btn--primary btn--sm">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
               发闲置
             </router-link>
             <el-dropdown trigger="click" popper-class="app-dropdown">
@@ -58,7 +59,11 @@
     <footer class="footer">
       <div class="footer__inner">
         <span>智易校园 · 本地内容治理与可信交易闭环的校园平台</span>
-        <span><router-link to="/chat">联系客服</router-link> · <router-link to="/">回到大厅</router-link></span>
+        <span>
+          <router-link to="/chat">联系客服</router-link>
+          ·
+          <router-link to="/">回到大厅</router-link>
+        </span>
       </div>
     </footer>
   </div>

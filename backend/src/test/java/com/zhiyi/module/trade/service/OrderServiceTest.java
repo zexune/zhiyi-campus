@@ -211,6 +211,8 @@ class OrderServiceTest {
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(buyer(new BigDecimal("200.00")));
             when(sysUserMapper.selectById(SELLER_ID)).thenReturn(seller());
+            // 扣款发生在预占之前（锁序约定），先放行扣款才能触达预占冲突分支。
+            when(sysUserMapper.update(nullable(SysUser.class), any())).thenReturn(1);
             when(reservationMapper.tryReserve(ITEM_ID, BUYER_ID)).thenReturn(0); // 数据库主键冲突
 
             assertThrows(BusinessException.class,
@@ -277,7 +279,7 @@ class OrderServiceTest {
             when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
             when(sysUserMapper.selectById(BUYER_ID)).thenReturn(b);
             when(sysUserMapper.selectById(SELLER_ID)).thenReturn(seller());
-            when(reservationMapper.tryReserve(ITEM_ID, BUYER_ID)).thenReturn(1);
+            // 扣款发生在预占之前（锁序约定），扣款失败时不会触达预占
             when(sysUserMapper.update(nullable(SysUser.class), any())).thenReturn(0); // 扣款失败
 
             assertThrows(BusinessException.class,

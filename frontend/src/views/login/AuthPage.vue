@@ -5,7 +5,8 @@
       <div class="topbar__inner">
         <router-link class="logo" to="/" aria-label="智易校园首页">
           <span class="logo__mark">智</span>
-          智易<em>校园</em>
+          智易
+          <em>校园</em>
         </router-link>
         <nav class="nav-links" aria-label="主导航">
           <router-link to="/">交易大厅</router-link>
@@ -19,27 +20,49 @@
     <main class="auth-wrap">
       <!-- 左侧宣传 -->
       <section class="auth-side rise">
-        <h1>拎包入学，<br><span class="hl">轻装毕业</span></h1>
+        <h1>
+          拎包入学，
+          <br />
+          <span class="hl">轻装毕业</span>
+        </h1>
         <p>智易校园 —— 只属于本校同学的二手交易布告栏。学号注册，当面交易，平台担保。</p>
 
         <div class="feature-list">
           <div class="feature-item rise rise-2">
-            <div class="feature-item__icon" style="background:#D6F2DF">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2F9E62" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+            <div class="feature-item__icon" style="background: #d6f2df">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#2F9E62" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
             </div>
-            <div><b>平台担保交易</b><span>确认收货后才打款给卖家，资金零风险</span></div>
+            <div>
+              <b>平台担保交易</b>
+              <span>确认收货后才打款给卖家，资金零风险</span>
+            </div>
           </div>
           <div class="feature-item rise rise-3">
-            <div class="feature-item__icon" style="background:#FFE1B8">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            <div class="feature-item__icon" style="background: #ffe1b8">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8V4H8" />
+                <rect x="4" y="8" width="16" height="12" rx="2" />
+                <path d="M2 14h2M20 14h2M15 13v2M9 13v2" />
+              </svg>
             </div>
-            <div><b>本地合规检测</b><span>确定性规则实时检测，风险内容转人工复核</span></div>
+            <div>
+              <b>本地合规检测</b>
+              <span>确定性规则实时检测，风险内容转人工复核</span>
+            </div>
           </div>
           <div class="feature-item rise rise-4">
-            <div class="feature-item__icon" style="background:#CBE8FF">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#3B7BD8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 8.5 14 4l2.5 4.5L21 10l-3.5 3 1 5-4.5-2.5L9.5 18l1-5L7 10Z" transform="translate(-2 1)"/></svg>
+            <div class="feature-item__icon" style="background: #cbe8ff">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3B7BD8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11.5 8.5 14 4l2.5 4.5L21 10l-3.5 3 1 5-4.5-2.5L9.5 18l1-5L7 10Z" transform="translate(-2 1)" />
+              </svg>
             </div>
-            <div><b>信誉等级体系</b><span>诚信交易攒经验，Lv.5「校园传奇」等你解锁</span></div>
+            <div>
+              <b>信誉等级体系</b>
+              <span>诚信交易攒经验，Lv.5「校园传奇」等你解锁</span>
+            </div>
           </div>
         </div>
       </section>
@@ -90,11 +113,20 @@
             <button class="btn btn--primary btn--lg btn--block" type="submit" :disabled="loading || schoolsLoading">
               {{ loading ? '登录中…' : '登录' }}
             </button>
-            <p class="admin-entry">平台管理员？<router-link to="/admin/login">进入独立管理后台</router-link></p>
+            <p class="admin-entry">
+              平台管理员？
+              <router-link to="/admin/login">进入独立管理后台</router-link>
+            </p>
           </form>
           <div v-if="banMessage" class="banned-tip" role="alert">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-            <span><b>账户被封禁？</b>{{ banMessage }}临时封禁到期后会自动恢复。</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span>
+              <b>账户被封禁？</b>
+              {{ banMessage }}临时封禁到期后会自动恢复。
+            </span>
           </div>
         </div>
 
@@ -104,16 +136,25 @@
           <p class="sub">仅限本校学生，学号即账号</p>
 
           <div class="steps" aria-label="注册步骤">
-            <span class="step" :class="regStepClass(1)"><span class="step__no">{{ regStep > 1 ? '✓' : '1' }}</span>账号信息</span>
+            <span class="step" :class="regStepClass(1)">
+              <span class="step__no">{{ regStep > 1 ? '✓' : '1' }}</span>
+              账号信息
+            </span>
             <span class="step-line"></span>
-            <span class="step" :class="regStepClass(2)"><span class="step__no">2</span>密保设置</span>
+            <span class="step" :class="regStepClass(2)">
+              <span class="step__no">2</span>
+              密保设置
+            </span>
           </div>
 
           <!-- 步骤1：学号 / 昵称 / 密码 / 确认密码（两列紧凑排布，与登录面板同高） -->
           <form v-if="regStep === 1" @submit.prevent="handleRegNext">
             <div class="field-row">
               <div class="field">
-                <label for="r-sid">学号 <span class="req">*</span></label>
+                <label for="r-sid">
+                  学号
+                  <span class="req">*</span>
+                </label>
                 <input id="r-sid" v-model.trim="regForm.studentId" class="input" type="text" placeholder="唯一登录凭证" autocomplete="username" />
               </div>
               <div class="field">
@@ -123,20 +164,29 @@
             </div>
             <div class="field-row">
               <div class="field">
-                <label for="r-pw">密码 <span class="req">*</span></label>
+                <label for="r-pw">
+                  密码
+                  <span class="req">*</span>
+                </label>
                 <input id="r-pw" v-model="regForm.password" class="input" type="password" placeholder="不少于 6 位" autocomplete="new-password" />
                 <div class="pw-strength" aria-hidden="true">
                   <i v-for="n in 4" :key="n" :class="{ on: passwordStrength >= n }"></i>
                 </div>
               </div>
               <div class="field">
-                <label for="r-pw2">确认密码 <span class="req">*</span></label>
+                <label for="r-pw2">
+                  确认密码
+                  <span class="req">*</span>
+                </label>
                 <input id="r-pw2" v-model="regForm.confirmPassword" class="input" type="password" placeholder="再输入一次" autocomplete="new-password" />
                 <p v-if="regForm.confirmPassword && regForm.confirmPassword !== regForm.password" class="error-msg">两次输入不一致</p>
               </div>
             </div>
             <div class="field">
-              <label for="r-school">所属学校 <span class="req">*</span></label>
+              <label for="r-school">
+                所属学校
+                <span class="req">*</span>
+              </label>
               <AppSelect
                 id="r-school"
                 v-model="regForm.schoolId"
@@ -152,9 +202,11 @@
               </div>
             </div>
             <div class="field">
-              <label for="r-email">学校邮箱 <span class="opt">选填</span></label>
-              <input id="r-email" v-model.trim="regForm.schoolEmail" class="input" type="email"
-                     :placeholder="emailPlaceholder" autocomplete="email" />
+              <label for="r-email">
+                学校邮箱
+                <span class="opt">选填</span>
+              </label>
+              <input id="r-email" v-model.trim="regForm.schoolEmail" class="input" type="email" :placeholder="emailPlaceholder" autocomplete="email" />
             </div>
             <button class="btn btn--primary btn--lg btn--block" type="submit" :disabled="schoolsLoading">下一步</button>
           </form>
@@ -162,19 +214,31 @@
           <!-- 步骤2：密保问题（自由输入 + 随机填入）/ 密保答案 / 手机号 -->
           <form v-if="regStep === 2" @submit.prevent="handleRegister">
             <div class="field">
-              <label for="r-q">密保问题 <span class="req">*</span></label>
+              <label for="r-q">
+                密保问题
+                <span class="req">*</span>
+              </label>
               <div class="question-input">
-                <input id="r-q" v-model.trim="regForm.securityQuestion" class="input" type="text" maxlength="50"
-                       placeholder="自己出一道只有你知道答案的问题" />
+                <input id="r-q" v-model.trim="regForm.securityQuestion" class="input" type="text" maxlength="50" placeholder="自己出一道只有你知道答案的问题" />
                 <button class="btn random-btn" type="button" title="从系统预设中随机抽一个" @click="randomQuestion">
-                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.4" fill="currentColor" stroke="none"/></svg>
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="4" />
+                    <circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" />
+                    <circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" />
+                    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+                    <circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" stroke="none" />
+                    <circle cx="15.5" cy="15.5" r="1.4" fill="currentColor" stroke="none" />
+                  </svg>
                   随机
                 </button>
               </div>
             </div>
             <div class="field-row">
               <div class="field">
-                <label for="r-a">密保答案 <span class="req">*</span></label>
+                <label for="r-a">
+                  密保答案
+                  <span class="req">*</span>
+                </label>
                 <input id="r-a" v-model="regForm.securityAnswer" class="input" type="text" placeholder="不区分大小写" />
               </div>
               <div class="field">
@@ -198,11 +262,20 @@
           <p class="sub">回答密保问题，重置你的密码</p>
 
           <div class="steps" aria-label="找回密码步骤">
-            <span class="step" :class="stepClass(1)"><span class="step__no">{{ forgotStep > 1 ? '✓' : '1' }}</span>确认账号</span>
+            <span class="step" :class="stepClass(1)">
+              <span class="step__no">{{ forgotStep > 1 ? '✓' : '1' }}</span>
+              确认账号
+            </span>
             <span class="step-line"></span>
-            <span class="step" :class="stepClass(2)"><span class="step__no">{{ forgotStep > 2 ? '✓' : '2' }}</span>答密保</span>
+            <span class="step" :class="stepClass(2)">
+              <span class="step__no">{{ forgotStep > 2 ? '✓' : '2' }}</span>
+              答密保
+            </span>
             <span class="step-line"></span>
-            <span class="step" :class="stepClass(3)"><span class="step__no">3</span>设新密码</span>
+            <span class="step" :class="stepClass(3)">
+              <span class="step__no">3</span>
+              设新密码
+            </span>
           </div>
 
           <!-- 步骤1：选择学校并输入学号 -->
@@ -233,7 +306,10 @@
           <!-- 步骤2：答密保 -->
           <template v-if="forgotStep === 2">
             <div class="question-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4M12 17.5h.01"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4M12 17.5h.01" />
+              </svg>
               {{ securityQuestion }}
             </div>
             <form @submit.prevent="forgotStep = 3">
@@ -260,7 +336,7 @@
               {{ loading ? '提交中…' : '重置密码' }}
             </button>
           </form>
-          <p class="hint" style="margin-top:14px;text-align:center">重置成功后，所有设备都需要重新登录</p>
+          <p class="hint" style="margin-top: 14px; text-align: center">重置成功后，所有设备都需要重新登录</p>
         </div>
       </section>
     </main>
@@ -285,7 +361,7 @@ import { useUserStore } from '@/stores/user'
  * 认证页（模块一 1.1/1.2/1.3）—— 登录 / 注册 / 密保找回三合一，遵循 demo login.html 设计
  */
 const props = defineProps({
-  initialTab: { type: String, default: 'login' }, // login / register
+  initialTab: { type: String, default: 'login' } // login / register
 })
 
 const router = useRouter()
@@ -338,27 +414,25 @@ async function handleLogin() {
 const questions = ref([])
 const regStep = ref(1)
 const regForm = reactive({
-  studentId: '', password: '', confirmPassword: '', nickname: '',
-  schoolId: savedSchoolId(), schoolEmail: '',
-  securityQuestion: '', securityAnswer: '', phone: '',
+  studentId: '',
+  password: '',
+  confirmPassword: '',
+  nickname: '',
+  schoolId: savedSchoolId(),
+  schoolEmail: '',
+  securityQuestion: '',
+  securityAnswer: '',
+  phone: ''
 })
 
 // —— 学校下拉 + 学校邮箱后缀校验（A2/A3）——
 const schools = ref([])
-const schoolOptions = computed(() =>
-  schools.value.map((school) => ({ label: school.name, value: school.id }))
-)
+const schoolOptions = computed(() => schools.value.map((school) => ({ label: school.name, value: school.id })))
 const schoolsLoading = ref(false)
 const schoolsError = ref(false)
 
-const selectedSchool = computed(() =>
-  schools.value.find((s) => s.id === regForm.schoolId) || null
-)
-const emailPlaceholder = computed(() =>
-  selectedSchool.value?.emailDomain
-    ? `学号${selectedSchool.value.emailDomain}`
-    : '先选择学校，再填写学校邮箱'
-)
+const selectedSchool = computed(() => schools.value.find((s) => s.id === regForm.schoolId) || null)
+const emailPlaceholder = computed(() => (selectedSchool.value?.emailDomain ? `学号${selectedSchool.value.emailDomain}` : '先选择学校，再填写学校邮箱'))
 
 function schoolEmailIsValid() {
   const email = regForm.schoolEmail.trim().toLowerCase()
@@ -377,9 +451,7 @@ async function fetchSchools() {
     const rememberedSchoolId = savedSchoolId()
     for (const form of [loginForm, regForm, forgotForm]) {
       if (!schools.value.some((school) => school.id === form.schoolId)) {
-        form.schoolId = schools.value.some((school) => school.id === rememberedSchoolId)
-          ? rememberedSchoolId
-          : null
+        form.schoolId = schools.value.some((school) => school.id === rememberedSchoolId) ? rememberedSchoolId : null
       }
     }
   } catch {
@@ -425,8 +497,6 @@ const passwordStrength = computed(() => {
   if (/[^a-zA-Z0-9]/.test(p)) s++
   return s
 })
-
-const strengthText = computed(() => ['弱', '弱', '中', '强', '很强'][passwordStrength.value])
 
 function regStepClass(n) {
   return { done: regStep.value > n, current: regStep.value === n }
@@ -486,7 +556,7 @@ async function handleRegister() {
       schoolEmail: regForm.schoolEmail || null,
       securityQuestion: regForm.securityQuestion,
       securityAnswer: regForm.securityAnswer,
-      phone: regForm.phone,
+      phone: regForm.phone
     })
     rememberSchool(regForm.schoolId)
     userStore.setLogin(res.data)
@@ -510,7 +580,7 @@ const forgotForm = reactive({
   studentId: '',
   securityAnswer: '',
   newPassword: '',
-  confirmPassword: '',
+  confirmPassword: ''
 })
 
 function stepClass(n) {
@@ -531,7 +601,7 @@ async function handleFetchQuestion() {
     const res = await getSecurityQuestion(forgotForm.schoolId, forgotForm.studentId)
     securityQuestion.value = res.data.question
     forgotStep.value = 2
-  } catch (e) {
+  } catch {
     // 提示由 request.js 统一处理
   } finally {
     loading.value = false
@@ -560,12 +630,12 @@ async function handleReset() {
       studentId: '',
       securityAnswer: '',
       newPassword: '',
-      confirmPassword: '',
+      confirmPassword: ''
     })
     Object.assign(loginForm, {
       schoolId: recoveredSchoolId,
       studentId: recoveredStudentId,
-      password: '',
+      password: ''
     })
     switchTab('login')
   } catch (e) {
@@ -591,7 +661,7 @@ onMounted(async () => {
   try {
     const res = await getSecurityQuestions()
     questions.value = res.data
-  } catch (e) {
+  } catch {
     // 兜底：接口异常时用前端预设，保证「随机」按钮可用
     questions.value = ['你的小学名称是？', '你最喜欢的老师姓什么？', '你的出生地是哪个城市？', '你第一只宠物叫什么？']
   }
@@ -618,8 +688,13 @@ onMounted(async () => {
   align-items: center;
 }
 @media (max-width: 900px) {
-  .auth-wrap { grid-template-columns: 1fr; margin: 24px auto; }
-  .auth-side { display: none; }
+  .auth-wrap {
+    grid-template-columns: 1fr;
+    margin: 24px auto;
+  }
+  .auth-side {
+    display: none;
+  }
 }
 
 /* —— 左侧宣传面 —— */
@@ -638,9 +713,19 @@ onMounted(async () => {
   box-shadow: var(--shadow-s);
   transform: rotate(-2deg);
 }
-.auth-side p { margin-top: 16px; color: var(--ink-soft); font-size: 16px; max-width: 400px; }
+.auth-side p {
+  margin-top: 16px;
+  color: var(--ink-soft);
+  font-size: 16px;
+  max-width: 400px;
+}
 
-.feature-list { margin-top: 32px; display: flex; flex-direction: column; gap: 14px; }
+.feature-list {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 .feature-item {
   display: flex;
   align-items: center;
@@ -651,11 +736,17 @@ onMounted(async () => {
   padding: 14px 18px;
   box-shadow: var(--shadow-s);
   max-width: 420px;
-  transition: transform .2s;
+  transition: transform 0.2s;
 }
-.feature-item:hover { transform: translateX(6px); }
-.feature-item:nth-child(2) { transform: rotate(-.8deg); }
-.feature-item:nth-child(3) { transform: rotate(.8deg); }
+.feature-item:hover {
+  transform: translateX(6px);
+}
+.feature-item:nth-child(2) {
+  transform: rotate(-0.8deg);
+}
+.feature-item:nth-child(3) {
+  transform: rotate(0.8deg);
+}
 .feature-item__icon {
   width: 42px;
   height: 42px;
@@ -665,9 +756,18 @@ onMounted(async () => {
   border: var(--bw) solid var(--ink);
   border-radius: var(--r-s);
 }
-.feature-item__icon svg { width: 22px; height: 22px; }
-.feature-item b { font-size: 15px; display: block; }
-.feature-item span { font-size: 13px; color: var(--ink-soft); }
+.feature-item__icon svg {
+  width: 22px;
+  height: 22px;
+}
+.feature-item b {
+  font-size: 15px;
+  display: block;
+}
+.feature-item span {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
 
 /* —— 右侧表单卡 —— */
 .auth-card {
@@ -681,12 +781,27 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 }
-.auth-panel { flex: 1; display: flex; flex-direction: column; }
-.auth-panel form { flex: 1; display: flex; flex-direction: column; }
+.auth-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.auth-panel form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 .auth-panel form > .btn--block,
-.auth-panel form > .reg-actions { margin-top: auto; }
+.auth-panel form > .reg-actions {
+  margin-top: auto;
+}
 @media (max-width: 900px) {
-  .auth-card { justify-self: stretch; max-width: none; padding: 28px 22px; min-height: 0; }
+  .auth-card {
+    justify-self: stretch;
+    max-width: none;
+    padding: 28px 22px;
+    min-height: 0;
+  }
 }
 
 .auth-card__pin {
@@ -699,7 +814,7 @@ onMounted(async () => {
   border-radius: 50%;
   background: var(--red);
   border: var(--bw) solid var(--ink);
-  box-shadow: inset -3px -3px 0 rgba(0,0,0,.25);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.25);
 }
 
 /* 选项卡 */
@@ -721,22 +836,60 @@ onMounted(async () => {
   font-size: 14.5px;
   color: var(--ink-soft);
   border-right: var(--bw) solid var(--ink);
-  transition: all .18s;
+  transition: all 0.18s;
 }
-.auth-tabs button:last-child { border-right: none; }
-.auth-tabs button:hover { background: var(--paper-deep); color: var(--ink); }
-.auth-tabs button.active { background: var(--primary); color: #fff; }
-.auth-tabs button:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
+.auth-tabs button:last-child {
+  border-right: none;
+}
+.auth-tabs button:hover {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+.auth-tabs button.active {
+  background: var(--primary);
+  color: #fff;
+}
+.auth-tabs button:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: -3px;
+}
 
-.auth-panel h2 { font-family: var(--font-display); font-size: 26px; letter-spacing: 1px; margin-bottom: 4px; }
-.auth-panel .sub { color: var(--ink-soft); font-size: 14px; margin-bottom: 22px; }
+.auth-panel h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.auth-panel .sub {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-bottom: 22px;
+}
 
-.pw-strength { display: flex; gap: 5px; margin-top: 7px; }
-.pw-strength i { height: 6px; flex: 1; border-radius: 3px; background: #E8E0CF; border: 1px solid #D8CDB6; }
-.pw-strength i.on { background: var(--green); border-color: var(--ink); }
+.pw-strength {
+  display: flex;
+  gap: 5px;
+  margin-top: 7px;
+}
+.pw-strength i {
+  height: 6px;
+  flex: 1;
+  border-radius: 3px;
+  background: #e8e0cf;
+  border: 1px solid #d8cdb6;
+}
+.pw-strength i.on {
+  background: var(--green);
+  border-color: var(--ink);
+}
 
-.reg-actions { display: flex; gap: 12px; }
-.reg-actions__submit { flex: 1; }
+.reg-actions {
+  display: flex;
+  gap: 12px;
+}
+.reg-actions__submit {
+  flex: 1;
+}
 
 /* 注册面板：两列紧凑排布 */
 .field-row {
@@ -744,11 +897,20 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-.field-row .field { margin-bottom: 14px; }
-.reg-hint { margin: 0 0 16px; }
+.field-row .field {
+  margin-bottom: 14px;
+}
+.reg-hint {
+  margin: 0 0 16px;
+}
 
 /* 学校邮箱：可选标记 */
-.field label .opt { color: var(--ink-soft); font-weight: 600; font-size: 12px; margin-left: 6px; }
+.field label .opt {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 6px;
+}
 .school-load-error {
   display: flex;
   align-items: center;
@@ -769,16 +931,34 @@ onMounted(async () => {
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.school-retry:disabled { cursor: wait; opacity: .55; }
+.school-retry:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
 @media (max-width: 480px) {
-  .field-row { grid-template-columns: 1fr; gap: 0; }
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
 }
 
 /* 密保问题：输入框 + 随机按钮 */
-.question-input { display: flex; gap: 10px; }
-.question-input .input { flex: 1; }
-.random-btn { flex-shrink: 0; padding: 10px 14px; background: var(--yellow); }
-.random-btn .icon { width: 17px; height: 17px; }
+.question-input {
+  display: flex;
+  gap: 10px;
+}
+.question-input .input {
+  flex: 1;
+}
+.random-btn {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  background: var(--yellow);
+}
+.random-btn .icon {
+  width: 17px;
+  height: 17px;
+}
 
 .form-foot {
   display: flex;
@@ -787,14 +967,44 @@ onMounted(async () => {
   margin: 4px 0 18px;
   font-size: 13.5px;
 }
-.form-foot a { color: var(--blue); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.form-foot a:hover { color: var(--primary); }
-.admin-entry { margin-top: 14px; text-align: center; color: var(--ink-soft); font-size: 13px; }
-.admin-entry a { margin-left: 4px; color: var(--primary); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.form-foot a {
+  color: var(--blue);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.form-foot a:hover {
+  color: var(--primary);
+}
+.admin-entry {
+  margin-top: 14px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.admin-entry a {
+  margin-left: 4px;
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* 找回密码步骤条 */
-.steps { display: flex; align-items: center; gap: 6px; margin-bottom: 22px; }
-.step { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
 .step__no {
   width: 26px;
   height: 26px;
@@ -805,10 +1015,24 @@ onMounted(async () => {
   font-size: 13px;
   background: var(--white);
 }
-.step.done .step__no { background: var(--green); color: #fff; }
-.step.current { color: var(--ink); }
-.step.current .step__no { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); }
-.step-line { flex: 1; height: 2px; background: var(--ink); opacity: .25; min-width: 14px; }
+.step.done .step__no {
+  background: var(--green);
+  color: #fff;
+}
+.step.current {
+  color: var(--ink);
+}
+.step.current .step__no {
+  background: var(--yellow);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--ink);
+  opacity: 0.25;
+  min-width: 14px;
+}
 
 .question-box {
   background: var(--paper-deep);
@@ -822,19 +1046,29 @@ onMounted(async () => {
   gap: 10px;
   align-items: center;
 }
-.question-box svg { width: 20px; height: 20px; flex-shrink: 0; }
+.question-box svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
 
 .banned-tip {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  background: #FDEBEB;
+  background: #fdebeb;
   border: var(--bw) solid var(--red);
   border-radius: var(--r-s);
   padding: 13px 15px;
   font-size: 13.5px;
   margin-top: 20px;
-  color: #8C1D1D;
+  color: #8c1d1d;
 }
-.banned-tip svg { width: 20px; height: 20px; flex-shrink: 0; stroke: var(--red); margin-top: 2px; }
+.banned-tip svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  stroke: var(--red);
+  margin-top: 2px;
+}
 </style>

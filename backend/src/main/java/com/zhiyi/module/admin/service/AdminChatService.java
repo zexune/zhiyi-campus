@@ -3,6 +3,7 @@ package com.zhiyi.module.admin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
+import com.zhiyi.module.social.dto.ConversationAggregate;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.vo.ChatUserVO;
@@ -13,13 +14,18 @@ import com.zhiyi.module.user.support.LevelRule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 超管客服收件箱服务 —— 4.6
  *
- * 找到管理员用户，查出其参与的所有会话，
- * 聚合每个会话的最后消息、未读数（只计发给管理员的）及对端用户信息。
+ * 找到管理员用户，聚合其参与的每个会话的最后消息、未读数（只计发给管理员的）及对端用户。
+ * 管理员是全部用户消息的对端，此处必须走 SQL 聚合（每会话一行）+ 批量装配，
+ * 不得把全部历史消息拉进内存。
  */
 @Service
 @RequiredArgsConstructor
@@ -32,7 +38,6 @@ public class AdminChatService {
      * 管理员客服会话列表
      */
     public List<ConversationVO> getSessions() {
-        // 找到管理员
         SysUser admin = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getRole, UserRole.ADMIN)
                 .eq(SysUser::getStatus, UserStatus.ACTIVE)
@@ -43,68 +48,36 @@ public class AdminChatService {
         }
         Long adminId = admin.getId();
 
-        // 查管理员参与的所有消息，按时间倒序
-        List<ChatMessage> messages = chatMessageMapper.selectList(
-                new LambdaQueryWrapper<ChatMessage>()
-                        .and(w -> w.eq(ChatMessage::getSenderId, adminId)
-                                 .or()
-                                 .eq(ChatMessage::getReceiverId, adminId))
-                        .orderByDesc(ChatMessage::getCreatedAt)
-                        .orderByDesc(ChatMessage::getId));
-
-        if (messages.isEmpty()) {
+        List<ConversationAggregate> aggregates = chatMessageMapper.aggregateConversations(adminId);
+        if (aggregates.isEmpty()) {
             return List.of();
         }
 
-        // 聚合
-        Map<String, ChatMessage> latestByConv = new LinkedHashMap<>();
-        Map<String, Long> unreadByConv = new LinkedHashMap<>();
-        Map<String, Long> peerByConv = new LinkedHashMap<>();
-        Set<Long> peerIds = new LinkedHashSet<>();
+        Map<Long, ChatMessage> lastMessages = chatMessageMapper
+                .selectByIds(aggregates.stream().map(ConversationAggregate::getLastMessageId).toList())
+                .stream()
+                .collect(Collectors.toMap(ChatMessage::getId, Function.identity()));
+        Map<Long, SysUser> peers = sysUserMapper
+                .selectByIds(aggregates.stream().map(ConversationAggregate::getPeerId).toList())
+                .stream()
+                .collect(Collectors.toMap(SysUser::getId, Function.identity()));
 
-        for (ChatMessage m : messages) {
-            latestByConv.putIfAbsent(m.getConversationId(), m);
-
-            // 对端用户
-            Long peerId = Objects.equals(m.getSenderId(), adminId)
-                    ? m.getReceiverId() : m.getSenderId();
-            peerByConv.putIfAbsent(m.getConversationId(), peerId);
-            peerIds.add(peerId);
-
-            // 未读：只计发给管理员的
-            if (Objects.equals(m.getReceiverId(), adminId) && !Boolean.TRUE.equals(m.getIsRead())) {
-                unreadByConv.merge(m.getConversationId(), 1L, Long::sum);
+        List<ConversationVO> result = new ArrayList<>(aggregates.size());
+        for (ConversationAggregate aggregate : aggregates) {
+            ChatMessage latest = lastMessages.get(aggregate.getLastMessageId());
+            SysUser peer = peers.get(aggregate.getPeerId());
+            if (latest == null || peer == null) {
+                continue;
             }
-        }
-
-        // 批量查对端用户
-        Map<Long, SysUser> userMap = new HashMap<>();
-        if (!peerIds.isEmpty()) {
-            userMap = sysUserMapper.selectByIds(peerIds).stream()
-                    .collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u, (a, b) -> a));
-        }
-
-        // 组装结果
-        List<ConversationVO> result = new ArrayList<>();
-        for (Map.Entry<String, ChatMessage> entry : latestByConv.entrySet()) {
-            String convId = entry.getKey();
-            ChatMessage latest = entry.getValue();
-            Long peerId = peerByConv.get(convId);
-            SysUser peer = peerId != null ? userMap.get(peerId) : null;
-
             ConversationVO vo = new ConversationVO();
-            vo.setConversationId(convId);
-            if (peer != null) {
-                vo.setPeer(new ChatUserVO(peer.getId(), peer.getNickname(),
-                        peer.getLevel(), LevelRule.titleOf(peer.getLevel())));
-            }
+            vo.setConversationId(aggregate.getConversationId());
+            vo.setPeer(new ChatUserVO(peer.getId(), peer.getNickname(),
+                    peer.getLevel(), LevelRule.titleOf(peer.getLevel())));
             vo.setLastMessage(latest.getContent());
             vo.setLastMessageTime(latest.getCreatedAt());
-            vo.setUnreadCount(unreadByConv.getOrDefault(convId, 0L));
+            vo.setUnreadCount(aggregate.getUnreadCount());
             result.add(vo);
         }
-
-        result.sort(Comparator.comparing(ConversationVO::getLastMessageTime).reversed());
         return result;
     }
 }

@@ -17,7 +17,7 @@ class WebMvcConfigTest {
 
     @Test
     void jwtInterceptorStillAppliesToNonGetItemRoute() {
-        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null);
         RoleInterceptor roleInterceptor = new RoleInterceptor();
         WebMvcConfig config = new WebMvcConfig(
                 jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
@@ -34,7 +34,7 @@ class WebMvcConfigTest {
 
     @Test
     void trendingTagsRouteRequiresLogin() {
-        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null);
         RoleInterceptor roleInterceptor = new RoleInterceptor();
         WebMvcConfig config = new WebMvcConfig(
                 jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
@@ -50,7 +50,7 @@ class WebMvcConfigTest {
 
     @Test
     void adminLoginIsPublicButAdminPasswordChangeRequiresToken() {
-        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null);
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null);
         RoleInterceptor roleInterceptor = new RoleInterceptor();
         WebMvcConfig config = new WebMvcConfig(
                 jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});

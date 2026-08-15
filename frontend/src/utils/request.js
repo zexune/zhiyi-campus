@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { clearAuth, getRole, getToken } from '@/utils/auth'
+import { clearAuth, getRole } from '@/utils/auth'
 
 const MAX_JSON_RESPONSE_SIZE = 5 * 1024 * 1024
 const BLOCKED_JSON_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
@@ -9,42 +9,36 @@ function parseApiJson(data) {
   if (data.length > MAX_JSON_RESPONSE_SIZE) {
     throw new Error('响应数据过大')
   }
-  return JSON.parse(data, (key, value) => BLOCKED_JSON_KEYS.has(key) ? undefined : value)
+  return JSON.parse(data, (key, value) => (BLOCKED_JSON_KEYS.has(key) ? undefined : value))
 }
 
 function isApiEnvelope(value) {
-  return value !== null
-    && typeof value === 'object'
-    && !Array.isArray(value)
-    && Object.hasOwn(value, 'code')
-    && Object.hasOwn(value, 'message')
-    && Object.hasOwn(value, 'data')
-    && Number.isInteger(value.code)
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, 'code') &&
+    Object.hasOwn(value, 'message') &&
+    Object.hasOwn(value, 'data') &&
+    Number.isInteger(value.code)
+  )
 }
 
 /**
  * 统一的 axios 实例 —— 所有 API 请求都通过它
- * 自动携带 JWT Token，自动提示错误
+ * 登录凭证由后端 httpOnly Cookie 自动携带，无需手动附加 Token
  */
 const request = axios.create({
   baseURL: '/api',
   timeout: 10000,
   adapter: 'fetch',
   allowAbsoluteUrls: false,
-  withCredentials: false,
+  // 跨源部署（前后端不同域）时也携带会话 Cookie
+  withCredentials: true,
   withXSRFToken: false,
   maxContentLength: MAX_JSON_RESPONSE_SIZE,
   transformResponse: [parseApiJson],
-  headers: { Accept: 'application/json' },
-})
-
-// 请求拦截器：自动带 Token
-request.interceptors.request.use((config) => {
-  const token = getToken()
-  if (token) {
-    config.headers.set('Authorization', `Bearer ${token}`)
-  }
-  return config
+  headers: { Accept: 'application/json' }
 })
 
 function redirectToLogin() {

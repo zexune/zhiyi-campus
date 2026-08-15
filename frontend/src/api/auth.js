@@ -28,6 +28,11 @@ export function resetPassword(data) {
   return request.post('/auth/reset-password', data)
 }
 
+/** 登出：后端清除 httpOnly 会话 Cookie */
+export function logout() {
+  return request.post('/auth/logout')
+}
+
 // —— 用户信息 & 成长体系 ——
 export function getProfile() {
   return request.get('/user/profile')

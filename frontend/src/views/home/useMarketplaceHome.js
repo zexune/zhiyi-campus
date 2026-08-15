@@ -1,14 +1,7 @@
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  getActiveTopic,
-  getAllTags,
-  getCategories,
-  getItemList,
-  getItemRanking,
-  toggleFavorite,
-} from '@/api/item'
+import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking, toggleFavorite } from '@/api/item'
 import { ITEM_TYPE_LABELS, ITEM_TYPE_OPTIONS } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
 
@@ -23,7 +16,7 @@ const FALLBACK_CATEGORIES = Object.freeze([
   { id: 5, name: '运动娱乐' },
   { id: 6, name: '零食饮品' },
   { id: 7, name: '学习用品' },
-  { id: 8, name: '其他' },
+  { id: 8, name: '其他' }
 ])
 
 const CAMPUS_TOPICS = Object.freeze([
@@ -36,7 +29,7 @@ const CAMPUS_TOPICS = Object.freeze([
     title: '新生入学季',
     description: '宿舍生活、学习用品和入门数码，一站配齐新学期。',
     action: '逛新生必备',
-    categoryName: '生活日用',
+    categoryName: '生活日用'
   },
   {
     id: 'final-exam',
@@ -48,7 +41,7 @@ const CAMPUS_TOPICS = Object.freeze([
     description: '真题、笔记和教材集中上架，复习资料更快找到。',
     action: '找备考资料',
     categoryName: '教材书籍',
-    keyword: '真题',
+    keyword: '真题'
   },
   {
     id: 'graduation',
@@ -59,16 +52,14 @@ const CAMPUS_TOPICS = Object.freeze([
     title: '毕业清仓季',
     description: '把带不走的好物留在校园，让下一位同学接着使用。',
     action: '查看毕业好物',
-    keyword: '毕业',
-  },
+    keyword: '毕业'
+  }
 ])
 
 function isTopicActive(topic) {
   const now = new Date()
   const monthDay = (now.getMonth() + 1) * 100 + now.getDate()
-  return topic.start <= topic.end
-    ? monthDay >= topic.start && monthDay <= topic.end
-    : monthDay >= topic.start || monthDay <= topic.end
+  return topic.start <= topic.end ? monthDay >= topic.start && monthDay <= topic.end : monthDay >= topic.start || monthDay <= topic.end
 }
 
 function formatTopicDate(value) {
@@ -103,7 +94,7 @@ export function useMarketplaceHome() {
     maxPrice: undefined,
     type: '',
     tag: '',
-    sort: 'random',
+    sort: 'random'
   })
 
   function buildParams() {
@@ -153,7 +144,7 @@ export function useMarketplaceHome() {
           stamp: 'TOPIC',
           dateLabel: `${formatTopicDate(topic.startTime)} - ${formatTopicDate(topic.endTime)}`,
           description: topic.bannerText,
-          action: '进入专题',
+          action: '进入专题'
         }
       }
     } catch {
@@ -258,12 +249,14 @@ export function useMarketplaceHome() {
       maxPrice: undefined,
       type: '',
       tag: '',
-      sort: 'random',
+      sort: 'random'
     })
     activeTag.value = ''
     page.value = 1
     fetchItems()
-    nextTick(() => { resettingFilters = false })
+    nextTick(() => {
+      resettingFilters = false
+    })
   }
 
   function selectCategory(id) {
@@ -300,12 +293,18 @@ export function useMarketplaceHome() {
     return ITEM_TYPE_LABELS[type] || type
   }
 
-  watch(() => filters.sort, () => {
-    if (!resettingFilters) handleSearch()
-  })
-  watch(() => filters.type, () => {
-    if (!resettingFilters) handleSearch()
-  })
+  watch(
+    () => filters.sort,
+    () => {
+      if (!resettingFilters) handleSearch()
+    }
+  )
+  watch(
+    () => filters.type,
+    () => {
+      if (!resettingFilters) handleSearch()
+    }
+  )
   watch(() => [filters.minPrice, filters.maxPrice], schedulePriceFilter)
 
   onMounted(async () => {
@@ -314,13 +313,7 @@ export function useMarketplaceHome() {
       await fetchCategories()
       return
     }
-    await Promise.all([
-      fetchCategories(),
-      fetchItems(),
-      fetchRanking(),
-      fetchAllTags(),
-      fetchActiveTopic(),
-    ])
+    await Promise.all([fetchCategories(), fetchItems(), fetchRanking(), fetchAllTags(), fetchActiveTopic()])
   })
 
   onBeforeUnmount(() => window.clearTimeout(priceFilterTimer))
@@ -354,7 +347,9 @@ export function useMarketplaceHome() {
     searchByTag,
     selectCategory,
     showTagCloud,
-    toggleTagCloud: () => { showTagCloud.value = !showTagCloud.value },
-    total,
+    toggleTagCloud: () => {
+      showTagCloud.value = !showTagCloud.value
+    },
+    total
   }
 }

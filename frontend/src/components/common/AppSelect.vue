@@ -12,13 +12,7 @@
     @update:model-value="emit('update:modelValue', $event)"
     @change="emit('change', $event)"
   >
-    <el-option
-      v-for="option in options"
-      :key="option.key ?? option.value"
-      :label="option.label"
-      :value="option.value"
-      :disabled="option.disabled"
-    />
+    <el-option v-for="option in options" :key="option.key ?? option.value" :label="option.label" :value="option.value" :disabled="option.disabled" />
   </el-select>
 </template>
 
@@ -26,12 +20,12 @@
 defineOptions({ inheritAttrs: false })
 
 defineProps({
-  modelValue: { default: null },
+  modelValue: { type: [String, Number, Object], default: null },
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: '请选择' },
   disabled: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
-  clearable: { type: Boolean, default: false },
+  clearable: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue', 'change'])

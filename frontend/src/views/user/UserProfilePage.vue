@@ -1,7 +1,10 @@
 <template>
   <DefaultLayout>
     <div class="profile-page">
-      <h1 class="page-title">个人中心 <span class="stamp">MY PAGE</span></h1>
+      <h1 class="page-title">
+        个人中心
+        <span class="stamp">MY PAGE</span>
+      </h1>
 
       <div v-if="user" class="profile-grid">
         <!-- 左：身份卡 + 经验记录 -->
@@ -28,9 +31,7 @@
             <div class="level-progress">
               <div class="level-progress__label">
                 <b>Lv.{{ user.level }} {{ user.levelTitle }}</b>
-                <span v-if="user.nextLevelExp" class="muted">
-                  {{ user.exp }} / {{ user.nextLevelExp }} EXP
-                </span>
+                <span v-if="user.nextLevelExp" class="muted">{{ user.exp }} / {{ user.nextLevelExp }} EXP</span>
                 <span v-else class="muted">已满级 · {{ user.exp }} EXP</span>
               </div>
               <div class="level-progress__track">
@@ -58,21 +59,12 @@
             <template v-if="expLogs.length">
               <ul class="exp-list">
                 <li v-for="log in expLogs" :key="log.id">
-                  <span class="exp-delta" :class="log.delta >= 0 ? 'plus' : 'minus'">
-                    {{ log.delta >= 0 ? '+' : '' }}{{ log.delta }}
-                  </span>
+                  <span class="exp-delta" :class="log.delta >= 0 ? 'plus' : 'minus'">{{ log.delta >= 0 ? '+' : '' }}{{ log.delta }}</span>
                   <span class="exp-reason">{{ log.reason }}</span>
                   <span class="muted exp-time">{{ formatDate(log.createdAt) }}</span>
                 </li>
               </ul>
-              <el-pagination
-                v-if="expTotal > expPageSize"
-                v-model:current-page="expPage"
-                :page-size="expPageSize"
-                :total="expTotal"
-                layout="prev, pager, next"
-                @current-change="fetchExpLogs"
-              />
+              <el-pagination v-if="expTotal > expPageSize" v-model:current-page="expPage" :page-size="expPageSize" :total="expTotal" layout="prev, pager, next" @current-change="fetchExpLogs" />
             </template>
             <p v-else class="muted empty-tip">还没有经验记录，完成一笔交易即可获得 +50 EXP</p>
           </section>
@@ -95,18 +87,14 @@
               </div>
               <div class="field">
                 <label for="p-school">所属学校</label>
-                <AppSelect
-                  id="p-school"
-                  v-model="editForm.schoolId"
-                  :options="schoolOptions"
-                  placeholder="请选择你当前就读的学校"
-                  aria-label="所属学校"
-                />
+                <AppSelect id="p-school" v-model="editForm.schoolId" :options="schoolOptions" placeholder="请选择你当前就读的学校" aria-label="所属学校" />
               </div>
               <div class="field">
-                <label for="p-email">学校邮箱 <span class="opt">选填</span></label>
-                <input id="p-email" v-model.trim="editForm.schoolEmail" class="input" type="email"
-                       :placeholder="schoolEmailPlaceholder" autocomplete="email" />
+                <label for="p-email">
+                  学校邮箱
+                  <span class="opt">选填</span>
+                </label>
+                <input id="p-email" v-model.trim="editForm.schoolEmail" class="input" type="email" :placeholder="schoolEmailPlaceholder" autocomplete="email" />
               </div>
               <div class="field">
                 <label for="p-phone">手机号</label>
@@ -202,8 +190,11 @@
         :close-on-press-escape="!cancelling"
       >
         <p class="cancel-warn">
-          ⚠️ 此操作不可自助恢复：注销后立即退出登录，无法再使用该账号交易。<br />
-          钱包余额 <b>¥{{ user?.walletBalance ?? 0 }}</b> 将随账号冻结，请确认已处理完毕。
+          ⚠️ 此操作不可自助恢复：注销后立即退出登录，无法再使用该账号交易。
+          <br />
+          钱包余额
+          <b>¥{{ user?.walletBalance ?? 0 }}</b>
+          将随账号冻结，请确认已处理完毕。
         </p>
         <div class="field">
           <label for="ca-pw">输入登录密码以确认</label>
@@ -229,10 +220,7 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import ReputationRadar from '@/components/common/ReputationRadar.vue'
-import {
-  updateProfile, getExpLog, changePassword, cancelAccount,
-  getUserReputation, getSchools,
-} from '@/api/auth'
+import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 
 /**
@@ -244,21 +232,19 @@ const user = computed(() => userStore.user)
 
 const saving = ref(false)
 const editForm = reactive({
-  nickname: '', phone: '', schoolId: null, schoolEmail: '',
-  campus: '', college: '', grade: '', dormitory: '',
+  nickname: '',
+  phone: '',
+  schoolId: null,
+  schoolEmail: '',
+  campus: '',
+  college: '',
+  grade: '',
+  dormitory: ''
 })
 const schools = ref([])
-const schoolOptions = computed(() =>
-  schools.value.map((school) => ({ label: school.name, value: school.id }))
-)
-const selectedSchool = computed(() =>
-  schools.value.find((school) => school.id === editForm.schoolId) || null
-)
-const schoolEmailPlaceholder = computed(() =>
-  selectedSchool.value?.emailDomain
-    ? `学号${selectedSchool.value.emailDomain}`
-    : '选择学校后填写对应学校邮箱'
-)
+const schoolOptions = computed(() => schools.value.map((school) => ({ label: school.name, value: school.id })))
+const selectedSchool = computed(() => schools.value.find((school) => school.id === editForm.schoolId) || null)
+const schoolEmailPlaceholder = computed(() => (selectedSchool.value?.emailDomain ? `学号${selectedSchool.value.emailDomain}` : '选择学校后填写对应学校邮箱'))
 
 // 信誉雷达（A6）
 const reputation = ref(null)
@@ -308,7 +294,7 @@ async function handleSave() {
     ElMessage.success('保存成功')
     const profile = await userStore.fetchProfile()
     fillEditForm(profile)
-  } catch (e) {
+  } catch {
     // 提示由 request.js 统一处理
   } finally {
     saving.value = false
@@ -322,7 +308,7 @@ async function fetchReputation() {
   try {
     const res = await getUserReputation(uid)
     reputation.value = res.data
-  } catch (e) {
+  } catch {
     // 忽略，页面其余部分可用
   }
 }
@@ -332,7 +318,7 @@ async function fetchExpLogs() {
     const res = await getExpLog({ page: expPage.value, size: expPageSize })
     expLogs.value = res.data.records || []
     expTotal.value = Number(res.data.total) || 0
-  } catch (e) {
+  } catch {
     // 忽略，页面其余部分可用
   }
 }
@@ -365,7 +351,11 @@ async function handleChangePassword() {
     ElMessage.success('密码修改成功，请重新登录')
     userStore.logout()
     router.push('/login')
-  } catch (e) { /* 提示由 request.js 处理 */ } finally { changingPw.value = false }
+  } catch {
+    /* 提示由 request.js 处理 */
+  } finally {
+    changingPw.value = false
+  }
 }
 
 // —— 账号安全：注销账号 ——
@@ -386,7 +376,11 @@ async function handleCancelAccount() {
     cancelVisible.value = false
     userStore.logout()
     router.push('/login')
-  } catch (e) { /* 提示由 request.js 处理 */ } finally { cancelling.value = false }
+  } catch {
+    /* 提示由 request.js 处理 */
+  } finally {
+    cancelling.value = false
+  }
 }
 
 function fillEditForm(profile) {
@@ -406,8 +400,12 @@ onMounted(async () => {
   const [profile] = await Promise.all([
     userStore.fetchProfile(),
     getSchools()
-      .then((res) => { schools.value = res.data || [] })
-      .catch(() => { schools.value = [] }),
+      .then((res) => {
+        schools.value = res.data || []
+      })
+      .catch(() => {
+        schools.value = []
+      })
   ])
   fillEditForm(profile)
   fetchExpLogs()
@@ -416,7 +414,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.profile-page { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
 
 .profile-grid {
   display: grid;
@@ -425,14 +427,28 @@ onMounted(async () => {
   align-items: start;
 }
 @media (max-width: 900px) {
-  .profile-grid { grid-template-columns: 1fr; }
-  .id-card { transform: none; }
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .id-card {
+    transform: none;
+  }
 }
 
-.left-col { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
 
-.id-card { padding: 24px; }
-.id-card__head { display: flex; gap: 16px; align-items: center; }
+.id-card {
+  padding: 24px;
+}
+.id-card__head {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
 .id-card__name {
   font-family: var(--font-display);
   font-size: 22px;
@@ -442,7 +458,9 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.level-progress { margin: 6px 0; }
+.level-progress {
+  margin: 6px 0;
+}
 .level-progress__label {
   display: flex;
   justify-content: space-between;
@@ -460,7 +478,7 @@ onMounted(async () => {
   height: 100%;
   background: var(--green);
   border-radius: 999px;
-  transition: width .4s ease;
+  transition: width 0.4s ease;
 }
 
 .wallet-line {
@@ -471,13 +489,34 @@ onMounted(async () => {
   margin: 6px 0 14px;
 }
 
-.quick-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.quick-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
-.right-col { display: flex; flex-direction: column; gap: var(--spacing-lg); }
-.panel { padding: 24px; }
-.panel h3 { font-family: var(--font-display); font-size: 20px; margin-bottom: 16px; letter-spacing: 1px; }
+.right-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+.panel {
+  padding: 24px;
+}
+.panel h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+}
 
-.exp-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.exp-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
 .exp-list li {
   display: flex;
   align-items: center;
@@ -488,23 +527,44 @@ onMounted(async () => {
   background: var(--paper-deep);
   font-size: 14px;
 }
-.exp-delta { font-weight: 900; font-family: var(--font-display); min-width: 46px; }
-.exp-delta.plus { color: var(--green); }
-.exp-delta.minus { color: var(--red); }
-.exp-reason { flex: 1; }
-.exp-time { font-size: 12px; }
-.empty-tip { font-size: 14px; }
+.exp-delta {
+  font-weight: 900;
+  font-family: var(--font-display);
+  min-width: 46px;
+}
+.exp-delta.plus {
+  color: var(--green);
+}
+.exp-delta.minus {
+  color: var(--red);
+}
+.exp-reason {
+  flex: 1;
+}
+.exp-time {
+  font-size: 12px;
+}
+.empty-tip {
+  font-size: 14px;
+}
 
 /* —— 账号安全 —— */
-.sec-block { padding: 4px 0; }
+.sec-block {
+  padding: 4px 0;
+}
 .sec-block__head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 }
-.sec-block__head b { font-size: 15px; }
-.sec-block__head .hint { margin-top: 4px; max-width: 420px; }
+.sec-block__head b {
+  font-size: 15px;
+}
+.sec-block__head .hint {
+  margin-top: 4px;
+  max-width: 420px;
+}
 .sec-form {
   margin-top: 14px;
   padding: 16px;
@@ -512,24 +572,43 @@ onMounted(async () => {
   border-radius: var(--r-s);
   background: var(--paper-deep);
 }
-.danger-text { color: var(--red); }
+.danger-text {
+  color: var(--red);
+}
 
 /* —— 学校归属 —— */
-.school-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.field label .opt { color: var(--ink-soft); font-weight: 600; font-size: 12px; margin-left: 6px; }
+.school-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.field label .opt {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 6px;
+}
 
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
 @media (max-width: 480px) {
-  .field-row { grid-template-columns: 1fr; gap: 0; }
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
 }
 .cancel-warn {
   font-size: 13.5px;
   line-height: 1.8;
-  background: #FDEBEB;
+  background: #fdebeb;
   border: var(--bw) solid var(--red);
   border-radius: var(--r-s);
   padding: 12px 14px;
   margin-bottom: 16px;
-  color: #8C1D1D;
+  color: #8c1d1d;
 }
 </style>

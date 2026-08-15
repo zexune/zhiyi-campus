@@ -43,9 +43,10 @@ public class AdminChatController {
     public Result<ChatThreadVO> messages(@RequestAttribute("userId") Long adminId,
                                          @RequestParam String conversationId,
                                          @RequestParam(required = false) Long peerId,
-                                         @RequestParam(required = false) Long relatedItemId) {
+                                         @RequestParam(required = false) Long relatedItemId,
+                                         @RequestParam(required = false) Long beforeId) {
         return Result.ok(chatService.messagesAsAdmin(
-                adminId, conversationId, peerId, relatedItemId));
+                adminId, conversationId, peerId, relatedItemId, beforeId));
     }
 
     @PostMapping("/chat/send")

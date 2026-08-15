@@ -1,11 +1,13 @@
 package com.zhiyi.module.user.controller;
 
+import com.zhiyi.common.AuthTokenCookieWriter;
 import com.zhiyi.common.Result;
 import com.zhiyi.module.user.dto.LoginDTO;
 import com.zhiyi.module.user.dto.RegisterDTO;
 import com.zhiyi.module.user.dto.ResetPasswordDTO;
 import com.zhiyi.module.user.service.AuthService;
 import com.zhiyi.module.user.vo.LoginVO;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,9 +23,13 @@ import java.util.Map;
  *
  * POST /api/auth/register           用户注册
  * POST /api/auth/login              用户登录
+ * POST /api/auth/logout             登出（清除会话 Cookie）
  * GET  /api/auth/security-question  获取密保问题（?schoolId=1&studentId=xxx）
  * GET  /api/auth/security-questions 预设密保问题列表（注册页下拉用）
  * POST /api/auth/reset-password     验证密保并重置密码
+ *
+ * 登录/注册除在响应体返回 token（Swagger / 编程客户端用 Bearer）外，
+ * 同时下发 httpOnly 会话 Cookie 供浏览器使用。
  */
 @Validated
 @RestController
@@ -32,15 +38,27 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthTokenCookieWriter cookieWriter;
 
     @PostMapping("/register")
-    public Result<LoginVO> register(@Valid @RequestBody RegisterDTO dto) {
-        return Result.ok("注册成功", authService.register(dto));
+    public Result<LoginVO> register(@Valid @RequestBody RegisterDTO dto, HttpServletResponse response) {
+        LoginVO vo = authService.register(dto);
+        cookieWriter.write(response, vo.getToken());
+        return Result.ok("注册成功", vo);
     }
 
     @PostMapping("/login")
-    public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto) {
-        return Result.ok("登录成功", authService.login(dto));
+    public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletResponse response) {
+        LoginVO vo = authService.login(dto);
+        cookieWriter.write(response, vo.getToken());
+        return Result.ok("登录成功", vo);
+    }
+
+    /** 登出：清除会话 Cookie，幂等，过期会话也可调用。 */
+    @PostMapping("/logout")
+    public Result<Void> logout(HttpServletResponse response) {
+        cookieWriter.clear(response);
+        return Result.ok("已退出登录", null);
     }
 
     @GetMapping("/security-question")

@@ -1,6 +1,7 @@
 <template>
   <span class="badge" :class="`badge--lv${clampedLevel}`">
-    Lv.{{ level }}<template v-if="showTitle"> {{ title }}</template>
+    Lv.{{ level }}
+    <template v-if="showTitle">{{ title }}</template>
   </span>
 </template>
 
@@ -13,7 +14,7 @@ import { computed } from 'vue'
  */
 const props = defineProps({
   level: { type: Number, default: 1 },
-  showTitle: { type: Boolean, default: false },
+  showTitle: { type: Boolean, default: false }
 })
 
 const LEVEL_TITLES = ['初来乍到', '小有信誉', '值得信赖', '交易达人', '校园传奇']

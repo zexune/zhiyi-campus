@@ -52,24 +52,24 @@ class AdminChatServiceTest {
     @Test
     void activeAdminWithNoMessagesGetsEmptyInbox() {
         when(userMapper.selectOne(any())).thenReturn(user(1L, "管理员", 99));
-        when(messageMapper.selectList(any())).thenReturn(List.of());
+        when(messageMapper.aggregateConversations(1L)).thenReturn(List.of());
 
         assertTrue(service.getSessions().isEmpty());
     }
 
     @Test
-    void sessionsUseLatestMessageAndCountOnlyUnreadInboundMessages() {
+    void sessionsAssembleFromPerConversationAggregates() {
         LocalDateTime now = LocalDateTime.now();
         SysUser admin = user(1L, "管理员", 99);
         SysUser alice = user(2L, "小爱", 3);
         SysUser bob = user(3L, "小博", 4);
         when(userMapper.selectOne(any())).thenReturn(admin);
-        when(messageMapper.selectList(any())).thenReturn(List.of(
+        when(messageMapper.aggregateConversations(1L)).thenReturn(List.of(
+                aggregate("3_admin", 5L, 3L, 1L),
+                aggregate("2_admin", 4L, 2L, 2L)));
+        when(messageMapper.selectByIds(any())).thenReturn(List.of(
                 message(5L, "3_admin", 3L, 1L, "最新会话", false, now),
-                message(4L, "2_admin", 1L, 2L, "管理员已回复", false, now.minusMinutes(1)),
-                message(3L, "2_admin", 2L, 1L, "请问还在吗", false, now.minusMinutes(2)),
-                message(2L, "2_admin", 2L, 1L, "你好", false, now.minusMinutes(3)),
-                message(1L, "2_admin", 2L, 1L, "已读旧消息", true, now.minusMinutes(4))));
+                message(4L, "2_admin", 1L, 2L, "管理员已回复", false, now.minusMinutes(1))));
         when(userMapper.selectByIds(any())).thenReturn(List.of(alice, bob));
 
         List<ConversationVO> sessions = service.getSessions();
@@ -81,6 +81,17 @@ class AdminChatServiceTest {
         assertEquals(1L, sessions.getFirst().getUnreadCount());
         assertEquals("管理员已回复", sessions.getLast().getLastMessage());
         assertEquals(2L, sessions.getLast().getUnreadCount());
+    }
+
+    private com.zhiyi.module.social.dto.ConversationAggregate aggregate(
+            String conversationId, Long lastMessageId, Long peerId, Long unreadCount) {
+        com.zhiyi.module.social.dto.ConversationAggregate aggregate =
+                new com.zhiyi.module.social.dto.ConversationAggregate();
+        aggregate.setConversationId(conversationId);
+        aggregate.setLastMessageId(lastMessageId);
+        aggregate.setPeerId(peerId);
+        aggregate.setUnreadCount(unreadCount);
+        return aggregate;
     }
 
     private SysUser user(Long id, String nickname, int level) {

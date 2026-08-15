@@ -10,7 +10,9 @@ class ResizeObserverStub {
 }
 
 class IntersectionObserverStub extends ResizeObserverStub {
-  takeRecords() { return [] }
+  takeRecords() {
+    return []
+  }
 }
 
 globalThis.ResizeObserver = ResizeObserverStub
@@ -26,8 +28,10 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener() {},
     addListener() {},
     removeListener() {},
-    dispatchEvent() { return false },
-  }),
+    dispatchEvent() {
+      return false
+    }
+  })
 })
 
 afterEach(() => {

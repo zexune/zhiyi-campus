@@ -1,6 +1,7 @@
 <template>
   <span class="price" :style="{ fontSize }">
-    <span class="rmb">¥</span>{{ formatted }}
+    <span class="rmb">¥</span>
+    {{ formatted }}
   </span>
 </template>
 
@@ -12,7 +13,7 @@ import { computed } from 'vue'
  */
 const props = defineProps({
   value: { type: [Number, String], default: 0 },
-  fontSize: { type: String, default: '20px' },
+  fontSize: { type: String, default: '20px' }
 })
 
 const formatted = computed(() => {

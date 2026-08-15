@@ -2,14 +2,7 @@
  * 交易模块工具函数 —— 纯函数，可独立测试，不依赖浏览器环境。
  */
 
-import {
-  ITEM_STATUS_BADGES,
-  ITEM_STATUS_LABELS,
-  ORDER_STATUS_BADGES,
-  ORDER_STATUS_LABELS,
-  VIOLATION_STATUS_LABELS,
-  WALLET_LOG_TYPE_LABELS,
-} from '../constants/domain.js'
+import { ITEM_STATUS_BADGES, ITEM_STATUS_LABELS, ORDER_STATUS_BADGES, ORDER_STATUS_LABELS, VIOLATION_STATUS_LABELS, WALLET_LOG_TYPE_LABELS } from '../constants/domain.js'
 
 /** 订单状态 → 中文标签 */
 export function orderStatusLabel(status) {

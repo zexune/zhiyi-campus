@@ -1,0 +1,14 @@
+# 统一文本文件行尾为 LF（Windows 检出也不再转 CRLF），保证 Spotless/ESLint 跨平台判定一致
+* text=auto eol=lf
+
+# Windows 专属脚本保留 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件不做任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary

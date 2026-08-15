@@ -9,13 +9,13 @@ import { getWalletBalance, getWalletLogs, rechargeWallet } from '@/api/wallet'
 vi.mock('@/api/wallet', () => ({
   getWalletBalance: vi.fn(),
   getWalletLogs: vi.fn(),
-  rechargeWallet: vi.fn(),
+  rechargeWallet: vi.fn()
 }))
 
 const DialogStub = {
   props: ['modelValue'],
   emits: ['update:modelValue'],
-  template: '<section v-if="modelValue" data-test="recharge-dialog"><slot/><slot name="footer"/></section>',
+  template: '<section v-if="modelValue" data-test="recharge-dialog"><slot/><slot name="footer"/></section>'
 }
 
 const global = {
@@ -23,24 +23,26 @@ const global = {
     DefaultLayout: { template: '<main><slot /></main>' },
     RouterLink: { template: '<a><slot /></a>' },
     ElDialog: DialogStub,
-    ElPagination: { template: '<nav data-test="pagination" />' },
-  },
+    ElPagination: { template: '<nav data-test="pagination" />' }
+  }
 }
 
 beforeEach(() => {
   getWalletBalance.mockResolvedValue({ data: { balance: 25 } })
   getWalletLogs.mockResolvedValue({
     data: {
-      records: [{
-        id: 1,
-        type: 'RECHARGE',
-        amount: 25,
-        balanceAfter: 25,
-        remark: '首次充值',
-        createdAt: '2026-08-13T12:30:00',
-      }],
-      total: 1,
-    },
+      records: [
+        {
+          id: 1,
+          type: 'RECHARGE',
+          amount: 25,
+          balanceAfter: 25,
+          remark: '首次充值',
+          createdAt: '2026-08-13T12:30:00'
+        }
+      ],
+      total: 1
+    }
   })
   rechargeWallet.mockResolvedValue({ data: { balance: 35.5 } })
 })

@@ -1,9 +1,11 @@
 package com.zhiyi.interceptor;
 
+import com.zhiyi.common.AuthTokenCookieWriter;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.UserAuthState;
 import com.zhiyi.module.user.support.UserStateCache;
 import com.zhiyi.utils.JwtUtils;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -19,7 +21,9 @@ class JwtInterceptorTest {
 
     private static final String SECRET = "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=";
 
-    private final JwtInterceptor interceptor = new JwtInterceptor(null, null);
+    private final AuthTokenCookieWriter cookieWriter = new AuthTokenCookieWriter("zhiyi_token", false, Duration.ofHours(24));
+
+    private final JwtInterceptor interceptor = new JwtInterceptor(null, null, cookieWriter);
 
     @Test
     void publicUserRoutesRemainPublic() throws Exception {
@@ -48,7 +52,8 @@ class JwtInterceptorTest {
                 utils,
                 new FixedUserStateCache(
                         new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
-                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)));
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)),
+                cookieWriter);
         MockHttpServletRequest request =
                 authenticatedRequest("/api/item/99", utils.generateToken(42L, "USER", 3));
 
@@ -95,7 +100,8 @@ class JwtInterceptorTest {
                 utils,
                 new FixedUserStateCache(
                         new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
-                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)));
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)),
+                cookieWriter);
         MockHttpServletRequest request = authenticatedRequest(
                 utils.generateToken(42L, "USER", 3));
 
@@ -111,7 +117,8 @@ class JwtInterceptorTest {
                 utils,
                 new FixedUserStateCache(
                         new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
-                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 4)));
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 4)),
+                cookieWriter);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         assertFalse(secured.preHandle(
@@ -127,11 +134,63 @@ class JwtInterceptorTest {
                 jwtUtils(),
                 new FixedUserStateCache(
                         new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
-                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 0)));
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 0)),
+                cookieWriter);
 
         String token = jwtUtils().generateToken(42L, "USER", null);
 
         assertTrue(secured.preHandle(authenticatedRequest(token), new MockHttpServletResponse(), new Object()));
+    }
+
+    @Test
+    void sessionCookieAuthenticatesWhenBearerHeaderAbsent() throws Exception {
+        JwtUtils utils = jwtUtils();
+        JwtInterceptor secured = new JwtInterceptor(
+                utils,
+                new FixedUserStateCache(
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)),
+                cookieWriter);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/item/99");
+        request.setCookies(new Cookie("zhiyi_token", utils.generateToken(42L, "USER", 3)));
+
+        assertTrue(secured.preHandle(request, new MockHttpServletResponse(), new Object()));
+        assertEquals(42L, request.getAttribute("userId"));
+    }
+
+    @Test
+    void blankCookieValueIsRejectedLikeMissingCredentials() throws Exception {
+        JwtInterceptor secured = new JwtInterceptor(
+                jwtUtils(),
+                new FixedUserStateCache(
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)),
+                cookieWriter);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/item/99");
+        request.setCookies(new Cookie("zhiyi_token", ""));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertFalse(secured.preHandle(request, response, new Object()));
+        assertEquals(401, response.getStatus());
+    }
+
+    @Test
+    void bearerHeaderTakesPrecedenceOverCookie() throws Exception {
+        JwtUtils utils = jwtUtils();
+        JwtInterceptor secured = new JwtInterceptor(
+                utils,
+                new FixedUserStateCache(
+                        new UserAuthState(42L, com.zhiyi.common.enums.UserRole.USER,
+                                com.zhiyi.common.enums.UserStatus.ACTIVE, null, 3)),
+                cookieWriter);
+        String validToken = utils.generateToken(42L, "USER", 3);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/item/99");
+        request.addHeader("Authorization", "Bearer " + validToken);
+        // Cookie 值是无效 Token，但不应被读取
+        request.setCookies(new Cookie("zhiyi_token", "not-a-jwt"));
+
+        assertTrue(secured.preHandle(request, new MockHttpServletResponse(), new Object()));
+        assertEquals(42L, request.getAttribute("userId"));
     }
 
     private JwtUtils jwtUtils() {

@@ -133,9 +133,14 @@ class ChatServiceTest {
 
     @Test
     void ordinaryAdministratorConversationListOnlyContainsSameSchoolPeers() {
-        ChatMessage sameSchool = message(1L, 1L, 9L);
-        ChatMessage crossSchool = message(2L, 2L, 9L);
-        when(chatMessageMapper.selectList(any())).thenReturn(List.of(crossSchool, sameSchool));
+        when(chatMessageMapper.aggregateConversations(9L)).thenReturn(List.of(
+                aggregate("1_9", 1L, 1L, null, 0L),
+                aggregate("2_9", 2L, 2L, null, 0L)
+        ));
+        when(chatMessageMapper.selectByIds(any())).thenReturn(List.of(
+                message(1L, 1L, 9L),
+                message(2L, 2L, 9L)
+        )).thenReturn(List.of());
         when(userMapper.selectById(9L)).thenReturn(user(9L, 1L, "ADMIN"));
         when(userMapper.selectByIds(any())).thenReturn(List.of(
                 user(1L, 1L, "USER"),
@@ -150,10 +155,14 @@ class ChatServiceTest {
 
     @Test
     void ordinaryAdministratorUnreadCountOnlyContainsSameSchoolMessages() {
-        when(chatMessageMapper.selectList(any())).thenReturn(List.of(
+        when(chatMessageMapper.aggregateConversations(9L)).thenReturn(List.of(
+                aggregate("1_9", 1L, 1L, null, 1L),
+                aggregate("2_9", 2L, 2L, null, 1L)
+        ));
+        when(chatMessageMapper.selectByIds(any())).thenReturn(List.of(
                 message(1L, 1L, 9L),
                 message(2L, 2L, 9L)
-        ));
+        )).thenReturn(List.of());
         when(userMapper.selectById(9L)).thenReturn(user(9L, 1L, "ADMIN"));
         when(userMapper.selectByIds(any())).thenReturn(List.of(
                 user(1L, 1L, "USER"),
@@ -161,6 +170,37 @@ class ChatServiceTest {
         ));
 
         assertEquals(1L, service.unreadCount(9L));
+    }
+
+    @Test
+    void messageThreadIsKeysetPaginatedWithHasMoreFlag() {
+        ChatMessage stored = new ChatMessage();
+        stored.setId(7L);
+        stored.setConversationId("1_2");
+        stored.setSenderId(1L);
+        stored.setReceiverId(2L);
+        stored.setContent("历史消息");
+        stored.setIsRead(true);
+        // 一页上限 50，多取 1 条探测 hasMore：返回 51 条应截断为 50 且 hasMore=true
+        List<ChatMessage> page = new java.util.ArrayList<>();
+        for (long i = 51; i >= 1; i--) {
+            ChatMessage m = new ChatMessage();
+            m.setId(i);
+            m.setConversationId("1_2");
+            m.setSenderId(i % 2 == 0 ? 1L : 2L);
+            m.setReceiverId(i % 2 == 0 ? 2L : 1L);
+            m.setContent("消息" + i);
+            m.setIsRead(true);
+            page.add(m);
+        }
+        when(chatMessageMapper.selectList(any())).thenReturn(page);
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 1L, "USER"));
+
+        var result = service.messages(1L, "1_2", 2L, null);
+
+        assertEquals(50, result.getMessages().size());
+        assertEquals(Boolean.TRUE, result.getHasMore());
     }
 
     @Test
@@ -201,6 +241,18 @@ class ChatServiceTest {
         message.setIsRead(false);
         message.setCreatedAt(LocalDateTime.now().minusMinutes(id));
         return message;
+    }
+
+    private com.zhiyi.module.social.dto.ConversationAggregate aggregate(
+            String conversationId, Long lastMessageId, Long peerId, Long relatedItemId, Long unreadCount) {
+        com.zhiyi.module.social.dto.ConversationAggregate aggregate =
+                new com.zhiyi.module.social.dto.ConversationAggregate();
+        aggregate.setConversationId(conversationId);
+        aggregate.setLastMessageId(lastMessageId);
+        aggregate.setPeerId(peerId);
+        aggregate.setRelatedItemId(relatedItemId);
+        aggregate.setUnreadCount(unreadCount);
+        return aggregate;
     }
 
     private Item item(Long id, Long publisherId, Long schoolId) {

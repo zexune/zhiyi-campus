@@ -25,7 +25,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     }
 
     /**
-     * CORS 跨域（前端分离部署时用）
+     * CORS 跨域（前端分离部署时用）。
+     * allowCredentials=true：登录凭证迁移到 httpOnly Cookie 后，跨源部署的前端必须携带 Cookie；
+     * allowedOrigins 为显式白名单（非通配），与凭证模式兼容。
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -33,7 +35,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "Accept")
-                .allowCredentials(false)
+                .allowCredentials(true)
                 .maxAge(3600);
     }
 
@@ -47,10 +49,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/api/auth/register",                     // 注册
                         "/api/auth/login",                        // 登录
+                        "/api/auth/logout",                       // 登出（幂等清除 Cookie，无需登录态）
                         "/api/auth/security-question",            // 获取密保问题
                         "/api/auth/security-questions",           // 预设密保问题列表
                         "/api/auth/reset-password",               // 重置密码
                         "/api/admin/auth/login",                  // 管理员独立登录
+                        "/api/admin/auth/logout",                 // 管理员登出（幂等清除 Cookie）
                         "/api/school/list",                       // 学校列表（注册/资料页下拉）
                         "/api/category/list"                      // 分类列表
                 ).order(0);

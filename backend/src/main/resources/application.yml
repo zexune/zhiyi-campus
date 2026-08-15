@@ -69,3 +69,6 @@ zhiyi:
     login-fail-limit: 5
     login-fail-lock-seconds: 300
     user-state-cache-seconds: 60
+    cookie-name: ${AUTH_COOKIE_NAME:zhiyi_token}
+    # 生产（HTTPS）部署时置 true，Cookie 仅经加密通道传输
+    cookie-secure: ${AUTH_COOKIE_SECURE:false}

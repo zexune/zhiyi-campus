@@ -1,7 +1,10 @@
 <template>
   <AdminLayout>
     <div class="category-page rise">
-      <div class="page-title">🗂️ 商品分类管理 <span class="stamp">Module 2</span></div>
+      <div class="page-title">
+        🗂️ 商品分类管理
+        <span class="stamp">Module 2</span>
+      </div>
 
       <div class="nav-tabs">
         <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
@@ -11,7 +14,7 @@
       </div>
 
       <div class="category-layout">
-        <section class="card category-list" v-loading="loading">
+        <section v-loading="loading" class="card category-list">
           <div class="section-head">
             <div>
               <h2>发布大类</h2>
@@ -21,14 +24,7 @@
           </div>
 
           <div v-if="categories.length" class="rows">
-            <button
-              v-for="category in categories"
-              :key="category.id"
-              type="button"
-              class="category-row"
-              :class="{ active: form.id === category.id }"
-              @click="edit(category)"
-            >
+            <button v-for="category in categories" :key="category.id" type="button" class="category-row" :class="{ active: form.id === category.id }" @click="edit(category)">
               <span class="category-icon">{{ category.icon || '📦' }}</span>
               <span class="category-name">{{ category.name }}</span>
               <span class="category-sort">排序 {{ category.sortOrder }}</span>
@@ -43,20 +39,20 @@
 
           <div class="field">
             <label for="category-name">分类名称</label>
-            <input id="category-name" v-model.trim="form.name" class="input" maxlength="50" placeholder="例如：数码电子">
+            <input id="category-name" v-model.trim="form.name" class="input" maxlength="50" placeholder="例如：数码电子" />
           </div>
           <div class="field">
             <label for="category-icon">分类图标</label>
-            <input id="category-icon" v-model.trim="form.icon" class="input" maxlength="50" placeholder="📦">
+            <input id="category-icon" v-model.trim="form.icon" class="input" maxlength="50" placeholder="📦" />
           </div>
           <div class="field">
             <label for="category-sort">排序值</label>
-            <input id="category-sort" v-model.number="form.sortOrder" class="input" type="number" min="0" max="9999">
+            <input id="category-sort" v-model.number="form.sortOrder" class="input" type="number" min="0" max="9999" />
           </div>
 
           <div class="actions">
             <button class="btn btn--primary" type="button" :disabled="saving" @click="save">
-              {{ saving ? '保存中…' : (form.id ? '保存修改' : '创建分类') }}
+              {{ saving ? '保存中…' : form.id ? '保存修改' : '创建分类' }}
             </button>
             <button v-if="form.id" class="btn" type="button" @click="reset">取消编辑</button>
             <button v-if="form.id" class="btn btn--danger delete-btn" type="button" :disabled="saving" @click="remove">删除</button>
@@ -93,7 +89,7 @@ function edit(category) {
     id: category.id,
     name: category.name,
     icon: category.icon || '📦',
-    sortOrder: Number(category.sortOrder || 0),
+    sortOrder: Number(category.sortOrder || 0)
   })
 }
 
@@ -122,9 +118,13 @@ async function save() {
 async function remove() {
   try {
     await ElMessageBox.confirm(`确认删除分类“${form.name}”？`, '删除分类', {
-      type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消',
+      type: 'warning',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消'
     })
-  } catch { return }
+  } catch {
+    return
+  }
 
   saving.value = true
   try {
@@ -141,25 +141,121 @@ onMounted(load)
 </script>
 
 <style scoped>
-.category-page { padding-top: 10px; }
-.category-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .8fr); gap: 24px; margin-top: 24px; align-items: start; }
-.category-list, .category-form { padding: 26px; }
-.section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.section-head h2, .category-form h2 { font-family: var(--font-display); font-size: 21px; }
-.section-head p, .category-form > p { margin-top: 5px; font-size: 13px; }
-.count { border: 2px solid var(--ink); border-radius: 999px; padding: 5px 10px; background: var(--yellow); font-weight: 800; font-size: 12px; white-space: nowrap; }
-.rows { margin-top: 20px; display: grid; gap: 10px; }
-.category-row { width: 100%; display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 12px; padding: 12px 14px; border: 2px solid var(--ink); border-radius: var(--r-s); background: var(--white); color: var(--ink); text-align: left; cursor: pointer; transition: .16s; }
-.category-row:hover, .category-row.active { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 var(--ink); background: var(--paper-deep); }
-.category-row.active { border-color: var(--primary); }
-.category-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1.5px solid var(--ink); border-radius: 10px; background: var(--yellow); font-size: 21px; }
-.category-name { font-weight: 900; }
-.category-sort { color: var(--ink-soft); font-size: 12px; }
-.empty { padding: 48px 0; text-align: center; }
-.category-form .field { margin-top: 18px; }
-.category-form label { display: block; margin-bottom: 6px; font-weight: 800; font-size: 14px; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
-.delete-btn { margin-left: auto; }
-.hint { margin-top: 12px; color: var(--ink-soft); font-size: 12px; }
-@media (max-width: 850px) { .category-layout { grid-template-columns: 1fr; } }
+.category-page {
+  padding-top: 10px;
+}
+.category-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
+  gap: 24px;
+  margin-top: 24px;
+  align-items: start;
+}
+.category-list,
+.category-form {
+  padding: 26px;
+}
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.section-head h2,
+.category-form h2 {
+  font-family: var(--font-display);
+  font-size: 21px;
+}
+.section-head p,
+.category-form > p {
+  margin-top: 5px;
+  font-size: 13px;
+}
+.count {
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: var(--yellow);
+  font-weight: 800;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.rows {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+}
+.category-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-s);
+  background: var(--white);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: 0.16s;
+}
+.category-row:hover,
+.category-row.active {
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--ink);
+  background: var(--paper-deep);
+}
+.category-row.active {
+  border-color: var(--primary);
+}
+.category-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  background: var(--yellow);
+  font-size: 21px;
+}
+.category-name {
+  font-weight: 900;
+}
+.category-sort {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.empty {
+  padding: 48px 0;
+  text-align: center;
+}
+.category-form .field {
+  margin-top: 18px;
+}
+.category-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 800;
+  font-size: 14px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.delete-btn {
+  margin-left: auto;
+}
+.hint {
+  margin-top: 12px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+@media (max-width: 850px) {
+  .category-layout {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

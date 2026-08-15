@@ -71,25 +71,19 @@
 
       <div class="field review-comment">
         <div class="review-comment__label">
-          <label for="review-comment">评价内容 <span class="opt">选填</span></label>
+          <label for="review-comment">
+            评价内容
+            <span class="opt">选填</span>
+          </label>
           <span>{{ form.comment.length }} / 200</span>
         </div>
-        <textarea
-          id="review-comment"
-          v-model.trim="form.comment"
-          class="input textarea"
-          maxlength="200"
-          rows="3"
-          placeholder="说说见面、沟通或商品使用体验…"
-        />
+        <textarea id="review-comment" v-model.trim="form.comment" class="input textarea" maxlength="200" rows="3" placeholder="说说见面、沟通或商品使用体验…" />
       </div>
     </div>
 
     <template #footer>
       <div class="review-dialog__footer">
-        <button class="btn" type="button" :disabled="submitting" @click="emit('close')">
-          再想想
-        </button>
+        <button class="btn" type="button" :disabled="submitting" @click="emit('close')">再想想</button>
         <button class="btn btn--primary" type="button" :disabled="submitting" @click="handleSubmit">
           {{ submitting ? '提交中…' : '提交评价 →' }}
         </button>
@@ -104,7 +98,7 @@ import { reactive, watch } from 'vue'
 const props = defineProps({
   visible: { type: Boolean, default: false },
   order: { type: Object, default: null },
-  submitting: { type: Boolean, default: false },
+  submitting: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['close', 'submit'])
@@ -131,7 +125,7 @@ watch(
   () => props.visible,
   (visible) => {
     if (visible) Object.assign(form, defaultForm())
-  },
+  }
 )
 </script>
 
@@ -217,7 +211,7 @@ watch(
   color: var(--green-deep);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: .8px;
+  letter-spacing: 0.8px;
 }
 
 .review-order-card strong {
@@ -270,7 +264,11 @@ watch(
   box-shadow: 2px 2px 0 var(--ink);
   font-size: 25px;
   line-height: 1;
-  transition: transform .15s, background-color .15s, color .15s, box-shadow .15s;
+  transition:
+    transform 0.15s,
+    background-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
 }
 
 .star-btn:hover {
@@ -523,7 +521,10 @@ watch(
   border-radius: 50%;
   background: var(--white);
   box-shadow: 2px 2px 0 var(--ink);
-  transition: transform .15s, background-color .15s, box-shadow .15s;
+  transition:
+    transform 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .review-dialog .el-dialog__headerbtn:hover {

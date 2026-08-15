@@ -141,7 +141,15 @@ export function deleteCategory(id) {
   return request.delete(`/admin/categories/${id}`)
 }
 
-export function getEventTopics() { return request.get('/admin/event-topics') }
-export function createEventTopic(data) { return request.post('/admin/event-topics', data) }
-export function updateEventTopic(id, data) { return request.put(`/admin/event-topics/${id}`, data) }
-export function deleteEventTopic(id) { return request.delete(`/admin/event-topics/${id}`) }
+export function getEventTopics() {
+  return request.get('/admin/event-topics')
+}
+export function createEventTopic(data) {
+  return request.post('/admin/event-topics', data)
+}
+export function updateEventTopic(id, data) {
+  return request.put(`/admin/event-topics/${id}`, data)
+}
+export function deleteEventTopic(id) {
+  return request.delete(`/admin/event-topics/${id}`)
+}

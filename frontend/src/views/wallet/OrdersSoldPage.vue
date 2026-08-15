@@ -16,13 +16,7 @@
 
       <!-- 状态筛选 -->
       <div class="filter-bar">
-        <button
-          v-for="f in filters"
-          :key="f.value"
-          class="btn btn--sm"
-          :class="currentFilter === f.value ? 'btn--dark' : 'btn--ghost'"
-          @click="switchFilter(f.value)"
-        >{{ f.label }}</button>
+        <button v-for="f in filters" :key="f.value" class="btn btn--sm" :class="currentFilter === f.value ? 'btn--dark' : 'btn--ghost'" @click="switchFilter(f.value)">{{ f.label }}</button>
       </div>
 
       <!-- 加载 / 空 / 错误 -->
@@ -32,7 +26,7 @@
 
       <div v-else-if="loadError" class="card card--flat state-card">
         <span class="muted">订单加载失败</span>
-        <button class="btn btn--sm" style="margin-top:12px" @click="fetchOrders">重新加载</button>
+        <button class="btn btn--sm" style="margin-top: 12px" @click="fetchOrders">重新加载</button>
       </div>
 
       <div v-else-if="orders.length === 0" class="card card--flat state-card">
@@ -41,11 +35,7 @@
 
       <!-- 订单列表 -->
       <div v-else class="order-list">
-        <div
-          v-for="o in orders"
-          :key="o.id"
-          class="order-item card"
-        >
+        <div v-for="o in orders" :key="o.id" class="order-item card">
           <!-- 商品封面 -->
           <router-link :to="`/item/${o.itemId}`" class="order-cover">
             <div v-if="o.itemCover" class="order-cover__img">
@@ -62,7 +52,10 @@
               {{ o.itemTitle }}
             </router-link>
             <div class="order-meta">
-              <span class="price"><span class="rmb">¥</span>{{ fmt(o.price) }}</span>
+              <span class="price">
+                <span class="rmb">¥</span>
+                {{ fmt(o.price) }}
+              </span>
               <span class="muted">·</span>
               <span class="muted">买家：{{ o.peerNickname || '—' }}</span>
             </div>
@@ -73,29 +66,16 @@
           <div class="order-actions">
             <span class="badge" :class="statusBadge(o.status)">{{ statusLabel(o.status) }}</span>
 
-            <div v-if="o.status === ORDER_STATUS.WAITING_MEET" class="order-hint muted">
-              等待买家确认收货
-            </div>
-            <div v-else-if="o.status === ORDER_STATUS.COMPLETED" class="order-hint" style="color:var(--green-deep);font-weight:700;">
-              {{ fmtTime(o.completedAt) }} 已收款 ✓
-            </div>
-            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-hint muted">
-              {{ fmtTime(o.cancelledAt) }} 订单已取消
-            </div>
+            <div v-if="o.status === ORDER_STATUS.WAITING_MEET" class="order-hint muted">等待买家确认收货</div>
+            <div v-else-if="o.status === ORDER_STATUS.COMPLETED" class="order-hint" style="color: var(--green-deep); font-weight: 700">{{ fmtTime(o.completedAt) }} 已收款 ✓</div>
+            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-hint muted">{{ fmtTime(o.cancelledAt) }} 订单已取消</div>
           </div>
         </div>
       </div>
 
       <!-- 分页 -->
-      <div class="logs-pagination" v-if="total > pageSize">
-        <el-pagination
-          v-model:current-page="currentPage"
-          :page-size="pageSize"
-          :total="total"
-          layout="prev, pager, next"
-          background
-          @current-change="fetchOrders"
-        />
+      <div v-if="total > pageSize" class="logs-pagination">
+        <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="total" layout="prev, pager, next" background @current-change="fetchOrders" />
       </div>
     </div>
   </DefaultLayout>
@@ -109,10 +89,7 @@ import { ORDER_STATUS, ORDER_STATUS_OPTIONS } from '@/constants/domain'
 import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
 
 // ---- 筛选 ----
-const filters = [
-  { label: '全部', value: '' },
-  ...ORDER_STATUS_OPTIONS,
-]
+const filters = [{ label: '全部', value: '' }, ...ORDER_STATUS_OPTIONS]
 const currentFilter = ref('')
 
 function switchFilter(val) {
@@ -153,7 +130,7 @@ function fmt(val) {
 function fmtTime(val) {
   if (!val) return ''
   const d = new Date(val)
-  const pad = n => String(n).padStart(2, '0')
+  const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
@@ -200,7 +177,7 @@ onMounted(() => {
   color: var(--ink);
   cursor: pointer;
   text-decoration: none;
-  transition: all .15s;
+  transition: all 0.15s;
   display: inline-flex;
   align-items: center;
   gap: 4px;

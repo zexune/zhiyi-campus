@@ -3,19 +3,25 @@ import { expect, test } from '@playwright/test'
 test('未登录用户访问钱包会被路由守卫送回登录页', async ({ page }) => {
   const runtimeErrors = []
   page.on('pageerror', (error) => runtimeErrors.push(error.message))
-  await page.route('https://fonts.googleapis.com/**', (route) => route.fulfill({
-    status: 200,
-    contentType: 'text/css',
-    body: '',
-  }))
-  await page.route('**/api/school/list', (route) => route.fulfill({
-    status: 200,
-    json: { code: 200, message: '操作成功', data: [{ id: 1, name: '上海大学', code: 'SHU' }] },
-  }))
-  await page.route('**/api/auth/security-questions', (route) => route.fulfill({
-    status: 200,
-    json: { code: 200, message: '操作成功', data: ['测试问题？'] },
-  }))
+  await page.route('https://fonts.googleapis.com/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: ''
+    })
+  )
+  await page.route('**/api/school/list', (route) =>
+    route.fulfill({
+      status: 200,
+      json: { code: 200, message: '操作成功', data: [{ id: 1, name: '上海大学', code: 'SHU' }] }
+    })
+  )
+  await page.route('**/api/auth/security-questions', (route) =>
+    route.fulfill({
+      status: 200,
+      json: { code: 200, message: '操作成功', data: ['测试问题？'] }
+    })
+  )
   await page.goto('/wallet')
 
   await expect(page).toHaveURL(/\/login\?redirect=\/wallet$/)
@@ -28,48 +34,54 @@ test('钱包关键交互可在稳定 API 契约替身下跑通', async ({ page }
   let recharged = false
   const runtimeErrors = []
   page.on('pageerror', (error) => runtimeErrors.push(error.message))
-  await page.route('https://fonts.googleapis.com/**', (route) => route.fulfill({
-    status: 200,
-    contentType: 'text/css',
-    body: '',
-  }))
+  await page.route('https://fonts.googleapis.com/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: ''
+    })
+  )
 
   await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-contract-token')
+    // 凭证由 httpOnly Cookie 承载（本用例全量 mock API，无需注入）；
+    // 这里只写登录态派生所需的展示信息（见 src/utils/auth.js）
     localStorage.setItem('role', 'USER')
     localStorage.setItem('userId', '7')
     localStorage.setItem('nickname', '端到端同学')
   })
 
-  await page.route((url) => url.pathname.startsWith('/api/'), async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    let data
+  await page.route(
+    (url) => url.pathname.startsWith('/api/'),
+    async (route) => {
+      const request = route.request()
+      const url = new URL(request.url())
+      let data
 
-    if (url.pathname === '/api/wallet/balance') {
-      data = { balance }
-    } else if (url.pathname === '/api/wallet/recharge' && request.method() === 'POST') {
-      const body = request.postDataJSON()
-      balance += Number(body.amount)
-      recharged = true
-      data = { balance }
-    } else if (url.pathname === '/api/wallet/logs') {
-      const records = recharged
-        ? [{ id: 2, type: 'RECHARGE', amount: 12.5, balanceAfter: balance, remark: '模拟充值', createdAt: '2026-08-13T13:00:00' }]
-        : [{ id: 1, type: 'RECHARGE', amount: 25, balanceAfter: 25, remark: '首次充值', createdAt: '2026-08-13T12:00:00' }]
-      data = { records, total: records.length }
-    } else if (url.pathname === '/api/chat/unread-count') {
-      data = 0
-    } else {
-      return route.fulfill({ status: 404, json: { code: 404, message: '未配置的测试接口', data: null } })
+      if (url.pathname === '/api/wallet/balance') {
+        data = { balance }
+      } else if (url.pathname === '/api/wallet/recharge' && request.method() === 'POST') {
+        const body = request.postDataJSON()
+        balance += Number(body.amount)
+        recharged = true
+        data = { balance }
+      } else if (url.pathname === '/api/wallet/logs') {
+        const records = recharged
+          ? [{ id: 2, type: 'RECHARGE', amount: 12.5, balanceAfter: balance, remark: '模拟充值', createdAt: '2026-08-13T13:00:00' }]
+          : [{ id: 1, type: 'RECHARGE', amount: 25, balanceAfter: 25, remark: '首次充值', createdAt: '2026-08-13T12:00:00' }]
+        data = { records, total: records.length }
+      } else if (url.pathname === '/api/chat/unread-count') {
+        data = 0
+      } else {
+        return route.fulfill({ status: 404, json: { code: 404, message: '未配置的测试接口', data: null } })
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 200, message: '操作成功', data })
+      })
     }
-
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ code: 200, message: '操作成功', data }),
-    })
-  })
+  )
 
   await page.goto('/wallet')
   await expect(page.getByText('当前余额')).toBeVisible()
