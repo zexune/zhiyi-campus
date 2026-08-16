@@ -2,7 +2,7 @@
   <div class="admin-shell">
     <header class="admin-header">
       <div class="admin-header__inner">
-        <router-link class="admin-brand" to="/admin/dashboard" aria-label="智易校园管理后台">
+        <router-link class="admin-brand" :to="ROUTE_PATH.ADMIN_DASHBOARD" aria-label="智易校园管理后台">
           <span class="admin-brand__mark">智</span>
           <span>
             智易校园
@@ -11,12 +11,12 @@
         </router-link>
 
         <nav class="admin-nav" aria-label="管理后台导航">
-          <router-link to="/admin/dashboard">数据大盘</router-link>
-          <router-link to="/admin/violations">内容治理</router-link>
-          <router-link to="/admin/chat">客服收件箱</router-link>
-          <router-link to="/admin/manage">用户与内容</router-link>
-          <router-link to="/admin/schools">学校管理</router-link>
-          <router-link to="/admin/categories">分类管理</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD">数据大盘</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS">内容治理</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_CHAT">客服收件箱</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_MANAGE">用户与内容</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS">学校管理</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_CATEGORIES">分类管理</router-link>
         </nav>
 
         <div class="admin-account">
@@ -54,6 +54,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getNickname } from '@/utils/auth'
 import { changeAdminPassword } from '@/api/admin'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -64,7 +65,7 @@ const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPasswor
 
 function logout() {
   userStore.logout()
-  router.replace('/admin/login')
+  router.replace(ROUTE_PATH.ADMIN_LOGIN)
 }
 
 async function changePassword() {

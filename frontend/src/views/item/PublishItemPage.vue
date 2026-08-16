@@ -9,7 +9,7 @@
           </h1>
           <p class="muted">{{ editMode ? '修改后重新执行本地合规检测；违规整改会交由管理员复核' : '提交后在本机服务内完成规则检测与标签生成，命中风险再转人工审核' }}</p>
         </div>
-        <router-link to="/user/my-items" class="btn">{{ editMode ? '返回我的发布' : '我的发布' }}</router-link>
+        <router-link :to="ROUTE_PATH.MY_ITEMS" class="btn">{{ editMode ? '返回我的发布' : '我的发布' }}</router-link>
       </header>
 
       <div v-loading="pageLoading" class="pub-wrap">
@@ -269,6 +269,7 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getCategories, getOwnItem, publishItem, updateItem, uploadItemImage } from '@/api/item'
 import { ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -427,10 +428,10 @@ async function handleSubmit() {
     if (!editMode.value) localStorage.removeItem('zhiyi-publish-draft')
     if (res.data?.moderationStatus === MODERATION_STATUS.PENDING) {
       ElMessage.warning(editMode.value ? '修改已提交，正在等待管理员复核' : '检测到风险内容，已提交管理员审核')
-      router.push('/user/my-items')
+      router.push(ROUTE_PATH.MY_ITEMS)
     } else {
       ElMessage.success(editMode.value ? '修改成功，商品已通过本地检测' : '发布成功，商品已进入交易大厅')
-      router.push(`/item/${res.data.id}`)
+      router.push(ROUTE_PATH.item(res.data.id))
     }
   } catch {
     // 具体错误由统一请求拦截器提示。

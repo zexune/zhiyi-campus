@@ -7,10 +7,10 @@
       </div>
 
       <div class="nav-tabs">
-        <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
-        <router-link to="/admin/chat" class="nav-tab">💬 客服收件箱</router-link>
-        <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD" class="nav-tab">📊 数据大盘</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_CHAT" class="nav-tab">💬 客服收件箱</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
         <span class="nav-tab active">🏫 学校管理</span>
       </div>
 
@@ -107,6 +107,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const schools = ref([])
 const loading = ref(false)

@@ -7,9 +7,9 @@
       </div>
 
       <div class="nav-tabs">
-        <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
-        <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD" class="nav-tab">📊 数据大盘</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
         <span class="nav-tab active">🗂️ 分类管理</span>
       </div>
 
@@ -68,6 +68,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { createCategory, deleteCategory, getAdminCategories, updateCategory } from '@/api/admin'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const categories = ref([])
 const loading = ref(false)

@@ -1,0 +1,259 @@
+/**
+ * 认证面板共享样式（登录 / 注册 / 找回密码）—— 三面板结构一致，抽公共层避免三份拷贝。
+ * 注意：本文件非 scoped（类名均带 auth 前缀或表单语义，无全局冲突）。
+ */
+
+.auth-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.auth-panel form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.auth-panel form > .btn--block,
+.auth-panel form > .reg-actions {
+  margin-top: auto;
+}
+.auth-panel h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.auth-panel .sub {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-bottom: 22px;
+}
+
+/* el-form-item 承接 .field 视觉（沿用 PublishItemPage 的覆盖手法） */
+.auth-panel .field.el-form-item {
+  display: block;
+  margin-bottom: 18px;
+}
+.auth-panel .field.el-form-item .el-form-item__content {
+  display: block;
+  line-height: 1.6;
+  margin-left: 0;
+}
+.auth-panel .field.el-form-item .el-form-item__error {
+  position: static;
+  padding-top: 3px;
+  font-size: 12px;
+}
+
+/* 注册面板：两列紧凑排布 */
+.auth-panel .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.auth-panel .field-row .field {
+  margin-bottom: 14px;
+}
+.auth-panel .field-row .field.el-form-item {
+  margin-bottom: 14px;
+}
+.reg-hint {
+  margin: 0 0 16px;
+}
+.field label .opt {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+/* 密码强度条 */
+.pw-strength {
+  display: flex;
+  gap: 5px;
+  margin-top: 7px;
+}
+.pw-strength i {
+  height: 6px;
+  flex: 1;
+  border-radius: 3px;
+  background: #e8e0cf;
+  border: 1px solid #d8cdb6;
+}
+.pw-strength i.on {
+  background: var(--green);
+  border-color: var(--ink);
+}
+
+.reg-actions {
+  display: flex;
+  gap: 12px;
+}
+.reg-actions__submit {
+  flex: 1;
+}
+
+/* 学校下拉加载失败提示 */
+.school-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  color: var(--red);
+  font-size: 12.5px;
+}
+.school-retry {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--blue);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.school-retry:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+/* 密保问题：输入框 + 随机按钮 */
+.question-input {
+  display: flex;
+  gap: 10px;
+}
+.question-input .input {
+  flex: 1;
+}
+.random-btn {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  background: var(--yellow);
+}
+.random-btn .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.form-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0 18px;
+  font-size: 13.5px;
+}
+.form-foot a {
+  color: var(--blue);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.form-foot a:hover {
+  color: var(--primary);
+}
+.admin-entry {
+  margin-top: 14px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.admin-entry a {
+  margin-left: 4px;
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 步骤条（注册两步 / 找回密码三步共用） */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.step__no {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: var(--bw) solid var(--ink);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  background: var(--white);
+}
+.step.done .step__no {
+  background: var(--green);
+  color: #fff;
+}
+.step.current {
+  color: var(--ink);
+}
+.step.current .step__no {
+  background: var(--yellow);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--ink);
+  opacity: 0.25;
+  min-width: 14px;
+}
+
+/* 密保问题展示框 */
+.question-box {
+  background: var(--paper-deep);
+  border: 1.5px dashed var(--ink);
+  border-radius: var(--r-s);
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.question-box svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* 封禁提示 */
+.banned-tip {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #fdebeb;
+  border: var(--bw) solid var(--red);
+  border-radius: var(--r-s);
+  padding: 13px 15px;
+  font-size: 13.5px;
+  margin-top: 20px;
+  color: #8c1d1d;
+}
+.banned-tip svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  stroke: var(--red);
+  margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+  .auth-panel .field-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

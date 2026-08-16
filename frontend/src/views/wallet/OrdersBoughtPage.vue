@@ -9,9 +9,9 @@
 
       <!-- 导航标签 -->
       <div class="nav-tabs">
-        <router-link to="/wallet" class="nav-tab">💰 我的钱包</router-link>
+        <router-link :to="ROUTE_PATH.WALLET" class="nav-tab">💰 我的钱包</router-link>
         <span class="nav-tab active">🛒 我买的</span>
-        <router-link to="/orders/sold" class="nav-tab">📦 我卖的</router-link>
+        <router-link :to="ROUTE_PATH.ORDERS_SOLD" class="nav-tab">📦 我卖的</router-link>
       </div>
 
       <!-- 状态筛选 -->
@@ -37,29 +37,29 @@
       <div v-else class="order-list">
         <div v-for="o in orders" :key="o.id" class="order-item card">
           <!-- 商品封面 -->
-          <router-link :to="`/item/${o.itemId}`" class="order-cover">
+          <router-link :to="ROUTE_PATH.item(o.itemId)" class="order-cover">
             <div v-if="o.itemCover" class="order-cover__img">
               <img :src="o.itemCover" :alt="o.itemTitle" />
             </div>
-            <div v-else class="order-cover__ph" :class="phClass(o.itemId)">
+            <div v-else class="order-cover__ph" :class="placeholderClass(o.itemId)">
               <span class="muted">暂无图片</span>
             </div>
           </router-link>
 
           <!-- 信息区 -->
           <div class="order-info">
-            <router-link :to="`/item/${o.itemId}`" class="order-title">
+            <router-link :to="ROUTE_PATH.item(o.itemId)" class="order-title">
               {{ o.itemTitle }}
             </router-link>
             <div class="order-meta">
               <span class="price">
                 <span class="rmb">¥</span>
-                {{ fmt(o.price) }}
+                {{ formatPrice(o.price) }}
               </span>
               <span class="muted">·</span>
               <span class="muted">卖家：{{ o.peerNickname || '—' }}</span>
             </div>
-            <div class="order-time muted">{{ fmtTime(o.createdAt) }}</div>
+            <div class="order-time muted">{{ formatDateTime(o.createdAt) }}</div>
           </div>
 
           <!-- 状态 & 操作 -->
@@ -76,9 +76,9 @@
             <template v-else-if="o.status === ORDER_STATUS.COMPLETED">
               <button v-if="o.reviewed === false" class="btn btn--yellow btn--sm" @click="openReview(o)">⭐ 评价卖家</button>
               <span v-else-if="o.reviewed" class="muted order-extra">已评价</span>
-              <div class="order-extra muted">{{ fmtTime(o.completedAt) }} 完成</div>
+              <div class="order-extra muted">{{ formatDateTime(o.completedAt) }} 完成</div>
             </template>
-            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-extra muted">{{ fmtTime(o.cancelledAt) }} 取消</div>
+            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-extra muted">{{ formatDateTime(o.cancelledAt) }} 取消</div>
           </div>
         </div>
       </div>
@@ -100,6 +100,9 @@ import OrderReviewDialog from '@/components/trade/OrderReviewDialog.vue'
 import { getBoughtOrders, confirmReceipt, cancelOrder, reviewOrder } from '@/api/order'
 import { ORDER_STATUS, ORDER_STATUS_OPTIONS } from '@/constants/domain'
 import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
+import { usePagedList } from '@/composables/usePagedList'
+import { formatDateTime, formatPrice, placeholderClass } from '@/utils/format'
+import { ROUTE_PATH } from '@/constants/routes'
 
 // ---- 评价弹窗（A7）----
 const reviewVisible = ref(false)
@@ -131,34 +134,24 @@ const currentFilter = ref('')
 
 function switchFilter(val) {
   currentFilter.value = val
-  currentPage.value = 1
+  goToFirstPage()
   fetchOrders()
 }
 
-// ---- 订单列表 ----
-const orders = ref([])
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-const loading = ref(false)
-const loadError = ref(false)
+// ---- 订单列表（服务端分页状态机）----
+const {
+  records: orders,
+  currentPage,
+  pageSize,
+  total,
+  loading,
+  loadError,
+  fetchList: fetchOrders,
+  goToFirstPage
+} = usePagedList(getBoughtOrders, {
+  params: () => (currentFilter.value ? { status: currentFilter.value } : {})
+})
 const actingId = ref(null) // 正在操作的订单 ID，防重复点击
-
-async function fetchOrders() {
-  loading.value = true
-  loadError.value = false
-  try {
-    const params = { page: currentPage.value, size: pageSize.value }
-    if (currentFilter.value) params.status = currentFilter.value
-    const res = await getBoughtOrders(params)
-    orders.value = res.data.records || []
-    total.value = res.data.total || 0
-  } catch {
-    loadError.value = true
-  } finally {
-    loading.value = false
-  }
-}
 
 // ---- 确认收货 ----
 async function handleConfirm(order) {
@@ -204,29 +197,12 @@ async function handleCancel(order) {
   }
 }
 
-// ---- 工具函数 ----
-function fmt(val) {
-  return Number(val || 0).toFixed(2)
-}
-
-function fmtTime(val) {
-  if (!val) return ''
-  const d = new Date(val)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 function statusLabel(s) {
   return orderStatusLabel(s)
 }
 
 function statusBadge(s) {
   return orderStatusBadge(s)
-}
-
-function phClass(id) {
-  const map = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
-  return map[(id || 0) % map.length]
 }
 
 // ---- 初始化 ----

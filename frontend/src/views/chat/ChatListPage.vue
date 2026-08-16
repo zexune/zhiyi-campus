@@ -30,7 +30,7 @@
                     {{ conversation.peer?.nickname || '同学' }}
                     <LevelBadge :level="conversation.peer?.level || 1" />
                   </span>
-                  <span class="conv-item__time">{{ formatTime(conversation.lastMessageTime) }}</span>
+                  <span class="conv-item__time">{{ formatTimeShort(conversation.lastMessageTime) }}</span>
                 </span>
                 <span class="conv-item__preview">{{ conversation.lastMessage || '暂无消息' }}</span>
                 <span v-if="conversation.relatedItem" class="conv-item__goods">关联商品：{{ conversation.relatedItem.title }}</span>
@@ -40,7 +40,7 @@
           </div>
           <div v-else class="conv-empty">
             <p class="muted">还没有聊天记录</p>
-            <router-link to="/" class="btn btn--primary btn--sm">去大厅看看</router-link>
+            <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary btn--sm">去大厅看看</router-link>
           </div>
         </aside>
 
@@ -60,7 +60,7 @@
           </header>
 
           <router-link v-if="activeRelatedItem" class="related-item" :to="`/item/${activeRelatedItem.id}`">
-            <span class="related-item__thumb" :class="phClass(activeRelatedItem.id)">
+            <span class="related-item__thumb" :class="placeholderClass(activeRelatedItem.id)">
               <img v-if="activeRelatedItem.coverImage" :src="activeRelatedItem.coverImage" :alt="activeRelatedItem.title" />
             </span>
             <span class="related-item__info">
@@ -138,8 +138,9 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { getChatMessages, getConversations, sendChatMessage, startCustomerService } from '@/api/chat'
+import { ROUTE_PATH } from '@/constants/routes'
+import { formatTimeShort, placeholderClass } from '@/utils/format'
 
-const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 const route = useRoute()
 const router = useRouter()
 const conversations = ref([])
@@ -166,12 +167,6 @@ const filteredConversations = computed(() => {
   return conversations.value.filter((item) => (item.peer?.nickname || '').includes(value) || (item.lastMessage || '').includes(value) || (item.relatedItem?.title || '').includes(value))
 })
 
-function phClass(id) {
-  return PH[Number(id) % PH.length]
-}
-function formatTime(value) {
-  return value ? String(value).replace('T', ' ').slice(5, 16) : ''
-}
 function threadParams(conversation = selectedConversation.value) {
   const params = { conversationId: selectedConversationId.value }
   const peerId = conversation?.peer?.id || route.query.peerId

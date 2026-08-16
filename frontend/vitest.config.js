@@ -57,6 +57,31 @@ export default mergeConfig(
             functions: 100,
             branches: 80,
             statements: 100
+          },
+          // 前端基础设施（拆分/去重改造引入）：utils 与 composables 必须保持高覆盖
+          'src/utils/format.js': {
+            lines: 100,
+            functions: 100,
+            branches: 85,
+            statements: 100
+          },
+          'src/utils/formValidate.js': {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100
+          },
+          'src/composables/usePagedList.js': {
+            lines: 100,
+            functions: 100,
+            branches: 85,
+            statements: 100
+          },
+          'src/constants/routes.js': {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100
           }
         }
       }

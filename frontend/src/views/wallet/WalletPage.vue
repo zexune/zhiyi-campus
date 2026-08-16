@@ -10,8 +10,8 @@
       <!-- 导航标签 -->
       <div class="nav-tabs">
         <span class="nav-tab active">💰 我的钱包</span>
-        <router-link to="/orders/bought" class="nav-tab">🛒 我买的</router-link>
-        <router-link to="/orders/sold" class="nav-tab">📦 我卖的</router-link>
+        <router-link :to="ROUTE_PATH.ORDERS_BOUGHT" class="nav-tab">🛒 我买的</router-link>
+        <router-link :to="ROUTE_PATH.ORDERS_SOLD" class="nav-tab">📦 我卖的</router-link>
       </div>
 
       <!-- 余额卡片 -->
@@ -47,20 +47,20 @@
             </svg>
             刷新流水
           </button>
-          <router-link to="/orders/bought" class="btn btn--dark">📋 我的订单</router-link>
+          <router-link :to="ROUTE_PATH.ORDERS_BOUGHT" class="btn btn--dark">📋 我的订单</router-link>
         </div>
       </div>
 
       <!-- 充值弹窗 -->
       <el-dialog v-model="showRecharge" class="app-dialog" modal-class="app-modal" title="模拟充值" width="420px" append-to-body align-center :close-on-click-modal="false" destroy-on-close>
-        <div class="recharge-form">
-          <div class="field">
+        <el-form ref="rechargeFormRef" class="recharge-form" :model="rechargeForm" :rules="rechargeRules" @submit.prevent="handleRecharge">
+          <el-form-item prop="amount" class="field">
             <label>
               充值金额
               <span class="req">*</span>
             </label>
             <input
-              v-model="rechargeAmount"
+              v-model="rechargeForm.amount"
               type="number"
               class="input"
               placeholder="请输入充值金额（0.01 ~ 10,000.00）"
@@ -71,15 +71,15 @@
               @keyup.enter="handleRecharge"
             />
             <div class="hint">单次充值范围：¥0.01 ~ ¥10,000.00</div>
-          </div>
-          <div v-if="rechargeAmount > 0" class="recharge-preview">
+          </el-form-item>
+          <div v-if="rechargeAmountValue > 0" class="recharge-preview">
             充值后余额：
             <span class="price">
               <span class="rmb">¥</span>
-              {{ previewBalance }}
+              {{ formatPrice(balance + rechargeAmountValue) }}
             </span>
           </div>
-        </div>
+        </el-form>
         <template #footer>
           <button class="btn" @click="showRecharge = false">取消</button>
           <button class="btn btn--primary" :disabled="!canRecharge || recharging" @click="handleRecharge">
@@ -115,9 +115,9 @@
               <span class="log-remark">{{ log.remark || '—' }}</span>
             </div>
             <div class="log-item__right">
-              <span class="log-amount" :class="{ 'is-income': isIncome(log.type) }">{{ isIncome(log.type) ? '+' : '' }}¥{{ fmt(log.amount) }}</span>
-              <span class="log-balance muted">余额 ¥{{ fmt(log.balanceAfter) }}</span>
-              <span class="log-time muted">{{ fmtTime(log.createdAt) }}</span>
+              <span class="log-amount" :class="{ 'is-income': isIncome(log.type) }">{{ isIncome(log.type) ? '+' : '' }}¥{{ formatPrice(log.amount) }}</span>
+              <span class="log-balance muted">余额 ¥{{ formatPrice(log.balanceAfter) }}</span>
+              <span class="log-time muted">{{ formatDateTime(log.createdAt) }}</span>
             </div>
           </div>
         </div>
@@ -132,13 +132,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getWalletBalance, rechargeWallet, getWalletLogs } from '@/api/wallet'
+import { usePagedList } from '@/composables/usePagedList'
+import { formatDateTime, formatPrice } from '@/utils/format'
+import { validateForm } from '@/utils/formValidate'
+import { ROUTE_PATH } from '@/constants/routes'
 
 // ---- 余额 ----
 const balance = ref(0)
-const balanceText = computed(() => fmt(balance.value))
+const balanceText = computed(() => formatPrice(balance.value))
 const balanceError = ref(false)
 const balanceLoading = ref(false)
 
@@ -155,15 +159,30 @@ async function fetchBalance() {
   }
 }
 
-// ---- 充值 ----
+// ---- 充值（声明式校验：0.01 ~ 10000） ----
 const showRecharge = ref(false)
-const rechargeAmount = ref('')
+const rechargeFormRef = ref(null)
+const rechargeForm = reactive({ amount: '' })
 const recharging = ref(false)
 
+const rechargeAmountValue = computed(() => parseFloat(rechargeForm.amount) || 0)
 const canRecharge = computed(() => {
-  const v = parseFloat(rechargeAmount.value)
+  const v = rechargeAmountValue.value
   return v >= 0.01 && v <= 10000
 })
+
+const rechargeRules = {
+  amount: [
+    {
+      validator: (_, value, callback) => {
+        const v = parseFloat(value)
+        if (Number.isNaN(v) || v < 0.01 || v > 10000) return callback(new Error('充值金额须在 0.01 ~ 10,000.00 之间'))
+        callback()
+      },
+      trigger: 'blur'
+    }
+  ]
+}
 
 /** 阻止科学计数法字符（e/E/+/-）和多余小数点 */
 function blockInvalidKeys(e) {
@@ -173,24 +192,19 @@ function blockInvalidKeys(e) {
   }
 }
 
-const previewBalance = computed(() => {
-  const v = parseFloat(rechargeAmount.value) || 0
-  return fmt(balance.value + v)
-})
-
 async function handleRecharge() {
-  if (!canRecharge.value) return
+  if (!(await validateForm(rechargeFormRef)) || !canRecharge.value) return
   recharging.value = true
   try {
-    const amount = parseFloat(rechargeAmount.value)
+    const amount = parseFloat(rechargeForm.amount)
     const res = await rechargeWallet(amount)
     balance.value = Number(res.data.balance) || 0
     balanceError.value = false
     ElMessage.success(`充值成功！当前余额 ¥${balanceText.value}`)
     showRecharge.value = false
-    rechargeAmount.value = ''
+    rechargeForm.amount = ''
     // 重置到第一页拉取最新流水
-    currentPage.value = 1
+    goToFirstPage()
     fetchLogs()
   } catch {
     // 错误已在拦截器提示
@@ -199,39 +213,8 @@ async function handleRecharge() {
   }
 }
 
-// ---- 流水 ----
-const logs = ref([])
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-const loading = ref(false)
-const logsError = ref(false)
-
-async function fetchLogs() {
-  loading.value = true
-  logsError.value = false
-  try {
-    const res = await getWalletLogs({ page: currentPage.value, size: pageSize.value })
-    logs.value = res.data.records || []
-    total.value = res.data.total || 0
-  } catch {
-    logsError.value = true
-  } finally {
-    loading.value = false
-  }
-}
-
-// ---- 工具函数 ----
-function fmt(val) {
-  return Number(val || 0).toFixed(2)
-}
-
-function fmtTime(val) {
-  if (!val) return ''
-  const d = new Date(val)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+// ---- 流水（服务端分页状态机） ----
+const { records: logs, currentPage, pageSize, total, loading, loadError: logsError, fetchList: fetchLogs, goToFirstPage } = usePagedList(getWalletLogs)
 
 const TYPE_MAP = {
   RECHARGE: { label: '充值', cls: 'badge--ok' },

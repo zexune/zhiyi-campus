@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { clearAuth, getRole } from '@/utils/auth'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const MAX_JSON_RESPONSE_SIZE = 5 * 1024 * 1024
 const BLOCKED_JSON_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
@@ -43,7 +44,7 @@ const request = axios.create({
 
 function redirectToLogin() {
   const adminSession = getRole() === 'ADMIN' || window.location.pathname.startsWith('/admin/')
-  const loginPath = adminSession ? '/admin/login' : '/login'
+  const loginPath = adminSession ? ROUTE_PATH.ADMIN_LOGIN : ROUTE_PATH.LOGIN
   clearAuth()
   if (window.location.pathname !== loginPath) {
     window.location.href = loginPath

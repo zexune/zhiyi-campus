@@ -21,7 +21,7 @@
                 <div class="school-line">
                   <span class="muted">🏫 {{ user.schoolName || '未选择学校' }}</span>
                 </div>
-                <div class="muted">注册于 {{ formatDate(user.createdAt) }}</div>
+                <div class="muted">注册于 {{ formatDateTime(user.createdAt) }}</div>
               </div>
             </div>
 
@@ -48,9 +48,9 @@
             </div>
 
             <div class="quick-links">
-              <router-link to="/user/my-items" class="btn btn--sm">我的发布</router-link>
-              <router-link to="/user/my-favorites" class="btn btn--sm">我的收藏</router-link>
-              <router-link to="/wallet" class="btn btn--sm btn--green">去钱包</router-link>
+              <router-link :to="ROUTE_PATH.MY_ITEMS" class="btn btn--sm">我的发布</router-link>
+              <router-link :to="ROUTE_PATH.MY_FAVORITES" class="btn btn--sm">我的收藏</router-link>
+              <router-link :to="ROUTE_PATH.WALLET" class="btn btn--sm btn--green">去钱包</router-link>
             </div>
           </section>
 
@@ -222,6 +222,8 @@ import PriceTag from '@/components/common/PriceTag.vue'
 import ReputationRadar from '@/components/common/ReputationRadar.vue'
 import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
+import { ROUTE_PATH } from '@/constants/routes'
+import { formatDateTime } from '@/utils/format'
 
 /**
  * 个人中心（模块一 1.5）—— 等级进度条 + 经验记录 + 资料编辑 + 账号安全（改密/注销）
@@ -263,11 +265,6 @@ const progressPercent = computed(() => {
   if (span <= 0) return 100
   return Math.min(100, Math.round(((u.exp - base) / span) * 100))
 })
-
-function formatDate(s) {
-  if (!s) return ''
-  return String(s).replace('T', ' ').slice(0, 16)
-}
 
 async function handleSave() {
   if (!editForm.nickname) {
@@ -350,7 +347,7 @@ async function handleChangePassword() {
     await changePassword({ ...pwForm })
     ElMessage.success('密码修改成功，请重新登录')
     userStore.logout()
-    router.push('/login')
+    router.push(ROUTE_PATH.LOGIN)
   } catch {
     /* 提示由 request.js 处理 */
   } finally {
@@ -375,7 +372,7 @@ async function handleCancelAccount() {
     ElMessage.success('账号已注销，感谢使用智易校园')
     cancelVisible.value = false
     userStore.logout()
-    router.push('/login')
+    router.push(ROUTE_PATH.LOGIN)
   } catch {
     /* 提示由 request.js 处理 */
   } finally {

@@ -9,7 +9,7 @@
       <template v-if="items.length">
         <div class="fav-grid">
           <article v-for="item in items" :key="item.id" class="card card--hover fav-card" @click="goDetail(item)">
-            <div class="fav-card__img" :class="phClass(item.id)">
+            <div class="fav-card__img" :class="placeholderClass(item.id)">
               <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" />
               <span v-if="displayStatus(item) !== ITEM_STATUS.ON_SALE" class="badge badge--muted fav-card__state">
                 {{ statusText(displayStatus(item)) }}
@@ -32,7 +32,7 @@
         <p v-if="loadError" class="muted">{{ loadError }}</p>
         <template v-else>
           <p class="muted">还没有收藏的宝贝</p>
-          <router-link to="/" class="btn btn--primary">去大厅逛逛 →</router-link>
+          <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary">去大厅逛逛 →</router-link>
         </template>
       </div>
     </div>
@@ -48,19 +48,16 @@ import PriceTag from '@/components/common/PriceTag.vue'
 import { getMyFavorites, toggleFavorite } from '@/api/item'
 import { ITEM_STATUS, MODERATION_STATUS } from '@/constants/domain'
 import { itemStatusLabel } from '@/utils/trade'
+import { usePagedList } from '@/composables/usePagedList'
+import { placeholderClass } from '@/utils/format'
+import { ROUTE_NAME, ROUTE_PATH } from '@/constants/routes'
 
 /**
  * 我的收藏（模块一页面归属 A；收藏接口由 C 提供，按附录 B 契约调用）
  */
-const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
-
 const router = useRouter()
-const items = ref([])
-const page = ref(1)
-const pageSize = 12
-const total = ref(0)
 const acting = ref(false)
-const loadError = ref('')
+const { records: items, currentPage: page, pageSize, total, loadError, fetchList: fetchFavorites } = usePagedList(getMyFavorites, { size: 12 })
 
 function statusText(status) {
   return itemStatusLabel(status)
@@ -68,32 +65,17 @@ function statusText(status) {
 function displayStatus(item) {
   return item.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.status
 }
-function phClass(id) {
-  return PH[Number(id) % PH.length]
-}
 
 function mainImage(item) {
   return Array.isArray(item.images) ? item.images[0] || '' : ''
 }
 
 function goDetail(item) {
-  router.push(`/item/${item.id}`)
+  router.push(ROUTE_PATH.item(item.id))
 }
 
 function goTag(tag) {
-  router.push({ path: '/', query: { keyword: tag } })
-}
-
-async function fetchFavorites() {
-  try {
-    const res = await getMyFavorites({ page: page.value, size: pageSize })
-    items.value = res.data?.records || res.data || []
-    total.value = Number(res.data?.total ?? items.value.length)
-    loadError.value = ''
-  } catch {
-    // C 模块接口未就绪时优雅降级
-    loadError.value = '「我的收藏」列表接口（模块 C）尚未就绪，联调后即可展示'
-  }
+  router.push({ name: ROUTE_NAME.HOME, query: { keyword: tag } })
 }
 
 async function handleUnfavorite(item) {

@@ -4,8 +4,9 @@ import { ElMessage } from 'element-plus'
 import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking, toggleFavorite } from '@/api/item'
 import { ITEM_TYPE_LABELS, ITEM_TYPE_OPTIONS } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
+import { ROUTE_PATH } from '@/constants/routes'
+import { placeholderClass } from '@/utils/format'
 
-const PLACEHOLDER_CLASSES = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 const PAGE_SIZE = 12
 
 const FALLBACK_CATEGORIES = Object.freeze([
@@ -166,7 +167,7 @@ export function useMarketplaceHome() {
 
   function handleSearch() {
     if (!loggedIn) {
-      router.push({ path: '/login', query: { redirect: '/' } })
+      router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } })
       return
     }
     page.value = 1
@@ -265,12 +266,12 @@ export function useMarketplaceHome() {
   }
 
   function goDetail(id) {
-    router.push(`/item/${id}`)
+    router.push(ROUTE_PATH.item(id))
   }
 
   async function handleFavorite(item) {
     if (!isLoggedIn()) {
-      router.push({ path: '/login', query: { redirect: '/' } })
+      router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } })
       return
     }
     favoriteBusyId.value = item.id
@@ -283,10 +284,6 @@ export function useMarketplaceHome() {
     } finally {
       favoriteBusyId.value = null
     }
-  }
-
-  function phClass(id) {
-    return PLACEHOLDER_CLASSES[Number(id) % PLACEHOLDER_CLASSES.length]
   }
 
   function itemTypeLabel(type) {
@@ -340,7 +337,7 @@ export function useMarketplaceHome() {
     loggedIn,
     page,
     pageSize: PAGE_SIZE,
-    phClass,
+    placeholderClass,
     quickSearch,
     ranking,
     resetFilters,

@@ -9,11 +9,11 @@
 
       <!-- 导航标签 -->
       <div class="nav-tabs">
-        <router-link to="/admin/dashboard" class="nav-tab">📊 数据大盘</router-link>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD" class="nav-tab">📊 数据大盘</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
         <span class="nav-tab active">💬 客服收件箱</span>
-        <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
-        <router-link to="/admin/schools" class="nav-tab">🏫 学校管理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS" class="nav-tab">🏫 学校管理</router-link>
       </div>
 
       <!-- 主体：左右分栏 -->
@@ -34,7 +34,7 @@
                 <div class="session-item__top">
                   <span class="session-item__name">{{ s.peer?.nickname || '未知用户' }}</span>
                   <LevelBadge v-if="s.peer?.level" :level="s.peer.level" />
-                  <span class="session-item__time muted">{{ fmtTimeShort(s.lastMessageTime) }}</span>
+                  <span class="session-item__time muted">{{ formatChatTime(s.lastMessageTime) }}</span>
                 </div>
                 <div class="session-item__preview muted">
                   {{ truncate(s.lastMessage, 40) }}
@@ -71,7 +71,7 @@
                 </button>
                 <div v-for="m in messages" :key="m.id" class="msg-bubble" :class="{ 'msg-bubble--mine': m.mine }">
                   <div class="msg-bubble__text">{{ m.content }}</div>
-                  <div class="msg-bubble__time muted">{{ fmtTimeShort(m.createdAt) }}</div>
+                  <div class="msg-bubble__time muted">{{ formatChatTime(m.createdAt) }}</div>
                 </div>
               </template>
             </div>
@@ -96,6 +96,8 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import { getAdminSessions, getAdminChatMessages, getAdminUnreadMessages, sendAdminChatMessage } from '@/api/admin'
+import { ROUTE_PATH } from '@/constants/routes'
+import { formatChatTime } from '@/utils/format'
 
 // ---- 会话列表 ----
 const sessions = ref([])
@@ -233,18 +235,6 @@ function stopPolling() {
     clearInterval(pollTimer)
     pollTimer = null
   }
-}
-
-// ---- 工具函数 ----
-function fmtTimeShort(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const now = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
-  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  // 同一天只显示时间
-  if (d.toDateString() === now.toDateString()) return time
-  return `${d.getMonth() + 1}/${d.getDate()} ${time}`
 }
 
 function truncate(text, max) {

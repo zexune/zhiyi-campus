@@ -10,10 +10,10 @@
       <!-- 导航标签 -->
       <div class="nav-tabs">
         <span class="nav-tab active">📊 数据大盘</span>
-        <router-link to="/admin/violations" class="nav-tab">⚖️ 内容治理</router-link>
-        <router-link to="/admin/chat" class="nav-tab">💬 客服收件箱</router-link>
-        <router-link to="/admin/manage" class="nav-tab">🔧 内容管理</router-link>
-        <router-link to="/admin/schools" class="nav-tab">🏫 学校管理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_CHAT" class="nav-tab">💬 客服收件箱</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
+        <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS" class="nav-tab">🏫 学校管理</router-link>
       </div>
 
       <!-- 学校切换（D2：多校大盘） -->
@@ -51,7 +51,7 @@
             <div class="stat-card__num">¥{{ data.todayTradeAmount }}</div>
             <div class="stat-card__label muted">今日交易额</div>
           </div>
-          <router-link to="/admin/violations" class="stat-card card stat-card--link" :class="{ 'stat-card--alert': data.pendingViolations > 0 }">
+          <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="stat-card card stat-card--link" :class="{ 'stat-card--alert': data.pendingViolations > 0 }">
             <div class="stat-card__icon">⚠️</div>
             <div class="stat-card__num">{{ data.pendingViolations }}</div>
             <div class="stat-card__label muted">待审核内容</div>
@@ -176,12 +176,12 @@
                 </span>
                 <div class="violation-info">
                   <div class="violation-title">{{ v.originalTitle }}</div>
-                  <div class="violation-meta muted">{{ v.reporterName }} · {{ fmtTime(v.createdAt) }}</div>
+                  <div class="violation-meta muted">{{ v.reporterName }} · {{ formatDateTime(v.createdAt) }}</div>
                 </div>
               </div>
               <div class="violation-item__right">
                 <span class="violation-reason muted">{{ v.violationReason }}</span>
-                <router-link to="/admin/violations" class="btn btn--sm btn--primary">去处理</router-link>
+                <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="btn btn--sm btn--primary">去处理</router-link>
               </div>
             </div>
           </div>
@@ -195,6 +195,8 @@
 import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getDashboard, getSchools, getTradeHeatmap } from '@/api/admin'
+import { ROUTE_PATH } from '@/constants/routes'
+import { formatDateTime } from '@/utils/format'
 
 // ---- 学校选择（D2：多校大盘） ----
 const schools = ref([])
@@ -347,13 +349,6 @@ function fmtDateCN(dateStr) {
   if (!dateStr) return ''
   const parts = dateStr.split('-')
   return `${parseInt(parts[1])}月${parseInt(parts[2])}日`
-}
-
-function fmtTime(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function tooltipX(i) {
