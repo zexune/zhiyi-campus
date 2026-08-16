@@ -8,13 +8,6 @@
       </div>
 
       <!-- 导航标签 -->
-      <div class="nav-tabs">
-        <span class="nav-tab active">📊 数据大盘</span>
-        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_CHAT" class="nav-tab">💬 客服收件箱</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS" class="nav-tab">🏫 学校管理</router-link>
-      </div>
 
       <!-- 学校切换（D2：多校大盘） -->
       <div v-if="schools.length > 0" class="school-bar">
@@ -220,14 +213,17 @@ async function loadSchools() {
 }
 
 // ---- 大盘数据 ----
-const data = ref({
+// 缺省骨架同时用于初始值与响应合并：模板直接访问 data.recentViolations.length 等字段，
+// 后端若缺字段，直接整包替换会让渲染抛 TypeError 白屏。
+const EMPTY_DASHBOARD = {
   totalUsers: 0,
   onSaleItems: 0,
   todayTradeAmount: '0.00',
   pendingViolations: 0,
   recentViolations: [],
   trend: []
-})
+}
+const data = ref({ ...EMPTY_DASHBOARD })
 const loading = ref(false)
 const loadError = ref(false)
 const hoveredIndex = ref(null)
@@ -265,7 +261,7 @@ async function fetchDashboard() {
   loadError.value = false
   try {
     const res = await getDashboard(selectedSchoolId.value)
-    data.value = res.data
+    data.value = { ...EMPTY_DASHBOARD, ...res.data }
   } catch {
     loadError.value = true
   } finally {
@@ -386,35 +382,6 @@ function violationBadge(type) {
 }
 
 /* 导航标签 */
-.nav-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 18px 0 28px;
-  flex-wrap: wrap;
-}
-.nav-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-s);
-  background: var(--paper-deep);
-  color: var(--ink);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-.nav-tab:hover {
-  background: var(--white);
-  box-shadow: var(--shadow-s);
-}
-.nav-tab.active {
-  background: var(--ink);
-  color: var(--paper);
-}
 
 /* 统计卡片网格 */
 .stat-grid {
