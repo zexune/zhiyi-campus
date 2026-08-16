@@ -512,8 +512,11 @@ html:has(> body.el-message-box-parent--hidden) {
 }
 
 /* ============ 统一日期时间选择器 ============ */
-.app-date-time.el-date-editor {
+/* 三类名选择器（0,3,0）：Element 的 .el-date-editor.el-input 默认 220px 宽度与这里同特异性，
+   但构建产物中组件分块 CSS 可能后于本文件加载——提高特异性使宽度覆盖与加载顺序无关。 */
+.el-input.el-date-editor.app-date-time {
   width: 100%;
+  min-width: 0;
   height: auto;
 }
 
