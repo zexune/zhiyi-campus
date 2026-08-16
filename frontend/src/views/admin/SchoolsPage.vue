@@ -6,14 +6,6 @@
         <span class="stamp">Admin</span>
       </div>
 
-      <div class="nav-tabs">
-        <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD" class="nav-tab">📊 数据大盘</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_CHAT" class="nav-tab">💬 客服收件箱</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
-        <span class="nav-tab active">🏫 学校管理</span>
-      </div>
-
       <!-- 加载 -->
       <div v-if="loading" class="card card--flat state-card">
         <span class="muted">加载中...</span>
@@ -107,7 +99,6 @@
 import { ref, reactive, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
-import { ROUTE_PATH } from '@/constants/routes'
 
 const schools = ref([])
 const loading = ref(false)
@@ -235,36 +226,6 @@ onMounted(fetchSchools)
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
-}
-
-.nav-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 18px 0 28px;
-  flex-wrap: wrap;
-}
-.nav-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-s);
-  background: var(--paper-deep);
-  color: var(--ink);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-.nav-tab:hover {
-  background: var(--white);
-  box-shadow: var(--shadow-s);
-}
-.nav-tab.active {
-  background: var(--ink);
-  color: var(--paper);
 }
 
 .state-card {

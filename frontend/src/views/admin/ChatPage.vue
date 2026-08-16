@@ -8,13 +8,6 @@
       </div>
 
       <!-- 导航标签 -->
-      <div class="nav-tabs">
-        <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD" class="nav-tab">📊 数据大盘</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="nav-tab">⚖️ 内容治理</router-link>
-        <span class="nav-tab active">💬 客服收件箱</span>
-        <router-link :to="ROUTE_PATH.ADMIN_MANAGE" class="nav-tab">🔧 内容管理</router-link>
-        <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS" class="nav-tab">🏫 学校管理</router-link>
-      </div>
 
       <!-- 主体：左右分栏 -->
       <div class="chat-layout card">
@@ -96,7 +89,6 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import { getAdminSessions, getAdminChatMessages, getAdminUnreadMessages, sendAdminChatMessage } from '@/api/admin'
-import { ROUTE_PATH } from '@/constants/routes'
 import { formatChatTime } from '@/utils/format'
 
 // ---- 会话列表 ----
@@ -260,35 +252,6 @@ onUnmounted(() => {
 }
 
 /* 导航 */
-.nav-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 18px 0 22px;
-  flex-wrap: wrap;
-}
-.nav-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-s);
-  background: var(--paper-deep);
-  color: var(--ink);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-.nav-tab:hover {
-  background: var(--white);
-  box-shadow: var(--shadow-s);
-}
-.nav-tab.active {
-  background: var(--ink);
-  color: var(--paper);
-}
 
 /* 左右分栏 */
 .chat-layout {
