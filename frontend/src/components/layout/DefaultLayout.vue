@@ -3,28 +3,28 @@
     <!-- 顶部导航栏（demo 设计：布告栏 topbar） -->
     <header class="topbar">
       <div class="topbar__inner">
-        <router-link to="/" class="logo" aria-label="智易校园首页">
+        <router-link :to="ROUTE_PATH.HOME" class="logo" aria-label="智易校园首页">
           <span class="logo__mark">智</span>
           智易
           <em>校园</em>
         </router-link>
 
         <nav class="nav-links" aria-label="主导航">
-          <router-link to="/" :class="{ active: isActive('/') }">交易大厅</router-link>
-          <router-link to="/ranking" :class="{ active: isActive('/ranking') }">爆款榜</router-link>
+          <router-link :to="ROUTE_PATH.HOME" :class="{ active: isActive('/') }">交易大厅</router-link>
+          <router-link :to="ROUTE_PATH.RANKING" :class="{ active: isActive(ROUTE_PATH.RANKING) }">爆款榜</router-link>
           <template v-if="loggedIn">
-            <router-link to="/publish" :class="{ active: isActive('/publish') }">发布闲置</router-link>
-            <router-link to="/chat" :class="{ active: isActive('/chat') }">
+            <router-link :to="ROUTE_PATH.PUBLISH" :class="{ active: isActive(ROUTE_PATH.PUBLISH) }">发布闲置</router-link>
+            <router-link :to="ROUTE_PATH.CHAT" :class="{ active: isActive(ROUTE_PATH.CHAT) }">
               消息
               <span v-if="unreadCount > 0" class="dot" :aria-label="`${unreadCount}条未读`">{{ unreadCount }}</span>
             </router-link>
-            <router-link to="/wallet" :class="{ active: isActive('/wallet') }">钱包·订单</router-link>
+            <router-link :to="ROUTE_PATH.WALLET" :class="{ active: isActive(ROUTE_PATH.WALLET) }">钱包·订单</router-link>
           </template>
         </nav>
 
         <div class="topbar__user">
           <template v-if="loggedIn">
-            <router-link to="/publish" class="btn btn--primary btn--sm">
+            <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary btn--sm">
               <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
               发闲置
             </router-link>
@@ -43,8 +43,8 @@
             </el-dropdown>
           </template>
           <template v-else>
-            <router-link to="/login" class="btn btn--ghost btn--sm">登录</router-link>
-            <router-link to="/register" class="btn btn--primary btn--sm">注册</router-link>
+            <router-link :to="ROUTE_PATH.LOGIN" class="btn btn--ghost btn--sm">登录</router-link>
+            <router-link :to="ROUTE_PATH.REGISTER" class="btn btn--primary btn--sm">注册</router-link>
           </template>
         </div>
       </div>
@@ -60,9 +60,9 @@
       <div class="footer__inner">
         <span>智易校园 · 本地内容治理与可信交易闭环的校园平台</span>
         <span>
-          <router-link to="/chat">联系客服</router-link>
+          <router-link :to="ROUTE_PATH.CHAT">联系客服</router-link>
           ·
-          <router-link to="/">回到大厅</router-link>
+          <router-link :to="ROUTE_PATH.HOME">回到大厅</router-link>
         </span>
       </div>
     </footer>
@@ -76,6 +76,7 @@ import { isLoggedIn, getNickname, getUserId } from '@/utils/auth'
 import { useUserStore } from '@/stores/user'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { getUnreadCount } from '@/api/chat'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const route = useRoute()
 const router = useRouter()
@@ -99,7 +100,7 @@ function go(path) {
 
 function handleLogout() {
   userStore.logout()
-  router.push('/login')
+  router.push(ROUTE_PATH.LOGIN)
 }
 
 async function fetchUnreadCount() {

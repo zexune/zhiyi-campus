@@ -122,4 +122,12 @@ test('@system 真实前后端完成交易闭环，并在用户与管理界面呈
   await expect(page.getByText('管理后台', { exact: false }).first()).toBeVisible()
   await expect(page.getByText('用户总数', { exact: true })).toBeVisible()
   await expect(page.getByText('近 7 日交易趋势', { exact: false })).toBeVisible()
+
+  // 内容管理页四个运营工具卡（拆分后应完整渲染且互不影响；标题带 emoji 前缀）
+  await page.goto('/admin/manage')
+  const toolCards = page.locator('.tool-grid .tool-card')
+  await expect(toolCards).toHaveCount(4)
+  for (const title of ['强制下架商品', '强制重置密码', '用户封禁管理', '大事件专题']) {
+    await expect(toolCards.filter({ hasText: title }).first()).toBeVisible()
+  }
 })

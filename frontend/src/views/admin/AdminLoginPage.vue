@@ -1,14 +1,14 @@
 <template>
   <div class="admin-login-page">
     <header class="login-header">
-      <router-link class="admin-brand" to="/admin/login" aria-label="智易校园管理后台">
+      <router-link class="admin-brand" :to="ROUTE_PATH.ADMIN_LOGIN" aria-label="智易校园管理后台">
         <span class="admin-brand__mark">智</span>
         <span>
           智易校园
           <small>管理后台</small>
         </span>
       </router-link>
-      <router-link class="user-login" to="/login">返回学生登录</router-link>
+      <router-link class="user-login" :to="ROUTE_PATH.LOGIN">返回学生登录</router-link>
     </header>
 
     <main class="login-main">
@@ -20,19 +20,19 @@
       <section class="card login-card" aria-labelledby="admin-login-title">
         <h2 id="admin-login-title">管理员登录</h2>
         <p class="muted">请输入后台账号和密码</p>
-        <form @submit.prevent="submit">
-          <div class="field">
+        <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="submit">
+          <el-form-item prop="username" class="field">
             <label for="admin-username">管理员账号</label>
             <input id="admin-username" v-model.trim="form.username" class="input" maxlength="50" autocomplete="username" autofocus placeholder="请输入管理员账号" />
-          </div>
-          <div class="field">
+          </el-form-item>
+          <el-form-item prop="password" class="field">
             <label for="admin-password">密码</label>
             <input id="admin-password" v-model="form.password" class="input" type="password" maxlength="128" autocomplete="current-password" placeholder="请输入密码" />
-          </div>
+          </el-form-item>
           <button class="btn btn--primary btn--lg btn--block" type="submit" :disabled="loading">
             {{ loading ? '验证中…' : '进入管理后台' }}
           </button>
-        </form>
+        </el-form>
       </section>
     </main>
   </div>
@@ -43,24 +43,30 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminLogin } from '@/api/admin'
 import { useUserStore } from '@/stores/user'
+import { ROUTE_PATH } from '@/constants/routes'
+import { validateForm } from '@/utils/formValidate'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const formRef = ref(null)
 const loading = ref(false)
 const form = reactive({ username: '', password: '' })
 
+const rules = {
+  username: [{ required: true, message: '请输入管理员账号', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
+
 async function submit() {
-  if (!form.username || !form.password) {
-    ElMessage.warning('请输入管理员账号和密码')
-    return
-  }
+  const valid = await validateForm(formRef)
+  if (!valid) return
   loading.value = true
   try {
     const res = await adminLogin({ username: form.username, password: form.password })
     userStore.setLogin(res.data)
     const requested = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-    const target = requested.startsWith('/admin/') && requested !== '/admin/login' ? requested : '/admin/dashboard'
+    const target = requested.startsWith('/admin/') && requested !== ROUTE_PATH.ADMIN_LOGIN ? requested : ROUTE_PATH.ADMIN_DASHBOARD
     await router.replace(target)
     ElMessage.success('管理员登录成功')
   } finally {
@@ -157,6 +163,18 @@ async function submit() {
 }
 .login-card .field {
   margin-bottom: 18px;
+}
+.login-card .field.el-form-item {
+  display: block;
+}
+.login-card .field :deep(.el-form-item__content) {
+  display: block;
+  line-height: 1.6;
+  margin-left: 0;
+}
+.login-card .field :deep(.el-form-item__error) {
+  position: static;
+  padding-top: 3px;
 }
 .login-card label {
   display: block;

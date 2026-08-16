@@ -9,8 +9,8 @@
 
       <!-- 导航标签 -->
       <div class="nav-tabs">
-        <router-link to="/wallet" class="nav-tab">💰 我的钱包</router-link>
-        <router-link to="/orders/bought" class="nav-tab">🛒 我买的</router-link>
+        <router-link :to="ROUTE_PATH.WALLET" class="nav-tab">💰 我的钱包</router-link>
+        <router-link :to="ROUTE_PATH.ORDERS_BOUGHT" class="nav-tab">🛒 我买的</router-link>
         <span class="nav-tab active">📦 我卖的</span>
       </div>
 
@@ -37,29 +37,29 @@
       <div v-else class="order-list">
         <div v-for="o in orders" :key="o.id" class="order-item card">
           <!-- 商品封面 -->
-          <router-link :to="`/item/${o.itemId}`" class="order-cover">
+          <router-link :to="ROUTE_PATH.item(o.itemId)" class="order-cover">
             <div v-if="o.itemCover" class="order-cover__img">
               <img :src="o.itemCover" :alt="o.itemTitle" />
             </div>
-            <div v-else class="order-cover__ph" :class="phClass(o.itemId)">
+            <div v-else class="order-cover__ph" :class="placeholderClass(o.itemId)">
               <span class="muted">暂无图片</span>
             </div>
           </router-link>
 
           <!-- 信息区 -->
           <div class="order-info">
-            <router-link :to="`/item/${o.itemId}`" class="order-title">
+            <router-link :to="ROUTE_PATH.item(o.itemId)" class="order-title">
               {{ o.itemTitle }}
             </router-link>
             <div class="order-meta">
               <span class="price">
                 <span class="rmb">¥</span>
-                {{ fmt(o.price) }}
+                {{ formatPrice(o.price) }}
               </span>
               <span class="muted">·</span>
               <span class="muted">买家：{{ o.peerNickname || '—' }}</span>
             </div>
-            <div class="order-time muted">{{ fmtTime(o.createdAt) }}</div>
+            <div class="order-time muted">{{ formatDateTime(o.createdAt) }}</div>
           </div>
 
           <!-- 状态（卖家只读，无需操作按钮） -->
@@ -67,8 +67,8 @@
             <span class="badge" :class="statusBadge(o.status)">{{ statusLabel(o.status) }}</span>
 
             <div v-if="o.status === ORDER_STATUS.WAITING_MEET" class="order-hint muted">等待买家确认收货</div>
-            <div v-else-if="o.status === ORDER_STATUS.COMPLETED" class="order-hint" style="color: var(--green-deep); font-weight: 700">{{ fmtTime(o.completedAt) }} 已收款 ✓</div>
-            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-hint muted">{{ fmtTime(o.cancelledAt) }} 订单已取消</div>
+            <div v-else-if="o.status === ORDER_STATUS.COMPLETED" class="order-hint" style="color: var(--green-deep); font-weight: 700">{{ formatDateTime(o.completedAt) }} 已收款 ✓</div>
+            <div v-else-if="o.status === ORDER_STATUS.CANCELLED" class="order-hint muted">{{ formatDateTime(o.cancelledAt) }} 订单已取消</div>
           </div>
         </div>
       </div>
@@ -87,6 +87,9 @@ import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getSoldOrders } from '@/api/order'
 import { ORDER_STATUS, ORDER_STATUS_OPTIONS } from '@/constants/domain'
 import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
+import { usePagedList } from '@/composables/usePagedList'
+import { formatDateTime, formatPrice, placeholderClass } from '@/utils/format'
+import { ROUTE_PATH } from '@/constants/routes'
 
 // ---- 筛选 ----
 const filters = [{ label: '全部', value: '' }, ...ORDER_STATUS_OPTIONS]
@@ -94,45 +97,23 @@ const currentFilter = ref('')
 
 function switchFilter(val) {
   currentFilter.value = val
-  currentPage.value = 1
+  goToFirstPage()
   fetchOrders()
 }
 
-// ---- 订单列表 ----
-const orders = ref([])
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-const loading = ref(false)
-const loadError = ref(false)
-
-async function fetchOrders() {
-  loading.value = true
-  loadError.value = false
-  try {
-    const params = { page: currentPage.value, size: pageSize.value }
-    if (currentFilter.value) params.status = currentFilter.value
-    const res = await getSoldOrders(params)
-    orders.value = res.data.records || []
-    total.value = res.data.total || 0
-  } catch {
-    loadError.value = true
-  } finally {
-    loading.value = false
-  }
-}
-
-// ---- 工具函数 ----
-function fmt(val) {
-  return Number(val || 0).toFixed(2)
-}
-
-function fmtTime(val) {
-  if (!val) return ''
-  const d = new Date(val)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+// ---- 订单列表（服务端分页状态机）----
+const {
+  records: orders,
+  currentPage,
+  pageSize,
+  total,
+  loading,
+  loadError,
+  fetchList: fetchOrders,
+  goToFirstPage
+} = usePagedList(getSoldOrders, {
+  params: () => (currentFilter.value ? { status: currentFilter.value } : {})
+})
 
 function statusLabel(s) {
   return orderStatusLabel(s)
@@ -140,11 +121,6 @@ function statusLabel(s) {
 
 function statusBadge(s) {
   return orderStatusBadge(s)
-}
-
-function phClass(id) {
-  const map = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
-  return map[(id || 0) % map.length]
 }
 
 // ---- 初始化 ----

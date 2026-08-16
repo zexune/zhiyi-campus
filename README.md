@@ -298,7 +298,10 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 - 后端使用 Java 25 虚拟线程处理请求；数据库吞吐受 HikariCP/MySQL 连接池上限约束。
 - API 统一响应和鉴权快照使用不可变 Record；业务 JSON 栈使用 Jackson 3，Swagger/OpenAPI 的传递依赖由 springdoc 管理，业务代码不要引入 Jackson 2 类型。
 - 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入；登录态与用户摘要由 `src/utils/auth.js` 统一管理（响应式，唯一真相源），Pinia 不再持久化。
-- 首页交易大厅的视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护；复杂页面采用“页面编排 + 组合函数/子组件”边界。
+- 复杂页面采用“页面编排 + 子组件”边界：认证页三面板在 `views/login/panels/`、内容管理四工具卡在 `views/admin/manage/`，页面文件只负责布局与协调；跨面板共享的学校下拉走 `composables/useSchoolOptions.js`。
+- 前端有三类“唯一出处”约定：路由路径与命名路由集中在 `src/constants/routes.js`（页面不得硬编码路径字符串）；时间/价格/占位图等展示格式化集中在 `src/utils/format.js`；服务端分页列表（loading/error/empty + 分页状态机）统一用 `composables/usePagedList.js`。
+- 表单校验使用 Element Plus 声明式 `:rules`（提交统一走 `utils/formValidate.js` 的 `validateForm`），不要在提交函数里手写 if 逐字段校验。
+- 首页交易大厅的视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护。
 - 代码卫生由工具链强制：后端 `mvn spotless:check`（未用导入/行尾空白/文件换行），前端 `npm run lint`（ESLint）与 `npm run format:check`（Prettier），CI 的 lint 作业拦截。仓库统一 LF 行尾（见 `.gitattributes` 与 `.editorconfig`）。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。
 - 平台钱包仅处理项目内部余额与流水，不接入第三方支付渠道。

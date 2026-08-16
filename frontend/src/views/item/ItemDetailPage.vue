@@ -2,7 +2,7 @@
   <DefaultLayout>
     <div class="detail-page">
       <nav class="crumb" aria-label="面包屑">
-        <router-link to="/">交易大厅</router-link>
+        <router-link :to="ROUTE_PATH.HOME">交易大厅</router-link>
         <span>/</span>
         <button v-if="item?.categoryName" class="crumb-link" @click="goTag(item.categoryName)">{{ item.categoryName }}</button>
         <span v-if="item?.categoryName">/</span>
@@ -14,7 +14,7 @@
       <template v-else-if="item">
         <section class="detail">
           <div class="gallery">
-            <div class="gallery__main" :class="phClass(item.id)">
+            <div class="gallery__main" :class="placeholderClass(item.id)">
               <img v-if="activeImage" :src="activeImage" :alt="item.title" />
               <span class="badge gallery-state" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                 {{ itemTypeLabel(item.type) }}
@@ -63,7 +63,7 @@
               </div>
               <div class="meta-row">
                 <span class="lab">发布时间</span>
-                <span>{{ formatDate(item.createdAt) }}</span>
+                <span>{{ formatDateTime(item.createdAt) }}</span>
               </div>
               <div class="meta-row">
                 <span class="lab">浏览 / 收藏</span>
@@ -101,7 +101,7 @@
 
             <div class="action-bar">
               <template v-if="isOwner">
-                <router-link to="/user/my-items" class="btn">管理我的发布</router-link>
+                <router-link :to="ROUTE_PATH.MY_ITEMS" class="btn">管理我的发布</router-link>
               </template>
               <template v-else>
                 <button class="btn" :disabled="!isTradable || favoriteLoading" @click="handleFavorite">
@@ -166,7 +166,7 @@
 
       <div v-else class="empty-panel">
         <p class="muted">商品不存在或已被删除</p>
-        <router-link to="/" class="btn btn--primary">回到大厅</router-link>
+        <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary">回到大厅</router-link>
       </div>
 
       <SellerDetailDialog
@@ -220,6 +220,8 @@ import { ITEM_STATUS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/c
 import { getUserId, isLoggedIn } from '@/utils/auth'
 import { normalizeRelationTags } from '@/utils/relation'
 import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
+import { ROUTE_PATH } from '@/constants/routes'
+import { formatDateTime, placeholderClass } from '@/utils/format'
 
 const REPORT_TYPE_OPTIONS = [
   { label: '价格欺诈', value: 'PRICE_FRAUD' },
@@ -228,7 +230,6 @@ const REPORT_TYPE_OPTIONS = [
   { label: '广告引流', value: 'ADVERTISING' },
   { label: '其他问题', value: 'OTHER' }
 ]
-const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 
 const route = useRoute()
 const router = useRouter()
@@ -260,10 +261,6 @@ const activeImageIndex = computed(() => {
   return index >= 0 ? index : 0
 })
 
-function phClass(id) {
-  return PH[Number(id) % PH.length]
-}
-
 function statusText(status) {
   return itemStatusLabel(status)
 }
@@ -274,10 +271,6 @@ function statusBadge(status) {
 
 function itemTypeLabel(type) {
   return ITEM_TYPE_LABELS[type] || type
-}
-
-function formatDate(value) {
-  return value ? String(value).replace('T', ' ').slice(0, 16) : ''
 }
 
 function switchImage(offset) {
@@ -335,7 +328,7 @@ async function loadSellerRelation(sellerId) {
 
 function requireLogin() {
   if (isLoggedIn()) return true
-  router.push({ path: '/login', query: { redirect: route.fullPath } })
+  router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: route.fullPath } })
   return false
 }
 
@@ -460,7 +453,7 @@ function goTag(tag) {
 
 onMounted(() => {
   if (!isLoggedIn()) {
-    router.replace({ path: '/login', query: { redirect: route.fullPath } })
+    router.replace({ path: ROUTE_PATH.LOGIN, query: { redirect: route.fullPath } })
     return
   }
   fetchDetail()

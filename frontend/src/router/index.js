@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getRole, isLoggedIn } from '@/utils/auth'
+import { ROUTE_NAME, ROUTE_PATH } from '@/constants/routes'
 
 /**
  * 路由表 —— 统一在此注册所有页面
@@ -8,25 +9,25 @@ import { getRole, isLoggedIn } from '@/utils/auth'
 const routes = [
   // ── 公共页面 ──
   {
-    path: '/',
+    path: ROUTE_PATH.HOME,
     name: 'Home',
     component: () => import('@/views/home/HomePage.vue'),
     meta: { title: '商品大厅' }
   },
   {
-    path: '/ranking',
+    path: ROUTE_PATH.RANKING,
     name: 'Ranking',
     component: () => import('@/views/ranking/RankingPage.vue'),
     meta: { title: '近期爆款榜 - 智易校园', requireAuth: true }
   },
   {
-    path: '/login',
+    path: ROUTE_PATH.LOGIN,
     name: 'Login',
     component: () => import('@/views/login/LoginPage.vue'),
     meta: { title: '登录 - 智易校园' }
   },
   {
-    path: '/register',
+    path: ROUTE_PATH.REGISTER,
     name: 'Register',
     component: () => import('@/views/login/RegisterPage.vue'),
     meta: { title: '注册 - 智易校园' }
@@ -46,7 +47,7 @@ const routes = [
     meta: { title: '编辑商品', requireAuth: true }
   },
   {
-    path: '/publish',
+    path: ROUTE_PATH.PUBLISH,
     name: 'PublishItem',
     component: () => import('@/views/item/PublishItemPage.vue'),
     meta: { title: '发布商品', requireAuth: true }
@@ -54,19 +55,19 @@ const routes = [
 
   // ── 用户中心（模块一）──
   {
-    path: '/user/profile',
+    path: ROUTE_PATH.USER_PROFILE,
     name: 'UserProfile',
     component: () => import('@/views/user/UserProfilePage.vue'),
     meta: { title: '个人中心', requireAuth: true }
   },
   {
-    path: '/user/my-items',
+    path: ROUTE_PATH.MY_ITEMS,
     name: 'MyItems',
     component: () => import('@/views/user/MyItemsPage.vue'),
     meta: { title: '我的发布', requireAuth: true }
   },
   {
-    path: '/user/my-favorites',
+    path: ROUTE_PATH.MY_FAVORITES,
     name: 'MyFavorites',
     component: () => import('@/views/user/MyFavoritesPage.vue'),
     meta: { title: '我的收藏', requireAuth: true }
@@ -74,7 +75,7 @@ const routes = [
 
   // ── 聊天（模块三）──
   {
-    path: '/chat',
+    path: ROUTE_PATH.CHAT,
     name: 'ChatList',
     component: () => import('@/views/chat/ChatListPage.vue'),
     meta: { title: '消息', requireAuth: true }
@@ -93,19 +94,19 @@ const routes = [
 
   // ── 钱包 & 订单（模块四）──
   {
-    path: '/wallet',
+    path: ROUTE_PATH.WALLET,
     name: 'Wallet',
     component: () => import('@/views/wallet/WalletPage.vue'),
     meta: { title: '我的钱包', requireAuth: true }
   },
   {
-    path: '/orders/bought',
+    path: ROUTE_PATH.ORDERS_BOUGHT,
     name: 'OrdersBought',
     component: () => import('@/views/wallet/OrdersBoughtPage.vue'),
     meta: { title: '我买的', requireAuth: true }
   },
   {
-    path: '/orders/sold',
+    path: ROUTE_PATH.ORDERS_SOLD,
     name: 'OrdersSold',
     component: () => import('@/views/wallet/OrdersSoldPage.vue'),
     meta: { title: '我卖的', requireAuth: true }
@@ -113,43 +114,43 @@ const routes = [
 
   // ── 管理后台（模块四）──
   {
-    path: '/admin/login',
+    path: ROUTE_PATH.ADMIN_LOGIN,
     name: 'AdminLogin',
     component: () => import('@/views/admin/AdminLoginPage.vue'),
     meta: { title: '管理员登录 - 智易校园' }
   },
   {
-    path: '/admin/dashboard',
+    path: ROUTE_PATH.ADMIN_DASHBOARD,
     name: 'AdminDashboard',
     component: () => import('@/views/admin/DashboardPage.vue'),
     meta: { title: '管理后台', requireAuth: true, requireAdmin: true }
   },
   {
-    path: '/admin/violations',
+    path: ROUTE_PATH.ADMIN_VIOLATIONS,
     name: 'AdminViolations',
     component: () => import('@/views/admin/ViolationsPage.vue'),
     meta: { title: '内容治理', requireAuth: true, requireAdmin: true }
   },
   {
-    path: '/admin/chat',
+    path: ROUTE_PATH.ADMIN_CHAT,
     name: 'AdminChat',
     component: () => import('@/views/admin/ChatPage.vue'),
     meta: { title: '客服收件箱', requireAuth: true, requireAdmin: true }
   },
   {
-    path: '/admin/manage',
+    path: ROUTE_PATH.ADMIN_MANAGE,
     name: 'AdminManage',
     component: () => import('@/views/admin/ManagePage.vue'),
     meta: { title: '内容管理', requireAuth: true, requireAdmin: true }
   },
   {
-    path: '/admin/schools',
+    path: ROUTE_PATH.ADMIN_SCHOOLS,
     name: 'AdminSchools',
     component: () => import('@/views/admin/SchoolsPage.vue'),
     meta: { title: '学校管理', requireAuth: true, requireAdmin: true }
   },
   {
-    path: '/admin/categories',
+    path: ROUTE_PATH.ADMIN_CATEGORIES,
     name: 'AdminCategories',
     component: () => import('@/views/admin/CategoriesPage.vue'),
     meta: { title: '分类管理', requireAuth: true, requireAdmin: true }
@@ -180,7 +181,7 @@ router.beforeEach((to) => {
   const isAdminPath = to.path === '/admin' || to.path.startsWith('/admin/')
 
   if (!authenticated && to.meta.requireAuth) {
-    const loginRoute = to.meta.requireAdmin ? 'AdminLogin' : 'Login'
+    const loginRoute = to.meta.requireAdmin ? ROUTE_NAME.ADMIN_LOGIN : ROUTE_NAME.LOGIN
     return { name: loginRoute, query: { redirect: to.fullPath } }
   }
 

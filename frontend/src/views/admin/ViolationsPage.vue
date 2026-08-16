@@ -40,7 +40,7 @@
                 </div>
                 <h2>{{ review.originalTitle || '已删除商品' }}</h2>
               </div>
-              <div class="review-card__time">{{ formatDate(review.createdAt) }}</div>
+              <div class="review-card__time">{{ formatDateTime(review.createdAt) }}</div>
             </div>
 
             <div class="party-grid">
@@ -185,6 +185,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { approveAppeal, confirmViolation, dismissViolation, getAppeals, getViolations, rejectAppeal } from '@/api/admin'
 import { APPEAL_STATUS, VIOLATION_STATUS } from '@/constants/domain'
 import { itemStatusLabel } from '@/utils/trade'
+import { formatDateTime } from '@/utils/format'
 
 const REVIEW_STATUS_TABS = [
   { label: '待审核', value: VIOLATION_STATUS.PENDING },
@@ -245,9 +246,6 @@ function appealStatusMeta(status) {
 }
 function itemStatusText(status) {
   return itemStatusLabel(status)
-}
-function formatDate(value) {
-  return value ? String(value).replace('T', ' ').slice(0, 16) : ''
 }
 function matchedRules(review) {
   return Array.isArray(review.matchedRules) ? review.matchedRules : []

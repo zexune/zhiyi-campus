@@ -9,7 +9,7 @@
           </h1>
           <p class="muted">商品状态、内容审核与订单占用分别管理，避免互相混淆。</p>
         </div>
-        <router-link to="/publish" class="btn btn--primary">发布商品</router-link>
+        <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary">发布商品</router-link>
       </div>
 
       <div class="status-tabs" aria-label="商品状态筛选">
@@ -19,7 +19,7 @@
       <template v-if="items.length">
         <div class="item-list">
           <article v-for="item in items" :key="item.id" class="card item-row">
-            <router-link :to="`/item/${item.id}`" class="item-row__thumb" :class="phClass(item.id)">
+            <router-link :to="ROUTE_PATH.item(item.id)" class="item-row__thumb" :class="placeholderClass(item.id)">
               <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" />
             </router-link>
 
@@ -28,11 +28,11 @@
                 <span class="badge" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                   {{ itemTypeLabel(item.type) }}
                 </span>
-                <router-link :to="`/item/${item.id}`">{{ item.title }}</router-link>
+                <router-link :to="ROUTE_PATH.item(item.id)">{{ item.title }}</router-link>
               </div>
               <div class="item-row__meta muted">
                 <span>浏览 {{ item.viewCount ?? 0 }}</span>
-                <span>发布于 {{ formatDate(item.createdAt) }}</span>
+                <span>发布于 {{ formatDateTime(item.createdAt) }}</span>
               </div>
               <div class="state-notes">
                 <span v-if="item.reserved" class="badge badge--warn">订单进行中</span>
@@ -49,7 +49,7 @@
             </div>
 
             <div class="item-row__actions">
-              <router-link v-if="canEdit(item)" :to="`/item/${item.id}/edit`" class="btn btn--sm btn--yellow edit-button">
+              <router-link v-if="canEdit(item)" :to="ROUTE_PATH.editItem(item.id)" class="btn btn--sm btn--yellow edit-button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
@@ -72,7 +72,7 @@
         <p v-if="loadError" class="muted">{{ loadError }}</p>
         <template v-else>
           <p class="muted">该筛选条件下暂无商品</p>
-          <router-link to="/publish" class="btn btn--primary">去发布第一件闲置 →</router-link>
+          <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary">去发布第一件闲置 →</router-link>
         </template>
       </div>
 
@@ -104,17 +104,23 @@ import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } fr
 import { APPEAL_STATUS, APPEAL_STATUS_LABELS, ITEM_STATUS, ITEM_STATUS_OPTIONS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
 import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
 import { buildMyItemsParams } from './myItemsQuery.js'
+import { usePagedList } from '@/composables/usePagedList'
+import { formatDateTime, placeholderClass } from '@/utils/format'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const STATUS_TABS = [{ label: '全部', value: '' }, ...ITEM_STATUS_OPTIONS]
-const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 
-const items = ref([])
-const page = ref(1)
-const pageSize = 10
-const total = ref(0)
 const statusFilter = ref('')
 const acting = ref(false)
-const loadError = ref('')
+const {
+  records: items,
+  currentPage: page,
+  pageSize,
+  total,
+  loadError,
+  fetchList: fetchItems,
+  goToFirstPage
+} = usePagedList(({ page, size }) => getMyItems(buildMyItemsParams(page, size, statusFilter.value)))
 const appealForm = reactive({ visible: false, item: null, reason: '', submitting: false })
 
 function displayStatus(item) {
@@ -125,12 +131,6 @@ function statusText(status) {
 }
 function statusBadge(status) {
   return itemStatusBadge(status)
-}
-function phClass(id) {
-  return PH[Number(id) % PH.length]
-}
-function formatDate(value) {
-  return value ? String(value).replace('T', ' ').slice(0, 16) : ''
 }
 function itemTypeLabel(type) {
   return ITEM_TYPE_LABELS[type] || type
@@ -162,21 +162,10 @@ function hasActions(item) {
   return canEdit(item) || canOffShelf(item) || canRelist(item) || canDelete(item) || item.appealable
 }
 
-async function fetchItems() {
-  try {
-    const res = await getMyItems(buildMyItemsParams(page.value, pageSize, statusFilter.value))
-    items.value = res.data?.records || res.data || []
-    total.value = Number(res.data?.total ?? items.value.length)
-    loadError.value = ''
-  } catch {
-    loadError.value = '商品列表加载失败，请稍后重试'
-  }
-}
-
 function handleStatusChange(status) {
   if (statusFilter.value === status) return
   statusFilter.value = status
-  page.value = 1
+  goToFirstPage()
   fetchItems()
 }
 

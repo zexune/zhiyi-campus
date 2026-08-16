@@ -118,3 +118,22 @@ test('待见面订单经二次确认后调用确认收货并刷新', async () =>
   assert.deepEqual(confirmReceipt.mock.calls[0], [71])
   assert.equal(getBoughtOrders.mock.calls.length, 2)
 })
+
+test('待见面订单取消需二次确认，确认后取消并刷新列表', async () => {
+  getBoughtOrders.mockResolvedValue({
+    data: { records: [order({ status: 'WAITING_MEET', reviewed: null })], total: 1 }
+  })
+  vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
+  const success = vi.spyOn(ElMessage, 'success').mockImplementation(() => {})
+  const wrapper = mount(OrdersBoughtPage, { global })
+  await flushPromises()
+
+  const cancel = wrapper.findAll('button').find((button) => button.text() === '取消订单')
+  assert.ok(cancel)
+  await cancel.trigger('click')
+  await flushPromises()
+
+  assert.deepEqual(cancelOrder.mock.calls[0], [71])
+  assert.equal(getBoughtOrders.mock.calls.length, 2)
+  assert.equal(success.mock.calls.length, 1)
+})

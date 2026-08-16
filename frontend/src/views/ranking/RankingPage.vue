@@ -14,7 +14,7 @@
           </h1>
           <p class="ranking-subtitle">收藏热度实时排名，发现校园里正在被关注的好物</p>
         </div>
-        <router-link to="/" class="btn btn--yellow">
+        <router-link :to="ROUTE_PATH.HOME" class="btn btn--yellow">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
           返回交易大厅
         </router-link>
@@ -68,7 +68,7 @@
         <section class="podium" aria-label="榜单前三名">
           <article v-for="entry in podiumEntries" :key="entry.item.id" class="podium-card rise" :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]" @click="goDetail(entry.item.id)">
             <span class="podium-card__rank">TOP {{ entry.rank }}</span>
-            <div class="podium-card__image" :class="phClass(entry.item.id)">
+            <div class="podium-card__image" :class="placeholderClass(entry.item.id)">
               <img v-if="entry.item.coverImage" :src="entry.item.coverImage" :alt="entry.item.title" />
               <span class="podium-card__medal" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -163,7 +163,7 @@
           </svg>
         </div>
         <h2>榜单正在等待第一件好物</h2>
-        <router-link to="/" class="btn btn--primary">逛逛交易大厅</router-link>
+        <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary">逛逛交易大厅</router-link>
       </section>
     </div>
   </DefaultLayout>
@@ -179,8 +179,9 @@ import PriceTag from '@/components/common/PriceTag.vue'
 import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
 import { ITEM_TYPE } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
+import { ROUTE_PATH } from '@/constants/routes'
+import { placeholderClass } from '@/utils/format'
 
-const PH = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f']
 const router = useRouter()
 const ranking = ref([])
 const trendingTags = ref([])
@@ -194,11 +195,8 @@ const podiumEntries = computed(() => {
 })
 const remainingItems = computed(() => ranking.value.slice(3))
 
-function phClass(id) {
-  return PH[Number(id) % PH.length]
-}
 function goDetail(id) {
-  router.push(`/item/${id}`)
+  router.push(ROUTE_PATH.item(id))
 }
 function goTag(tag) {
   router.push({ path: '/', query: { keyword: tag } })
@@ -217,7 +215,7 @@ async function fetchRanking() {
 
 async function handleFavorite(item) {
   if (!isLoggedIn()) {
-    router.push({ path: '/login', query: { redirect: '/ranking' } })
+    router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.RANKING } })
     return
   }
   favoriteBusyId.value = item.id

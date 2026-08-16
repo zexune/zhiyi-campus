@@ -78,7 +78,7 @@
           <h2>先登录，再逛本校交易大厅</h2>
           <p>登录后只会展示你所在学校的商品、榜单和聊天内容。</p>
         </div>
-        <router-link :to="{ path: '/login', query: { redirect: '/' } }" class="btn btn--primary">登录并进入</router-link>
+        <router-link :to="{ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } }" class="btn btn--primary">登录并进入</router-link>
       </section>
 
       <section v-if="loggedIn && activeTopic" class="topic-banner">
@@ -177,7 +177,7 @@
 
           <div v-else-if="items.length" class="goods-grid">
             <article v-for="item in items" :key="item.id" class="goods-card rise" @click="goDetail(item.id)">
-              <div class="goods-card__img" :class="phClass(item.id)">
+              <div class="goods-card__img" :class="placeholderClass(item.id)">
                 <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
                 <span class="badge goods-card__type" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                   {{ itemTypeLabel(item.type) }}
@@ -262,7 +262,7 @@
                   <h3>近期爆款榜</h3>
                   <p class="muted rank-sub">按收藏数实时更新</p>
                 </div>
-                <router-link to="/ranking" class="rank-more" title="查看完整榜单">
+                <router-link :to="ROUTE_PATH.RANKING" class="rank-more" title="查看完整榜单">
                   查看完整榜单
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6" /></svg>
                 </router-link>
@@ -270,7 +270,7 @@
               <div v-if="ranking.length" class="ranking-list">
                 <button v-for="(item, index) in ranking" :key="item.id" class="rank-item" @click="goDetail(item.id)">
                   <span class="rank-item__no">{{ index + 1 }}</span>
-                  <span class="rank-item__thumb" :class="phClass(item.id)">
+                  <span class="rank-item__thumb" :class="placeholderClass(item.id)">
                     <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
                   </span>
                   <span class="rank-item__info">
@@ -288,7 +288,7 @@
             <div class="publish-cta sticker-tilt">
               <h4>宿舍角落在吃灰？</h4>
               <p>发布 30 秒搞定，本地自动生成标签</p>
-              <router-link to="/publish" class="btn btn--yellow">去发布闲置</router-link>
+              <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--yellow">去发布闲置</router-link>
             </div>
           </div>
         </aside>
@@ -306,6 +306,7 @@ import PriceTag from '@/components/common/PriceTag.vue'
 import TagList from '@/components/common/TagList.vue'
 import { ITEM_TYPE } from '@/constants/domain'
 import { useMarketplaceHome } from './useMarketplaceHome'
+import { ROUTE_PATH } from '@/constants/routes'
 
 const {
   TYPE_OPTIONS,
@@ -329,7 +330,7 @@ const {
   loggedIn,
   page,
   pageSize,
-  phClass,
+  placeholderClass,
   quickSearch,
   ranking,
   resetFilters,
