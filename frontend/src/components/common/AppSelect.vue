@@ -16,17 +16,42 @@
   </el-select>
 </template>
 
-<script setup>
+<script lang="ts">
+/** 下拉选项的通用形状（学校/类型/状态等选项共用；key、disabled 为可选扩展字段）。
+    script setup 内不允许 export，类型置于并立 script 块导出供调用方引用。 */
+export interface AppSelectOption {
+  label: string
+  value: string | number
+  key?: string | number
+  disabled?: boolean
+}
+</script>
+
+<script setup lang="ts" generic="T extends string | number | object | null">
 defineOptions({ inheritAttrs: false })
 
-defineProps({
-  modelValue: { type: [String, Number, Object], default: null },
-  options: { type: Array, default: () => [] },
-  placeholder: { type: String, default: '请选择' },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
-  clearable: { type: Boolean, default: false }
-})
+/* eslint-disable vue/require-default-prop -- v-model 泛型 prop 由全部调用方显式传入，默认值无意义 */
 
-const emit = defineEmits(['update:modelValue', 'change'])
+withDefaults(
+  defineProps<{
+    modelValue?: T
+    options?: ReadonlyArray<AppSelectOption>
+    placeholder?: string
+    disabled?: boolean
+    loading?: boolean
+    clearable?: boolean
+  }>(),
+  {
+    options: () => [],
+    placeholder: '请选择',
+    disabled: false,
+    loading: false,
+    clearable: false
+  }
+)
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: T): void
+  (e: 'change', value: T): void
+}>()
 </script>

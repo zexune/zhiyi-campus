@@ -92,7 +92,7 @@ npm run test:system
 
 | 作业 | 阻断内容 |
 | --- | --- |
-| Lint（Spotless + ESLint/Prettier） | 后端代码卫生检查、前端 lint 与格式检查 |
+| Lint（Spotless + vue-tsc + ESLint/Prettier） | 后端代码卫生检查、前端类型检查（vue-tsc strict）、lint 与格式检查 |
 | Backend unit + MVC contract | 编译、快速测试套件、JaCoCo 门禁 |
 | Backend real MySQL integration | Testcontainers 全链路与事务回滚 |
 | Frontend component + mocked browser | Vitest 覆盖率门禁、生产构建、Playwright 烟测 |

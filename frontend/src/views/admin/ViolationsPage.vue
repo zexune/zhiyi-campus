@@ -179,13 +179,15 @@
   </AdminLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { approveAppeal, confirmViolation, dismissViolation, getAppeals, getViolations, rejectAppeal } from '@/api/admin'
 import { APPEAL_STATUS, VIOLATION_STATUS } from '@/constants/domain'
+import type { AppealStatus, ViolationStatus } from '@/constants/domain'
+import type { ViolationAppeal, ViolationReview } from '@/types/models'
 import { itemStatusLabel } from '@/utils/trade'
-import { formatDateTime } from '@/utils/format'
+import { formatDate, formatDateTime } from '@/utils/format'
 
 const REVIEW_STATUS_TABS = [
   { label: '待审核', value: VIOLATION_STATUS.PENDING },
@@ -203,51 +205,54 @@ const pageSize = 10
 const workspace = ref('reviews')
 const loading = ref(false)
 const acting = ref(false)
-const reviews = ref([])
+const reviews = ref<ViolationReview[]>([])
 const reviewPage = ref(1)
 const reviewTotal = ref(0)
-const reviewStatus = ref(VIOLATION_STATUS.PENDING)
-const appeals = ref([])
+const reviewStatus = ref<ViolationStatus>(VIOLATION_STATUS.PENDING)
+const appeals = ref<ViolationAppeal[]>([])
 const appealPage = ref(1)
 const appealTotal = ref(0)
-const appealStatus = ref(APPEAL_STATUS.PENDING)
+const appealStatus = ref<AppealStatus>(APPEAL_STATUS.PENDING)
 const pendingReviewCount = ref(0)
 const pendingAppealCount = ref(0)
-const confirmForm = reactive({ visible: false, review: null, reason: '', handleNote: '', submitting: false })
-const appealHandle = reactive({ visible: false, appeal: null, action: 'approve', handleNote: '', submitting: false })
+const confirmForm = reactive({ visible: false, review: null as ViolationReview | null, reason: '', handleNote: '', submitting: false })
+const appealHandle = reactive({ visible: false, appeal: null as ViolationAppeal | null, action: 'approve', handleNote: '', submitting: false })
 
-function sourceMeta(source) {
-  return (
-    {
-      LOCAL_RULE: { label: '本地规则命中', badge: 'badge--warn' },
-      USER_REPORT: { label: '用户举报', badge: 'badge--buy' },
-      CORRECTION: { label: '违规整改', badge: 'badge--sell' }
-    }[source] || { label: source || '未知来源', badge: 'badge--muted' }
-  )
+interface BadgeMeta {
+  label: string
+  badge: string
 }
-function reviewStatusMeta(status) {
-  return (
-    {
-      [VIOLATION_STATUS.PENDING]: { label: '待审核', badge: 'badge--warn' },
-      [VIOLATION_STATUS.CONFIRMED]: { label: '已确认违规', badge: 'badge--danger' },
-      [VIOLATION_STATUS.DISMISSED]: { label: '已放行', badge: 'badge--ok' },
-      [VIOLATION_STATUS.OVERTURNED]: { label: '申诉已撤销', badge: 'badge--ok' }
-    }[status] || { label: status, badge: 'badge--muted' }
-  )
+
+const SOURCE_META: Record<string, BadgeMeta> = {
+  LOCAL_RULE: { label: '本地规则命中', badge: 'badge--warn' },
+  USER_REPORT: { label: '用户举报', badge: 'badge--buy' },
+  CORRECTION: { label: '违规整改', badge: 'badge--sell' }
 }
-function appealStatusMeta(status) {
-  return (
-    {
-      [APPEAL_STATUS.PENDING]: { label: '待复核', badge: 'badge--warn' },
-      [APPEAL_STATUS.APPROVED]: { label: '已通过', badge: 'badge--ok' },
-      [APPEAL_STATUS.REJECTED]: { label: '已驳回', badge: 'badge--muted' }
-    }[status] || { label: status, badge: 'badge--muted' }
-  )
+
+function sourceMeta(source: string) {
+  return SOURCE_META[source] || { label: source || '未知来源', badge: 'badge--muted' }
 }
-function itemStatusText(status) {
-  return itemStatusLabel(status)
+function reviewStatusMeta(status: string) {
+  const meta: Record<string, BadgeMeta> = {
+    [VIOLATION_STATUS.PENDING]: { label: '待审核', badge: 'badge--warn' },
+    [VIOLATION_STATUS.CONFIRMED]: { label: '已确认违规', badge: 'badge--danger' },
+    [VIOLATION_STATUS.DISMISSED]: { label: '已放行', badge: 'badge--ok' },
+    [VIOLATION_STATUS.OVERTURNED]: { label: '申诉已撤销', badge: 'badge--ok' }
+  }
+  return meta[status] || { label: status, badge: 'badge--muted' }
 }
-function matchedRules(review) {
+function appealStatusMeta(status: string) {
+  const meta: Record<string, BadgeMeta> = {
+    [APPEAL_STATUS.PENDING]: { label: '待复核', badge: 'badge--warn' },
+    [APPEAL_STATUS.APPROVED]: { label: '已通过', badge: 'badge--ok' },
+    [APPEAL_STATUS.REJECTED]: { label: '已驳回', badge: 'badge--muted' }
+  }
+  return meta[status] || { label: status, badge: 'badge--muted' }
+}
+function itemStatusText(status: string | undefined) {
+  return itemStatusLabel(status || '')
+}
+function matchedRules(review: ViolationReview) {
   return Array.isArray(review.matchedRules) ? review.matchedRules : []
 }
 
@@ -282,18 +287,18 @@ async function fetchAppeals() {
   }
 }
 
-function switchWorkspace(next) {
+function switchWorkspace(next: string) {
   if (workspace.value === next) return
   workspace.value = next
   if (next === 'reviews') fetchReviews()
   else fetchAppeals()
 }
-function changeReviewStatus(status) {
+function changeReviewStatus(status: ViolationStatus) {
   reviewStatus.value = status
   reviewPage.value = 1
   fetchReviews()
 }
-function changeAppealStatus(status) {
+function changeAppealStatus(status: AppealStatus) {
   appealStatus.value = status
   appealPage.value = 1
   fetchAppeals()
@@ -303,7 +308,7 @@ function refreshCurrent() {
   return workspace.value === 'reviews' ? fetchReviews() : fetchAppeals()
 }
 
-function openConfirmDialog(review) {
+function openConfirmDialog(review: ViolationReview) {
   confirmForm.review = review
   confirmForm.reason = review.violationReason || ''
   confirmForm.handleNote = ''
@@ -311,6 +316,8 @@ function openConfirmDialog(review) {
 }
 
 async function submitConfirm() {
+  const review = confirmForm.review
+  if (!review) return
   const reason = confirmForm.reason.trim()
   if (!reason) {
     ElMessage.warning('请填写明确的违规原因')
@@ -319,7 +326,7 @@ async function submitConfirm() {
   confirmForm.submitting = true
   acting.value = true
   try {
-    await confirmViolation(confirmForm.review.id, { reason, handleNote: confirmForm.handleNote.trim() || null })
+    await confirmViolation(review.id, { reason, handleNote: confirmForm.handleNote.trim() || null })
     confirmForm.visible = false
     ElMessage.success('已确认违规，商品已下架并执行固定合规扣分')
     await Promise.all([fetchReviews(), fetchCounts()])
@@ -329,7 +336,7 @@ async function submitConfirm() {
   }
 }
 
-async function dismissReview(review) {
+async function dismissReview(review: ViolationReview) {
   try {
     await ElMessageBox.confirm(`确认放行「${review.originalTitle}」？本次审核记录会标记为已放行。`, '放行内容', {
       confirmButtonText: '确认放行',
@@ -349,7 +356,7 @@ async function dismissReview(review) {
   }
 }
 
-function openAppealHandle(appeal, action) {
+function openAppealHandle(appeal: ViolationAppeal, action: string) {
   appealHandle.appeal = appeal
   appealHandle.action = action
   appealHandle.handleNote = ''
@@ -357,12 +364,14 @@ function openAppealHandle(appeal, action) {
 }
 
 async function submitAppealHandle() {
+  const appeal = appealHandle.appeal
+  if (!appeal) return
   appealHandle.submitting = true
   acting.value = true
   const payload = { handleNote: appealHandle.handleNote.trim() || null }
   try {
-    if (appealHandle.action === 'approve') await approveAppeal(appealHandle.appeal.id, payload)
-    else await rejectAppeal(appealHandle.appeal.id, payload)
+    if (appealHandle.action === 'approve') await approveAppeal(appeal.id, payload)
+    else await rejectAppeal(appeal.id, payload)
     appealHandle.visible = false
     ElMessage.success(appealHandle.action === 'approve' ? '申诉已通过，关联扣分已撤销' : '申诉已驳回')
     await Promise.all([fetchAppeals(), fetchCounts()])

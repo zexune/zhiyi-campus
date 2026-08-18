@@ -81,7 +81,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, ref } from 'vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { getSecurityQuestion, resetPassword } from '@/api/auth'
@@ -93,7 +93,9 @@ import '../auth.css'
  * 找回密码面板（三步：确认账号 → 答密保 → 设新密码）。
  * 重置成功后 emit('reset-done', { schoolId, studentId })，由 AuthPage 回填登录面板。
  */
-const emit = defineEmits(['reset-done'])
+const emit = defineEmits<{
+  (e: 'reset-done', payload: { schoolId: number | null; studentId: string }): void
+}>()
 
 const { schoolOptions, schoolsLoading, schoolsError, fetchSchools, syncForm } = useSchoolOptions()
 
@@ -102,7 +104,17 @@ const step1FormRef = ref(null)
 const step3FormRef = ref(null)
 const loading = ref(false)
 const securityQuestion = ref('')
-const form = reactive({
+
+/** 找回密码表单（schoolId 允许未选，步骤1 rules 强制必填） */
+interface ForgotFormState {
+  schoolId: number | null
+  studentId: string
+  securityAnswer: string
+  newPassword: string
+  confirmPassword: string
+}
+
+const form = reactive<ForgotFormState>({
   schoolId: readSavedSchoolId(),
   studentId: '',
   securityAnswer: '',
@@ -123,11 +135,11 @@ const step3Rules = {
   ],
   confirmPassword: [
     { required: true, message: '请再输入一次新密码', trigger: 'blur' },
-    { validator: (_, value, callback) => (value === form.newPassword ? callback() : callback(new Error('两次输入的密码不一致'))), trigger: 'blur' }
+    { validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => (value === form.newPassword ? callback() : callback(new Error('两次输入的密码不一致'))), trigger: 'blur' }
   ]
 }
 
-function stepClass(n) {
+function stepClass(n: number) {
   return { done: step.value > n, current: step.value === n }
 }
 
@@ -136,7 +148,8 @@ async function handleFetchQuestion() {
   if (!valid) return
   loading.value = true
   try {
-    const res = await getSecurityQuestion(form.schoolId, form.studentId)
+    // 步骤1 rules 已强制选择学校；此处仅类型收窄，异常空值仍按原样提交由后端校验兜底
+    const res = await getSecurityQuestion(form.schoolId as number, form.studentId)
     securityQuestion.value = res.data.question
     step.value = 2
   } catch {
@@ -151,7 +164,7 @@ async function handleReset() {
   if (!valid) return
   loading.value = true
   try {
-    await resetPassword({ ...form })
+    await resetPassword({ ...form, schoolId: form.schoolId as number })
     const { schoolId, studentId } = form
     rememberSchoolId(schoolId)
     ElMessage.success('密码重置成功，请用新密码登录')
@@ -160,7 +173,7 @@ async function handleReset() {
     emit('reset-done', { schoolId, studentId })
   } catch (e) {
     // 答案错误时退回步骤2重新作答
-    if (String(e.message || '').includes('密保')) {
+    if (String((e as Error).message || '').includes('密保')) {
       step.value = 2
       form.securityAnswer = ''
     }
@@ -170,7 +183,7 @@ async function handleReset() {
 }
 
 /** AuthPage 切换到本面板时继承登录面板的学校选择 */
-function adoptSchoolId(schoolId) {
+function adoptSchoolId(schoolId: number | null) {
   if (!form.schoolId && schoolId) {
     form.schoolId = schoolId
   }

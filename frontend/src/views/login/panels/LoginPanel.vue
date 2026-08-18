@@ -52,7 +52,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -67,7 +67,9 @@ import '../auth.css'
  * 登录面板 —— 学校 + 学号 + 密码；封禁账号在表单下方给出解释性提示。
  * 校验为声明式 rules，提交时统一 validate。
  */
-const emit = defineEmits(['switch-tab'])
+const emit = defineEmits<{
+  (e: 'switch-tab', value: 'forgot'): void
+}>()
 
 const router = useRouter()
 const route = useRoute()
@@ -78,7 +80,15 @@ const { schoolOptions, schoolsLoading, schoolsError, fetchSchools, syncForm } = 
 const formRef = ref(null)
 const loading = ref(false)
 const banMessage = ref('')
-const form = reactive({ schoolId: null, studentId: '', password: '' })
+
+/** 登录表单（schoolId 允许未选，rules 强制必填） */
+interface LoginFormState {
+  schoolId: number | null
+  studentId: string
+  password: string
+}
+
+const form = reactive<LoginFormState>({ schoolId: null, studentId: '', password: '' })
 syncForm(form)
 
 const rules = {
@@ -92,14 +102,16 @@ async function handleLogin() {
   if (!valid) return
   loading.value = true
   try {
-    const res = await login({ ...form })
+    // rules 已强制选择学校；此处仅类型收窄，异常空值仍按原样提交由后端校验兜底
+    const res = await login({ ...form, schoolId: form.schoolId as number })
     rememberSchoolId(form.schoolId)
     userStore.setLogin(res.data)
     ElMessage.success('登录成功')
-    router.push(route.query.redirect || ROUTE_PATH.HOME)
+    // redirect 查询参数此处必为单值字符串（多值数组属退化场景）
+    router.push((route.query.redirect as string) || ROUTE_PATH.HOME)
   } catch (e) {
-    if (String(e.message || '').includes('封禁')) {
-      banMessage.value = e.message
+    if (String((e as Error).message || '').includes('封禁')) {
+      banMessage.value = (e as Error).message
     }
   } finally {
     loading.value = false
@@ -107,7 +119,7 @@ async function handleLogin() {
 }
 
 /** 找回密码成功后回填学校与学号（AuthPage 协调调用） */
-function prefill({ schoolId, studentId }) {
+function prefill({ schoolId, studentId }: { schoolId: number | null; studentId: string }) {
   form.schoolId = schoolId
   form.studentId = studentId
 }

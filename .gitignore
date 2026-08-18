@@ -1,6 +1,7 @@
 # AI 工具本地目录
 .claude/
 .codex/
+.zcode/
 
 # 依赖
 node_modules/

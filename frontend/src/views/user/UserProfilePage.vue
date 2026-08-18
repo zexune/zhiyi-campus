@@ -211,7 +211,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -223,17 +223,32 @@ import ReputationRadar from '@/components/common/ReputationRadar.vue'
 import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 import { ROUTE_PATH } from '@/constants/routes'
-import { formatDateTime } from '@/utils/format'
+import { formatDate, formatDateTime } from '@/utils/format'
+import type { ReputationVo } from '@/utils/reputation'
+import type { ExpLog, School, UserProfile } from '@/types/models'
 
 /**
  * 个人中心（模块一 1.5）—— 等级进度条 + 经验记录 + 资料编辑 + 账号安全（改密/注销）
  */
 const router = useRouter()
 const userStore = useUserStore()
-const user = computed(() => userStore.user)
+// 本页展示完整资料字段；localStorage 恢复的摘要（仅 id/nickname/role）在 fetchProfile 后升级为 UserProfile
+const user = computed((): UserProfile | null => userStore.user as UserProfile | null)
+
+/** 编辑资料表单（schoolId 允许未选择，保存前校验必填） */
+interface ProfileEditForm {
+  nickname: string
+  phone: string
+  schoolId: number | null
+  schoolEmail: string
+  campus: string
+  college: string
+  grade: string
+  dormitory: string
+}
 
 const saving = ref(false)
-const editForm = reactive({
+const editForm = reactive<ProfileEditForm>({
   nickname: '',
   phone: '',
   schoolId: null,
@@ -243,15 +258,15 @@ const editForm = reactive({
   grade: '',
   dormitory: ''
 })
-const schools = ref([])
+const schools = ref<School[]>([])
 const schoolOptions = computed(() => schools.value.map((school) => ({ label: school.name, value: school.id })))
 const selectedSchool = computed(() => schools.value.find((school) => school.id === editForm.schoolId) || null)
 const schoolEmailPlaceholder = computed(() => (selectedSchool.value?.emailDomain ? `学号${selectedSchool.value.emailDomain}` : '选择学校后填写对应学校邮箱'))
 
 // 信誉雷达（A6）
-const reputation = ref(null)
+const reputation = ref<ReputationVo | null>(null)
 
-const expLogs = ref([])
+const expLogs = ref<ExpLog[]>([])
 const expPage = ref(1)
 const expPageSize = 10
 const expTotal = ref(0)
@@ -260,10 +275,11 @@ const progressPercent = computed(() => {
   const u = user.value
   if (!u) return 0
   if (!u.nextLevelExp) return 100 // 满级
-  const base = u.currentLevelBaseExp ?? 0
+  // 后端随完整档案返回当前等级经验基线；摘要恢复阶段无此字段，按 0 兜底
+  const base = (u as UserProfile & { currentLevelBaseExp?: number | null }).currentLevelBaseExp ?? 0
   const span = u.nextLevelExp - base
   if (span <= 0) return 100
-  return Math.min(100, Math.round(((u.exp - base) / span) * 100))
+  return Math.min(100, Math.round((((u.exp ?? 0) - base) / span) * 100))
 })
 
 async function handleSave() {
@@ -287,7 +303,8 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    await updateProfile({ ...editForm })
+    // 前置校验已保证 schoolId 有值；显式覆盖以让收窄后的类型通过展开
+    await updateProfile({ ...editForm, schoolId: editForm.schoolId })
     ElMessage.success('保存成功')
     const profile = await userStore.fetchProfile()
     fillEditForm(profile)
@@ -380,7 +397,7 @@ async function handleCancelAccount() {
   }
 }
 
-function fillEditForm(profile) {
+function fillEditForm(profile: UserProfile | null) {
   if (profile) {
     editForm.nickname = profile.nickname
     editForm.phone = profile.phone || ''

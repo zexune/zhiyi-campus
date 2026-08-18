@@ -92,7 +92,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ForgotPanel from './panels/ForgotPanel.vue'
 import LoginPanel from './panels/LoginPanel.vue'
@@ -111,10 +111,10 @@ const props = defineProps({
 const { fetchSchools } = useSchoolOptions()
 
 const tab = ref(props.initialTab)
-const loginPanel = ref(null)
-const forgotPanel = ref(null)
+const loginPanel = ref<InstanceType<typeof LoginPanel> | null>(null)
+const forgotPanel = ref<InstanceType<typeof ForgotPanel> | null>(null)
 
-function switchTab(name) {
+function switchTab(name: string) {
   tab.value = name
   loginPanel.value?.clearBanMessage()
   if (name === 'forgot') {
@@ -124,7 +124,7 @@ function switchTab(name) {
 }
 
 /** 找回密码成功：把学校与学号回填到登录面板并切换过去 */
-function handleResetDone({ schoolId, studentId }) {
+function handleResetDone({ schoolId, studentId }: { schoolId: number | null; studentId: string }) {
   loginPanel.value?.prefill({ schoolId, studentId })
   switchTab('login')
 }

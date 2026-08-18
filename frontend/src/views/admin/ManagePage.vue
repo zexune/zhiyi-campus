@@ -16,7 +16,7 @@
   </AdminLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import EventTopicCard from './manage/EventTopicCard.vue'
 import ForceOffShelfCard from './manage/ForceOffShelfCard.vue'

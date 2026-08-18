@@ -69,7 +69,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isLoggedIn, getNickname, getUserId } from '@/utils/auth'
@@ -87,14 +87,14 @@ const nickname = computed(() => userStore.user?.nickname || getNickname() || '?'
 const userId = computed(() => userStore.user?.id || getUserId() || 0)
 
 const unreadCount = ref(0)
-let unreadTimer = null
+let unreadTimer: number | undefined
 
-function isActive(prefix) {
+function isActive(prefix: string) {
   if (prefix === '/') return route.path === '/'
   return route.path.startsWith(prefix)
 }
 
-function go(path) {
+function go(path: string) {
   router.push(path)
 }
 

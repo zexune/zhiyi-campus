@@ -31,7 +31,7 @@
 
 | 层级 | 技术 |
 | --- | --- |
-| 前端 | Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
+| 前端 | TypeScript 5.9（strict）、Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
 | 后端 | Java 25、Spring Boot 4.1.0、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.x（推荐 3.9.15） |
 | 基础库 | Lombok 1.18.46、JJWT 0.13.0、Jackson 3 |
 | 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion，httpOnly Cookie 下发 + Bearer 双通道）、BCrypt、Caffeine 本地缓存、来源白名单 CORS |
@@ -44,7 +44,7 @@
 - **批量组装列表读模型**：商品卡片、买入/卖出订单和违规申诉先分页，再按 ID 集合批量读取关联商品、用户、评价、举报与标签，以固定数量的数据库往返完成页面组装。
 - **规范化标签**：`tag` 保存标准标签，`item_tag` 保存多对多关系；筛选使用等值索引与 `EXISTS`。校级标签聚合使用 Caffeine 短缓存，并在商品内容或可见性变化的事务提交后精准失效。
 - **数据库聚合统计**：交易日趋势、成交额和地点热力由聚合 SQL 直接返回小结果集，并以半开时间区间匹配索引。
-- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端状态码集中在 `src/constants/domain.js`；JSON 数组由 Jackson 3/MyBatis TypeHandler 统一映射为 `List<String>`。
+- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端全量 TypeScript（strict），API 契约类型手写在 `src/api/*.ts` 与 `src/types/models.ts`，状态码枚举（`as const` + 派生联合类型）集中在 `src/constants/domain.ts`；JSON 数组由 Jackson 3/MyBatis TypeHandler 统一映射为 `List<String>`。
 
 初始化脚本中的复合索引与上述查询形状是一体设计。修改查询条件、排序字段或学校隔离规则时，应同步用 `EXPLAIN ANALYZE` 复核索引命中情况，而不是盲目新增单列索引。
 
@@ -153,6 +153,7 @@ cd frontend
 npm test
 npm run build
 npm run preview
+npm run typecheck     # vue-tsc 类型检查（CI 同款）
 npm run lint          # ESLint（CI 同款）
 npm run lint:fix      # 自动修复可修复问题
 npm run format:check  # Prettier 检查（CI 同款）
@@ -297,10 +298,10 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 - 内容违规只执行可配置的固定合规扣分。商品强制下架不自动扣经验，账号封禁和解封只能在用户管理中独立执行。
 - 后端使用 Java 25 虚拟线程处理请求；数据库吞吐受 HikariCP/MySQL 连接池上限约束。
 - API 统一响应和鉴权快照使用不可变 Record；业务 JSON 栈使用 Jackson 3，Swagger/OpenAPI 的传递依赖由 springdoc 管理，业务代码不要引入 Jackson 2 类型。
-- 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入；登录态与用户摘要由 `src/utils/auth.js` 统一管理（响应式，唯一真相源），Pinia 不再持久化。
-- 复杂页面采用“页面编排 + 子组件”边界：认证页三面板在 `views/login/panels/`、内容管理四工具卡在 `views/admin/manage/`，页面文件只负责布局与协调；跨面板共享的学校下拉走 `composables/useSchoolOptions.js`。
-- 前端有三类“唯一出处”约定：路由路径与命名路由集中在 `src/constants/routes.js`（页面不得硬编码路径字符串）；时间/价格/占位图等展示格式化集中在 `src/utils/format.js`；服务端分页列表（loading/error/empty + 分页状态机）统一用 `composables/usePagedList.js`。
-- 表单校验使用 Element Plus 声明式 `:rules`（提交统一走 `utils/formValidate.js` 的 `validateForm`），不要在提交函数里手写 if 逐字段校验。
+- 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入；登录态与用户摘要由 `src/utils/auth.ts` 统一管理（响应式，唯一真相源），Pinia 不再持久化。
+- 复杂页面采用“页面编排 + 子组件”边界：认证页三面板在 `views/login/panels/`、内容管理四工具卡在 `views/admin/manage/`，页面文件只负责布局与协调；跨面板共享的学校下拉走 `composables/useSchoolOptions.ts`。
+- 前端有三类“唯一出处”约定：路由路径与命名路由集中在 `src/constants/routes.ts`（页面不得硬编码路径字符串）；时间/价格/占位图等展示格式化集中在 `src/utils/format.ts`；服务端分页列表（loading/error/empty + 分页状态机）统一用 `composables/usePagedList.ts`。
+- 表单校验使用 Element Plus 声明式 `:rules`（提交统一走 `utils/formValidate.ts` 的 `validateForm`），不要在提交函数里手写 if 逐字段校验。
 - 首页交易大厅的视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护。
 - 代码卫生由工具链强制：后端 `mvn spotless:check`（未用导入/行尾空白/文件换行），前端 `npm run lint`（ESLint）与 `npm run format:check`（Prettier），CI 的 lint 作业拦截。仓库统一 LF 行尾（见 `.gitattributes` 与 `.editorconfig`）。
 - 前端开发代理端口固定为 `3000`，后端端口固定为 `8080`；修改任一端口时需同步调整 [`frontend/vite.config.js`](frontend/vite.config.js)。

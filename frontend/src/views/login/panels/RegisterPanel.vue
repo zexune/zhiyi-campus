@@ -124,7 +124,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -148,7 +148,21 @@ const step = ref(1)
 const step1FormRef = ref(null)
 const step2FormRef = ref(null)
 const loading = ref(false)
-const form = reactive({
+
+/** 注册表单（两步共用；schoolId 允许未选，步骤1 rules 强制必填） */
+interface RegisterFormState {
+  studentId: string
+  password: string
+  confirmPassword: string
+  nickname: string
+  schoolId: number | null
+  schoolEmail: string
+  securityQuestion: string
+  securityAnswer: string
+  phone: string
+}
+
+const form = reactive<RegisterFormState>({
   studentId: '',
   password: '',
   confirmPassword: '',
@@ -188,12 +202,12 @@ const step1Rules = {
   ],
   confirmPassword: [
     { required: true, message: '请再输入一次密码', trigger: 'blur' },
-    { validator: (_, value, callback) => (value === form.password ? callback() : callback(new Error('两次输入的密码不一致'))), trigger: 'blur' }
+    { validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => (value === form.password ? callback() : callback(new Error('两次输入的密码不一致'))), trigger: 'blur' }
   ],
   schoolId: [{ required: true, message: '请选择所属学校', trigger: 'change' }],
   schoolEmail: [
     {
-      validator: (_, value, callback) => {
+      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
         const email = String(value || '')
           .trim()
           .toLowerCase()
@@ -214,13 +228,13 @@ const step2Rules = {
 }
 
 // —— 预设密保问题（随机按钮数据源）——
-const questions = ref([])
+const questions = ref<string[]>([])
 let lastRandomIndex = -1
 
 function randomQuestion() {
   const pool = questions.value
   if (!pool.length) return
-  let idx
+  let idx: number
   if (pool.length === 1) {
     idx = 0
   } else {
@@ -232,7 +246,7 @@ function randomQuestion() {
   form.securityQuestion = pool[idx]
 }
 
-function stepClass(n) {
+function stepClass(n: number) {
   return { done: step.value > n, current: step.value === n }
 }
 
@@ -260,7 +274,8 @@ async function handleRegister() {
       password: form.password,
       confirmPassword: form.confirmPassword,
       nickname: form.nickname,
-      schoolId: form.schoolId,
+      // 步骤1 rules 已强制选择学校；此处仅类型收窄，异常空值仍按原样提交由后端校验兜底
+      schoolId: form.schoolId as number,
       schoolEmail: form.schoolEmail || null,
       securityQuestion: form.securityQuestion,
       securityAnswer: form.securityAnswer,
@@ -272,7 +287,7 @@ async function handleRegister() {
     router.push(ROUTE_PATH.HOME)
   } catch (e) {
     // 学号已注册等账号类错误发生在步骤1的字段上，退回步骤1便于修改
-    if (String(e.message || '').includes('学号')) {
+    if (String((e as Error).message || '').includes('学号')) {
       step.value = 1
     }
   } finally {

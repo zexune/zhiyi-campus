@@ -131,7 +131,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getWalletBalance, rechargeWallet, getWalletLogs } from '@/api/wallet'
@@ -174,7 +174,7 @@ const canRecharge = computed(() => {
 const rechargeRules = {
   amount: [
     {
-      validator: (_, value, callback) => {
+      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
         const v = parseFloat(value)
         if (Number.isNaN(v) || v < 0.01 || v > 10000) return callback(new Error('充值金额须在 0.01 ~ 10,000.00 之间'))
         callback()
@@ -185,7 +185,7 @@ const rechargeRules = {
 }
 
 /** 阻止科学计数法字符（e/E/+/-）和多余小数点 */
-function blockInvalidKeys(e) {
+function blockInvalidKeys(e: KeyboardEvent) {
   const blocked = ['e', 'E', '+', '-']
   if (blocked.includes(e.key)) {
     e.preventDefault()
@@ -216,22 +216,22 @@ async function handleRecharge() {
 // ---- 流水（服务端分页状态机） ----
 const { records: logs, currentPage, pageSize, total, loading, loadError: logsError, fetchList: fetchLogs, goToFirstPage } = usePagedList(getWalletLogs)
 
-const TYPE_MAP = {
+const TYPE_MAP: Record<string, { label: string; cls: string }> = {
   RECHARGE: { label: '充值', cls: 'badge--ok' },
   PAYMENT: { label: '支出', cls: 'badge--sell' },
   REFUND: { label: '退款', cls: 'badge--buy' },
   INCOME: { label: '收入', cls: 'badge--ok' }
 }
 
-function typeLabel(type) {
+function typeLabel(type: string) {
   return TYPE_MAP[type]?.label || type
 }
 
-function typeClass(type) {
+function typeClass(type: string) {
   return TYPE_MAP[type]?.cls || 'badge--muted'
 }
 
-function isIncome(type) {
+function isIncome(type: string) {
   return type === 'RECHARGE' || type === 'REFUND' || type === 'INCOME'
 }
 

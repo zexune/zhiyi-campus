@@ -83,16 +83,17 @@
   </AdminLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import { getAdminSessions, getAdminChatMessages, getAdminUnreadMessages, sendAdminChatMessage } from '@/api/admin'
+import type { ChatMessage, ChatUser, Conversation } from '@/types/models'
 import { formatChatTime } from '@/utils/format'
 
 // ---- 会话列表 ----
-const sessions = ref([])
+const sessions = ref<Conversation[]>([])
 const sessionsLoading = ref(false)
 
 async function fetchSessions() {
@@ -108,17 +109,17 @@ async function fetchSessions() {
 }
 
 // ---- 当前会话 ----
-const activeConv = ref(null)
-const activePeer = ref(null)
-const messages = ref([])
+const activeConv = ref<string | null>(null)
+const activePeer = ref<ChatUser | null>(null)
+const messages = ref<ChatMessage[]>([])
 const messagesLoading = ref(false)
 const hasEarlier = ref(false)
 const earlierLoading = ref(false)
 const inputText = ref('')
 const sending = ref(false)
-const msgContainer = ref(null)
+const msgContainer = ref<HTMLElement | null>(null)
 
-async function openSession(session) {
+async function openSession(session: Conversation) {
   activeConv.value = session.conversationId
   activePeer.value = session.peer
   inputText.value = ''
@@ -146,7 +147,7 @@ async function loadMessages() {
 
 // 消息历史按 id 倒序 keyset 分页，向前翻页时保持视口停留在原位置
 async function loadEarlier() {
-  if (!messages.value.length || earlierLoading.value) return
+  if (!messages.value.length || !activeConv.value || earlierLoading.value) return
   earlierLoading.value = true
   try {
     const res = await getAdminChatMessages({
@@ -172,7 +173,7 @@ async function loadEarlier() {
 
 async function handleSend() {
   const text = inputText.value.trim()
-  if (!text || !activePeer.value) return
+  if (!text || !activeConv.value || !activePeer.value) return
   sending.value = true
   try {
     await sendAdminChatMessage({
@@ -200,7 +201,7 @@ function scrollToBottom() {
 }
 
 // ---- 轮询 ----
-let pollTimer = null
+let pollTimer: number | undefined
 
 async function poll() {
   if (!activeConv.value) return
@@ -219,17 +220,17 @@ async function poll() {
 
 function startPolling() {
   stopPolling()
-  pollTimer = setInterval(poll, 3000)
+  pollTimer = window.setInterval(poll, 3000)
 }
 
 function stopPolling() {
   if (pollTimer) {
     clearInterval(pollTimer)
-    pollTimer = null
+    pollTimer = undefined
   }
 }
 
-function truncate(text, max) {
+function truncate(text: string, max: number) {
   if (!text) return ''
   return text.length > max ? text.slice(0, max) + '...' : text
 }

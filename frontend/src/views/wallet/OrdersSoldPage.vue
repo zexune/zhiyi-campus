@@ -81,7 +81,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getSoldOrders } from '@/api/order'
@@ -95,7 +95,7 @@ import { ROUTE_PATH } from '@/constants/routes'
 const filters = [{ label: '全部', value: '' }, ...ORDER_STATUS_OPTIONS]
 const currentFilter = ref('')
 
-function switchFilter(val) {
+function switchFilter(val: string) {
   currentFilter.value = val
   goToFirstPage()
   fetchOrders()
@@ -115,11 +115,11 @@ const {
   params: () => (currentFilter.value ? { status: currentFilter.value } : {})
 })
 
-function statusLabel(s) {
+function statusLabel(s: string) {
   return orderStatusLabel(s)
 }
 
-function statusBadge(s) {
+function statusBadge(s: string) {
   return orderStatusBadge(s)
 }
 

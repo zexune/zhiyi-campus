@@ -95,15 +95,24 @@
   </AdminLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
+import type { School } from '@/types/models'
 
-const schools = ref([])
+interface SchoolFormState {
+  id: number | null
+  name: string
+  code: string
+  emailDomain: string
+  status: string
+}
+
+const schools = ref<School[]>([])
 const loading = ref(false)
-const editingId = ref(null)
-const deletingId = ref(null)
+const editingId = ref<number | null>(null)
+const deletingId = ref<number | null>(null)
 
 const dialog = reactive({
   visible: false,
@@ -115,7 +124,7 @@ const dialog = reactive({
     code: '',
     emailDomain: '',
     status: 'ACTIVE'
-  }
+  } as SchoolFormState
 })
 
 async function fetchSchools() {
@@ -136,13 +145,13 @@ function startCreate() {
   dialog.visible = true
 }
 
-function startEdit(school) {
+function startEdit(school: School) {
   dialog.isCreate = false
   editingId.value = school.id
   dialog.form = {
     id: school.id,
     name: school.name,
-    code: school.code,
+    code: school.code || '',
     emailDomain: school.emailDomain || '',
     status: school.status || 'ACTIVE'
   }
@@ -154,11 +163,13 @@ function closeDialog() {
   editingId.value = null
 }
 
-function schoolStatusLabel(status) {
-  return { ACTIVE: '启用', DISABLED: '停用', DELETED: '已删除' }[status] || status
+const SCHOOL_STATUS_LABELS: Record<string, string> = { ACTIVE: '启用', DISABLED: '停用', DELETED: '已删除' }
+
+function schoolStatusLabel(status: School['status']) {
+  return SCHOOL_STATUS_LABELS[status as string] || status || ''
 }
 
-function schoolStatusClass(status) {
+function schoolStatusClass(status: School['status']) {
   if (status === 'ACTIVE') return 'badge--ok'
   if (status === 'DELETED') return 'badge--danger'
   return 'badge--muted'
@@ -186,20 +197,22 @@ async function handleSave() {
     if (dialog.isCreate) {
       await createSchool(payload)
       ElMessage.success('学校创建成功')
-    } else {
+    } else if (id != null) {
       await updateSchool(id, payload)
       ElMessage.success('学校更新成功')
     }
     closeDialog()
     await fetchSchools()
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '操作失败')
+    // axios 错误形状（统一拦截器外抛出的原始错误）
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '操作失败')
   } finally {
     dialog.submitting = false
   }
 }
 
-async function handleDelete(school) {
+async function handleDelete(school: School) {
   try {
     await ElMessageBox.confirm(`确认删除学校“${school.name}”？仅无用户和商品关联的学校可以删除。`, '删除学校', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' })
   } catch {

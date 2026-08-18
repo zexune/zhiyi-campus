@@ -24,9 +24,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { REPUTATION_DIMENSIONS, radarPoint, radarPolygon, reputationValues, overallScore, reputationGrade } from '@/utils/reputation.js'
+import { REPUTATION_DIMENSIONS, radarPoint, radarPolygon, reputationValues, overallScore, reputationGrade } from '@/utils/reputation'
 
 /**
  * 信誉雷达图（A6）—— 六维纯 SVG 手绘风，不引入图表库，几何逻辑复用 utils/reputation.js
