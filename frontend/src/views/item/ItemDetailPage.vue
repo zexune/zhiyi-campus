@@ -19,11 +19,11 @@
               <span class="badge gallery-state" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                 {{ itemTypeLabel(item.type) }}
               </span>
-              <button v-if="item.images?.length > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
-              <button v-if="item.images?.length > 1" class="gallery__nav gallery__nav--next" aria-label="下一张" @click="switchImage(1)">›</button>
+              <button v-if="(item.images?.length || 0) > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
+              <button v-if="(item.images?.length || 0) > 1" class="gallery__nav gallery__nav--next" aria-label="下一张" @click="switchImage(1)">›</button>
               <span v-if="item.images?.length" class="gallery__count">{{ activeImageIndex + 1 }} / {{ item.images.length }}</span>
             </div>
-            <div v-if="item.images?.length > 1" class="gallery__thumbs">
+            <div v-if="(item.images?.length || 0) > 1" class="gallery__thumbs">
               <button v-for="image in item.images" :key="image" class="th" :class="{ active: image === activeImage }" @click="activeImage = image">
                 <img :src="image" :alt="item.title" />
               </button>
@@ -171,8 +171,8 @@
 
       <SellerDetailDialog
         :visible="sellerDialogVisible"
-        :seller="sellerDetail"
-        :reputation="sellerReputation"
+        :seller="sellerDetail ?? undefined"
+        :reputation="sellerReputation ?? undefined"
         :loading="sellerDetailLoading"
         :error="sellerDetailError"
         @close="closeSellerDetail"
@@ -202,7 +202,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
@@ -214,14 +214,29 @@ import SellerDetailDialog from '@/components/user/SellerDetailDialog.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { getItemDetail, getItemLineage, reportItem, toggleFavorite } from '@/api/item'
 import { getSellerDetail, getUserRelation, getUserReputation } from '@/api/auth'
+import type { ItemDetail, ItemLineage } from '@/types/models'
 import { startItemConversation } from '@/api/chat'
 import { createOrder } from '@/api/order'
 import { ITEM_STATUS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
+import type { ItemStatus, ItemType } from '@/constants/domain'
 import { getUserId, isLoggedIn } from '@/utils/auth'
+import type { ReputationVo } from '@/utils/reputation'
 import { normalizeRelationTags } from '@/utils/relation'
 import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
-import { formatDateTime, placeholderClass } from '@/utils/format'
+import { formatDate, formatDateTime, placeholderClass } from '@/utils/format'
+
+/**
+ * 卖家档案弹窗数据：打开时的兜底摘要（id/nickname/level）与 getSellerDetail
+ * 返回档案（Record<string, unknown>）的联合形状；弹窗内按字段可选消费，故带索引签名。
+ */
+interface SellerDetail {
+  id?: number
+  nickname?: string
+  level?: number
+  schoolName?: string
+  [key: string]: unknown
+}
 
 const REPORT_TYPE_OPTIONS = [
   { label: '价格欺诈', value: 'PRICE_FRAUD' },
@@ -233,7 +248,7 @@ const REPORT_TYPE_OPTIONS = [
 
 const route = useRoute()
 const router = useRouter()
-const item = ref(null)
+const item = ref<ItemDetail | null>(null)
 const loading = ref(false)
 const favoriteLoading = ref(false)
 const chatLoading = ref(false)
@@ -244,10 +259,10 @@ const activeImage = ref('')
 const sellerDialogVisible = ref(false)
 const sellerDetailLoading = ref(false)
 const sellerDetailError = ref(false)
-const sellerDetail = ref(null)
-const sellerReputation = ref(null)
-const sellerRelations = ref([])
-const lineage = ref(null)
+const sellerDetail = ref<SellerDetail | null>(null)
+const sellerReputation = ref<ReputationVo | null>(null)
+const sellerRelations = ref<string[]>([])
+const lineage = ref<ItemLineage | null>(null)
 const lineageLoading = ref(false)
 const reportForm = reactive({ visible: false, type: 'PRICE_FRAUD', details: '', submitting: false })
 
@@ -261,30 +276,32 @@ const activeImageIndex = computed(() => {
   return index >= 0 ? index : 0
 })
 
-function statusText(status) {
-  return itemStatusLabel(status)
+function statusText(status: ItemStatus | string | undefined): string {
+  // 模板仅在 item 已加载的分支调用；as 仅消除联合中的 undefined，运行时取值不变
+  return itemStatusLabel(status as string)
 }
 
-function statusBadge(status) {
-  return itemStatusBadge(status)
+function statusBadge(status: ItemStatus | string | undefined): string {
+  return itemStatusBadge(status as string)
 }
 
-function itemTypeLabel(type) {
-  return ITEM_TYPE_LABELS[type] || type
+function itemTypeLabel(type: string): string {
+  return ITEM_TYPE_LABELS[type as ItemType] || type
 }
 
-function switchImage(offset) {
+function switchImage(offset: number): void {
   const images = item.value?.images || []
   if (!images.length) return
   const nextIndex = (activeImageIndex.value + offset + images.length) % images.length
   activeImage.value = images[nextIndex]
 }
 
-async function fetchDetail() {
+async function fetchDetail(): Promise<void> {
   loading.value = true
   sellerRelations.value = []
   try {
-    const res = await getItemDetail(route.params.id)
+    // 路由 /item/:id 的 param 恒为单值字符串
+    const res = await getItemDetail(route.params.id as string)
     item.value = res.data
     activeImage.value = item.value.coverImage || item.value.images?.[0] || ''
     favorite.value = !!item.value.favoriteByCurrentUser
@@ -300,10 +317,10 @@ async function fetchDetail() {
   }
 }
 
-async function loadLineage() {
+async function loadLineage(): Promise<void> {
   lineageLoading.value = true
   try {
-    const res = await getItemLineage(route.params.id)
+    const res = await getItemLineage(route.params.id as string)
     lineage.value = res.data
   } catch {
     lineage.value = null
@@ -312,7 +329,7 @@ async function loadLineage() {
   }
 }
 
-async function loadSellerRelation(sellerId) {
+async function loadSellerRelation(sellerId: number | undefined): Promise<void> {
   if (!sellerId || !canCompareSeller.value) {
     sellerRelations.value = []
     return
@@ -326,14 +343,15 @@ async function loadSellerRelation(sellerId) {
   }
 }
 
-function requireLogin() {
+function requireLogin(): boolean {
   if (isLoggedIn()) return true
   router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: route.fullPath } })
   return false
 }
 
-async function handleFavorite() {
+async function handleFavorite(): Promise<void> {
   if (!requireLogin()) return
+  if (!item.value) return // 触发按钮仅在 item 已加载的分支渲染，此行只为类型收窄
   favoriteLoading.value = true
   try {
     const res = await toggleFavorite(item.value.id)
@@ -345,8 +363,9 @@ async function handleFavorite() {
   }
 }
 
-async function contactSeller() {
+async function contactSeller(): Promise<void> {
   if (!requireLogin()) return
+  if (!item.value) return // 同上：仅类型收窄
   chatLoading.value = true
   try {
     const res = await startItemConversation(item.value.id)
@@ -363,7 +382,7 @@ async function contactSeller() {
   }
 }
 
-async function loadSellerDetail() {
+async function loadSellerDetail(): Promise<void> {
   const sellerId = item.value?.publisherId
   if (!sellerId) return
 
@@ -373,7 +392,8 @@ async function loadSellerDetail() {
     const [detailResult, reputationResult] = await Promise.allSettled([getSellerDetail(sellerId), getUserReputation(sellerId)])
 
     if (detailResult.status === 'fulfilled') {
-      sellerDetail.value = detailResult.value.data
+      // getSellerDetail 的返回为动态档案对象（Record<string, unknown>），单点收窄到弹窗形状
+      sellerDetail.value = detailResult.value.data as SellerDetail
     } else {
       sellerDetailError.value = true
     }
@@ -384,8 +404,9 @@ async function loadSellerDetail() {
   }
 }
 
-function openSellerDetail() {
+function openSellerDetail(): void {
   if (!requireLogin()) return
+  if (!item.value) return // 同上：仅类型收窄
   sellerDetail.value = {
     id: item.value.publisherId,
     nickname: item.value.publisherNickname,
@@ -396,12 +417,13 @@ function openSellerDetail() {
   loadSellerDetail()
 }
 
-function closeSellerDetail() {
+function closeSellerDetail(): void {
   sellerDialogVisible.value = false
 }
 
-async function handleBuy() {
+async function handleBuy(): Promise<void> {
   if (!requireLogin()) return
+  if (!item.value) return // 同上：仅类型收窄
   try {
     await ElMessageBox.confirm(`确认购买「${item.value.title}」？\n\n金额：¥${Number(item.value.price).toFixed(2)}\n确认后资金将由平台担保冻结，当面验货满意后再确认收货。`, '确认下单', {
       confirmButtonText: '确认购买',
@@ -424,14 +446,15 @@ async function handleBuy() {
   }
 }
 
-function openReportDialog() {
+function openReportDialog(): void {
   if (!requireLogin()) return
   reportForm.type = 'PRICE_FRAUD'
   reportForm.details = ''
   reportForm.visible = true
 }
 
-async function submitReport() {
+async function submitReport(): Promise<void> {
+  if (!item.value) return // 举报按钮仅在 item 存在分支渲染，此行只为类型收窄
   const details = reportForm.details.trim()
   if (reportForm.type === 'OTHER' && !details) {
     ElMessage.warning('选择“其他问题”时请填写补充说明')
@@ -447,7 +470,7 @@ async function submitReport() {
   }
 }
 
-function goTag(tag) {
+function goTag(tag: string): void {
   router.push({ path: '/', query: { keyword: tag } })
 }
 

@@ -12,7 +12,7 @@
       <!-- 学校切换（D2：多校大盘） -->
       <div v-if="schools.length > 0" class="school-bar">
         <span class="school-bar__label muted">🏫 学校视角：</span>
-        <button v-for="s in schoolOptions" :key="s.value" class="school-chip" :class="{ active: selectedSchoolId === s.value }" @click="switchSchool(s.value)">
+        <button v-for="s in schoolOptions" :key="s.value ?? 'all'" class="school-chip" :class="{ active: selectedSchoolId === s.value }" @click="switchSchool(s.value)">
           {{ s.label }}
         </button>
       </div>
@@ -184,19 +184,25 @@
   </AdminLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getDashboard, getSchools, getTradeHeatmap } from '@/api/admin'
+import type { DashboardStats, School, TradeHeatEntry } from '@/types/models'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatDateTime } from '@/utils/format'
 
 // ---- 学校选择（D2：多校大盘） ----
-const schools = ref([])
-const selectedSchoolId = ref(null)
+const schools = ref<School[]>([])
+const selectedSchoolId = ref<number | null>(null)
+
+interface SchoolOption {
+  value: number | null
+  label: string
+}
 
 const schoolOptions = computed(() => {
-  const opts = [{ value: null, label: '🌐 全部学校' }]
+  const opts: SchoolOption[] = [{ value: null, label: '🌐 全部学校' }]
   schools.value.forEach((s) => {
     opts.push({ value: s.id, label: s.name })
   })
@@ -215,7 +221,7 @@ async function loadSchools() {
 // ---- 大盘数据 ----
 // 缺省骨架同时用于初始值与响应合并：模板直接访问 data.recentViolations.length 等字段，
 // 后端若缺字段，直接整包替换会让渲染抛 TypeError 白屏。
-const EMPTY_DASHBOARD = {
+const EMPTY_DASHBOARD: DashboardStats = {
   totalUsers: 0,
   onSaleItems: 0,
   todayTradeAmount: '0.00',
@@ -223,13 +229,13 @@ const EMPTY_DASHBOARD = {
   recentViolations: [],
   trend: []
 }
-const data = ref({ ...EMPTY_DASHBOARD })
+const data = ref<DashboardStats>({ ...EMPTY_DASHBOARD })
 const loading = ref(false)
 const loadError = ref(false)
-const hoveredIndex = ref(null)
+const hoveredIndex = ref<number | null>(null)
 
 // ---- 热力图（D5） ----
-const heatmapData = ref([])
+const heatmapData = ref<TradeHeatEntry[]>([])
 const heatmapMax = computed(() => Math.max(1, ...heatmapData.value.map((h) => h.count)))
 
 async function fetchHeatmap() {
@@ -241,16 +247,16 @@ async function fetchHeatmap() {
   }
 }
 
-function heatmapWidth(count) {
+function heatmapWidth(count: number) {
   return Math.round((count / heatmapMax.value) * 100)
 }
 
 const HEAT_COLORS = ['heat--1', 'heat--2', 'heat--3', 'heat--4', 'heat--5']
-function heatColor(i) {
+function heatColor(i: number) {
   return HEAT_COLORS[i % HEAT_COLORS.length]
 }
 
-function switchSchool(schoolId) {
+function switchSchool(schoolId: number | null) {
   selectedSchoolId.value = schoolId
   fetchDashboard()
   fetchHeatmap()
@@ -300,20 +306,20 @@ const maxY = computed(() => {
 // 4 条网格线（0%, 25%, 50%, 75%, 100% — 5 个刻度值）
 const gridLines = [0, 1, 2, 3, 4]
 
-function gridValue(i) {
+function gridValue(i: number) {
   return Math.round((maxY.value * i) / 4)
 }
 
-function xFor(i) {
+function xFor(i: number) {
   if (trendPoints.value.length <= 1) return PAD_L + PLOT_W.value / 2
   return PAD_L + (PLOT_W.value * i) / (trendPoints.value.length - 1)
 }
 
-function yForGrid(i) {
+function yForGrid(i: number) {
   return PAD_T + PLOT_H.value * (1 - i / 4)
 }
 
-function yFor(v) {
+function yFor(v: number) {
   if (maxY.value === 0) return PAD_T + PLOT_H.value
   return PAD_T + PLOT_H.value * (1 - v / maxY.value)
 }
@@ -335,19 +341,19 @@ onMounted(() => {
 
 // ---- 工具函数 ----
 
-function fmtDateShort(dateStr) {
+function fmtDateShort(dateStr: string) {
   if (!dateStr) return ''
   const parts = dateStr.split('-')
   return `${parseInt(parts[1])}/${parseInt(parts[2])}`
 }
 
-function fmtDateCN(dateStr) {
+function fmtDateCN(dateStr: string) {
   if (!dateStr) return ''
   const parts = dateStr.split('-')
   return `${parseInt(parts[1])}月${parseInt(parts[2])}日`
 }
 
-function tooltipX(i) {
+function tooltipX(i: number) {
   // 浮层居中于数据点，左右留边距
   const cx = xFor(i)
   const halfW = 52
@@ -356,14 +362,14 @@ function tooltipX(i) {
   return cx - halfW
 }
 
-function tooltipY(i) {
+function tooltipY(i: number) {
   // 浮层在数据点上方；若顶部空间不足则放下面
   const py = yFor(trendPoints.value[i].count)
   if (py - 70 >= PAD_T) return py - 70
   return py + 16
 }
 
-function violationBadge(type) {
+function violationBadge(type: string | undefined) {
   if (!type) return ''
   const t = type.toLowerCase()
   if (t.includes('违禁') || t.includes('危险')) return 'badge--danger'

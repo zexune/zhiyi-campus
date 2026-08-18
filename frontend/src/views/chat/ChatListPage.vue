@@ -81,7 +81,7 @@
                 <UserAvatar :nickname="message.mine ? '我' : thread?.peer?.nickname || '同学'" :user-id="message.mine ? 0 : thread?.peer?.id || 0" size="s" />
                 <div>
                   <div class="msg__bubble">{{ message.content }}</div>
-                  <div class="msg__time">{{ formatTime(message.createdAt) }}</div>
+                  <div class="msg__time">{{ formatChatTime(message.createdAt) }}</div>
                 </div>
               </div>
             </template>
@@ -129,7 +129,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, Service } from '@element-plus/icons-vue'
@@ -138,26 +138,39 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { getChatMessages, getConversations, sendChatMessage, startCustomerService } from '@/api/chat'
+import type { ChatMessagesQuery } from '@/api/chat'
+import type { ChatMessage, ChatThread, Conversation } from '@/types/models'
 import { ROUTE_PATH } from '@/constants/routes'
-import { formatTimeShort, placeholderClass } from '@/utils/format'
+import { formatChatTime, formatTimeShort, placeholderClass } from '@/utils/format'
+
+/**
+ * selectConversation 消费的最小会话形状：
+ * 真实 Conversation、客服会话 ChatStartResult、URL 回填对象均结构兼容。
+ */
+interface ConversationLike {
+  conversationId: string
+  // id 兼容 URL 查询参数退化形态（多值数组）
+  peer?: { id?: number | string | string[] | (string | null)[] | null | undefined }
+  relatedItem?: { id?: number | string | string[] | (string | null)[] | null | undefined } | null
+}
 
 const route = useRoute()
 const router = useRouter()
-const conversations = ref([])
+const conversations = ref<Conversation[]>([])
 const selectedConversationId = ref('')
-const thread = ref(null)
-const messages = ref([])
+const thread = ref<ChatThread | null>(null)
+const messages = ref<ChatMessage[]>([])
 const draft = ref('')
 const keyword = ref('')
 const loading = ref(false)
 const threadLoading = ref(false)
 const sending = ref(false)
 const serviceLoading = ref(false)
-const messagePanel = ref(null)
+const messagePanel = ref<HTMLElement | null>(null)
 const hasEarlier = ref(false)
 const earlierLoading = ref(false)
 let earlierLoaded = false
-let pollTimer = null
+let pollTimer: number | undefined
 
 const selectedConversation = computed(() => conversations.value.find((item) => String(item.conversationId) === String(selectedConversationId.value)) || null)
 const activeRelatedItem = computed(() => thread.value?.relatedItem || selectedConversation.value?.relatedItem || null)
@@ -167,8 +180,8 @@ const filteredConversations = computed(() => {
   return conversations.value.filter((item) => (item.peer?.nickname || '').includes(value) || (item.lastMessage || '').includes(value) || (item.relatedItem?.title || '').includes(value))
 })
 
-function threadParams(conversation = selectedConversation.value) {
-  const params = { conversationId: selectedConversationId.value }
+function threadParams(conversation: Conversation | null = selectedConversation.value): ChatMessagesQuery {
+  const params: ChatMessagesQuery = { conversationId: selectedConversationId.value }
   const peerId = conversation?.peer?.id || route.query.peerId
   const relatedItemId = conversation?.relatedItem?.id || route.query.relatedItemId
   if (peerId) params.peerId = Number(peerId)
@@ -188,7 +201,7 @@ async function fetchConversations() {
     loading.value = false
   }
 }
-async function fetchThread({ silent = false } = {}) {
+async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
   if (!selectedConversationId.value) return
   const requestedId = selectedConversationId.value
   if (!silent) threadLoading.value = true
@@ -234,7 +247,7 @@ async function loadEarlier() {
     earlierLoading.value = false
   }
 }
-async function selectConversation(conversation, updateUrl = true) {
+async function selectConversation(conversation: ConversationLike, updateUrl = true) {
   selectedConversationId.value = conversation.conversationId
   thread.value = null
   messages.value = []
@@ -273,11 +286,13 @@ onMounted(async () => {
   await fetchConversations()
   const queryId = route.query.conversationId
   if (queryId) {
-    const conversation = conversations.value.find((item) => String(item.conversationId) === String(queryId)) || {
-      conversationId: queryId,
-      peer: { id: route.query.peerId },
+    // URL 直达且会话列表尚未包含该会话时的兜底对象：仅承载 id 供线程拉取，字段不全属预期
+    const fallback: ConversationLike = {
+      conversationId: String(queryId),
+      peer: { id: route.query.peerId ?? null },
       relatedItem: route.query.relatedItemId ? { id: route.query.relatedItemId } : null
     }
+    const conversation = conversations.value.find((item) => String(item.conversationId) === String(queryId)) || fallback
     await selectConversation(conversation, false)
   }
   pollTimer = window.setInterval(() => fetchThread({ silent: true }), 2500)

@@ -262,13 +262,16 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getCategories, getOwnItem, publishItem, updateItem, uploadItemImage } from '@/api/item'
+import type { Category, PublishItemPayload } from '@/types/models'
 import { ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
+import type { ItemType } from '@/constants/domain'
 import { ROUTE_PATH } from '@/constants/routes'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -281,15 +284,32 @@ const reviewSteps = [
 ]
 const rulesText = ['违禁品、管制物品会转入人工审核', '代写论文、代考等学术不端服务不允许发布', '价格、图片等无法由文本规则确认的问题通过用户举报核实']
 
+/**
+ * 发布表单：type 可在四种发布类型间切换；price 换物时置 null；
+ * categoryId 由下拉写入数字或空串。用 type 而非 interface 声明，
+ * 以便草稿回填时可整体收窄为按字段索引的记录。
+ */
+type PublishForm = {
+  type: ItemType | string
+  title: string
+  description: string
+  categoryId: string | number
+  price: number | null
+  images: string[]
+  tradeLocation: string
+  pickupLocation: string
+  deliveryLocation: string
+}
+
 const router = useRouter()
 const route = useRoute()
-const formRef = ref(null)
-const categories = ref([])
+const formRef = ref<FormInstance | null>(null)
+const categories = ref<Category[]>([])
 const categoryOptions = computed(() => categories.value.map((category) => ({ label: category.name, value: category.id })))
 const uploading = ref(false)
 const submitting = ref(false)
 const pageLoading = ref(false)
-const form = reactive({ type: ITEM_TYPE.SELL, title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
+const form = reactive<PublishForm>({ type: ITEM_TYPE.SELL, title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
 const editMode = computed(() => Boolean(route.params.id))
 const submitButtonText = computed(() => {
   if (uploading.value) return '图片上传中'
@@ -306,7 +326,7 @@ const previewTags = computed(() => {
   const words = form.title.match(/[A-Za-z][A-Za-z0-9]*|[\u4e00-\u9fa5]{2,4}/g) || []
   return [...new Set(words)].slice(0, 4).length ? [...new Set(words)].slice(0, 4) : ['校园闲置', '当面交易', '好物']
 })
-const rules = {
+const rules: FormRules = {
   type: [{ required: true, message: '请选择发布类型', trigger: 'change' }],
   title: [
     { required: true, message: '请输入商品标题', trigger: 'blur' },
@@ -334,14 +354,15 @@ const rules = {
   images: [{ type: 'array', required: true, min: 1, message: '请至少上传1张图片', trigger: 'change' }]
 }
 
-async function fetchCategories() {
+async function fetchCategories(): Promise<void> {
   const res = await getCategories()
   categories.value = res.data || []
 }
-async function fetchOwnItem() {
+async function fetchOwnItem(): Promise<void> {
   pageLoading.value = true
   try {
-    const res = await getOwnItem(route.params.id)
+    // 路由 /item/:id/edit 的 param 恒为单值字符串
+    const res = await getOwnItem(route.params.id as string)
     const item = res.data
     Object.assign(form, {
       type: item.type,
@@ -358,7 +379,7 @@ async function fetchOwnItem() {
     pageLoading.value = false
   }
 }
-function setType(type) {
+function setType(type: ItemType): void {
   form.type = type
   if (type === ITEM_TYPE.SWAP) form.price = null
   else if (type === ITEM_TYPE.ERRAND && (!form.price || form.price > 20)) form.price = 5
@@ -366,7 +387,7 @@ function setType(type) {
   formRef.value?.clearValidate(['price', 'tradeLocation', 'pickupLocation', 'deliveryLocation'])
   formRef.value?.validateField('type')
 }
-function validateImage(file) {
+function validateImage(file: File): boolean {
   if (!IMAGE_TYPES.includes(file.type)) {
     ElMessage.error('仅支持 jpg、png、webp 图片')
     return false
@@ -381,7 +402,7 @@ function validateImage(file) {
   }
   return true
 }
-async function handleFileChange(uploadFile) {
+async function handleFileChange(uploadFile: UploadFile): Promise<void> {
   const file = uploadFile.raw
   if (!file || !validateImage(file)) return
   uploading.value = true
@@ -394,16 +415,17 @@ async function handleFileChange(uploadFile) {
     uploading.value = false
   }
 }
-function removeImage(index) {
+function removeImage(index: number): void {
   form.images.splice(index, 1)
   formRef.value?.validateField('images')
 }
-function saveDraft() {
+function saveDraft(): void {
   localStorage.setItem('zhiyi-publish-draft', JSON.stringify({ ...form, images: [] }))
   ElMessage.success('草稿已保存在本机')
 }
-async function handleSubmit() {
+async function handleSubmit(): Promise<void> {
   if (submitting.value) return
+  if (!formRef.value) return // 提交按钮位于表单内部，表单挂载后才可点击；此行只为类型收窄
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) {
     ElMessage.warning('请检查并补全标红的必填项')
@@ -413,6 +435,7 @@ async function handleSubmit() {
   }
   submitting.value = true
   try {
+    // 校验通过后 categoryId 必为数字、tradeLocation 仅在非跑腿时携带，单点收窄到载荷契约
     const payload = {
       type: form.type,
       title: form.title,
@@ -423,15 +446,16 @@ async function handleSubmit() {
       tradeLocation: form.type === ITEM_TYPE.ERRAND ? null : form.tradeLocation,
       pickupLocation: form.pickupLocation,
       deliveryLocation: form.deliveryLocation
-    }
-    const res = editMode.value ? await updateItem(route.params.id, payload) : await publishItem(payload)
+    } as PublishItemPayload
+    const res = editMode.value ? await updateItem(route.params.id as string, payload) : await publishItem(payload)
     if (!editMode.value) localStorage.removeItem('zhiyi-publish-draft')
     if (res.data?.moderationStatus === MODERATION_STATUS.PENDING) {
       ElMessage.warning(editMode.value ? '修改已提交，正在等待管理员复核' : '检测到风险内容，已提交管理员审核')
       router.push(ROUTE_PATH.MY_ITEMS)
     } else {
       ElMessage.success(editMode.value ? '修改成功，商品已通过本地检测' : '发布成功，商品已进入交易大厅')
-      router.push(ROUTE_PATH.item(res.data.id))
+      // 非待审分支后端必然返回新商品 id，供跳转详情
+      router.push(ROUTE_PATH.item(res.data.id as number))
     }
   } catch {
     // 具体错误由统一请求拦截器提示。
@@ -448,9 +472,10 @@ onMounted(async () => {
   const draft = localStorage.getItem('zhiyi-publish-draft')
   if (draft) {
     try {
-      const saved = JSON.parse(draft)
+      const saved: Record<string, unknown> = JSON.parse(draft)
       Object.keys(form).forEach((key) => {
-        if (Object.hasOwn(saved, key)) form[key] = saved[key]
+        // 草稿是本机 JSON，按字段名回填；经 unknown 中转后整体按记录写入
+        if (Object.hasOwn(saved, key)) (form as unknown as Record<string, unknown>)[key] = saved[key]
       })
     } catch {
       localStorage.removeItem('zhiyi-publish-draft')

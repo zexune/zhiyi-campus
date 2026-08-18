@@ -39,7 +39,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
@@ -47,6 +47,7 @@ import TagList from '@/components/common/TagList.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { getMyFavorites, toggleFavorite } from '@/api/item'
 import { ITEM_STATUS, MODERATION_STATUS } from '@/constants/domain'
+import type { Item } from '@/types/models'
 import { itemStatusLabel } from '@/utils/trade'
 import { usePagedList } from '@/composables/usePagedList'
 import { placeholderClass } from '@/utils/format'
@@ -59,26 +60,26 @@ const router = useRouter()
 const acting = ref(false)
 const { records: items, currentPage: page, pageSize, total, loadError, fetchList: fetchFavorites } = usePagedList(getMyFavorites, { size: 12 })
 
-function statusText(status) {
+function statusText(status: string) {
   return itemStatusLabel(status)
 }
-function displayStatus(item) {
+function displayStatus(item: Item) {
   return item.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.status
 }
 
-function mainImage(item) {
+function mainImage(item: Item) {
   return Array.isArray(item.images) ? item.images[0] || '' : ''
 }
 
-function goDetail(item) {
+function goDetail(item: Item) {
   router.push(ROUTE_PATH.item(item.id))
 }
 
-function goTag(tag) {
+function goTag(tag: string) {
   router.push({ name: ROUTE_NAME.HOME, query: { keyword: tag } })
 }
 
-async function handleUnfavorite(item) {
+async function handleUnfavorite(item: Item) {
   acting.value = true
   try {
     await toggleFavorite(item.id)

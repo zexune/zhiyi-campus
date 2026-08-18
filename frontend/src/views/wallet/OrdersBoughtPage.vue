@@ -93,12 +93,14 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import OrderReviewDialog from '@/components/trade/OrderReviewDialog.vue'
 import { getBoughtOrders, confirmReceipt, cancelOrder, reviewOrder } from '@/api/order'
+import type { ReviewPayload } from '@/api/order'
 import { ORDER_STATUS, ORDER_STATUS_OPTIONS } from '@/constants/domain'
+import type { Order } from '@/types/models'
 import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, formatPrice, placeholderClass } from '@/utils/format'
@@ -106,17 +108,19 @@ import { ROUTE_PATH } from '@/constants/routes'
 
 // ---- 评价弹窗（A7）----
 const reviewVisible = ref(false)
-const reviewingOrder = ref(null)
+const reviewingOrder = ref<Order | null>(null)
 const submittingReview = ref(false)
 
-function openReview(order) {
+function openReview(order: Order) {
   reviewingOrder.value = order
   reviewVisible.value = true
 }
 
-async function handleSubmitReview(reviewForm) {
+async function handleSubmitReview(reviewForm: ReviewPayload) {
   submittingReview.value = true
   try {
+    // 评价弹窗只能经 openReview 打开，此时必有订单；判空仅为类型收窄
+    if (!reviewingOrder.value) return
     await reviewOrder(reviewingOrder.value.id, reviewForm)
     ElMessage.success('评价成功！')
     reviewVisible.value = false
@@ -132,7 +136,7 @@ async function handleSubmitReview(reviewForm) {
 const filters = [{ label: '全部', value: '' }, ...ORDER_STATUS_OPTIONS]
 const currentFilter = ref('')
 
-function switchFilter(val) {
+function switchFilter(val: string) {
   currentFilter.value = val
   goToFirstPage()
   fetchOrders()
@@ -151,10 +155,10 @@ const {
 } = usePagedList(getBoughtOrders, {
   params: () => (currentFilter.value ? { status: currentFilter.value } : {})
 })
-const actingId = ref(null) // 正在操作的订单 ID，防重复点击
+const actingId = ref<number | null>(null) // 正在操作的订单 ID，防重复点击
 
 // ---- 确认收货 ----
-async function handleConfirm(order) {
+async function handleConfirm(order: Order) {
   try {
     await ElMessageBox.confirm(`确认已收到「${order.itemTitle}」？确认后钱款将打给卖家，不可撤销。`, '确认收货', { confirmButtonText: '确认收货', cancelButtonText: '取消', type: 'warning' })
   } catch {
@@ -174,7 +178,7 @@ async function handleConfirm(order) {
 }
 
 // ---- 取消订单 ----
-async function handleCancel(order) {
+async function handleCancel(order: Order) {
   try {
     await ElMessageBox.confirm(`确定取消「${order.itemTitle}」的订单？取消后钱款将退回你的钱包，商品将重新上架。`, '取消订单', {
       confirmButtonText: '确认取消',
@@ -197,11 +201,11 @@ async function handleCancel(order) {
   }
 }
 
-function statusLabel(s) {
+function statusLabel(s: string) {
   return orderStatusLabel(s)
 }
 
-function statusBadge(s) {
+function statusBadge(s: string) {
   return orderStatusBadge(s)
 }
 

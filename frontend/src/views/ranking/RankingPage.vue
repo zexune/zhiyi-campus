@@ -119,7 +119,7 @@
           <ol class="ranking-rows" start="4">
             <li v-for="(item, index) in remainingItems" :key="item.id" class="ranking-row" @click="goDetail(item.id)">
               <span class="ranking-row__number">{{ index + 4 }}</span>
-              <span class="ranking-row__image" :class="phClass(item.id)">
+              <span class="ranking-row__image" :class="placeholderClass(item.id)">
                 <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
               </span>
               <span class="ranking-row__main">
@@ -169,7 +169,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
@@ -177,16 +177,17 @@ import TagList from '@/components/common/TagList.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
+import type { Item, TagCount } from '@/types/models'
 import { ITEM_TYPE } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
 import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
 
 const router = useRouter()
-const ranking = ref([])
-const trendingTags = ref([])
+const ranking = ref<Item[]>([])
+const trendingTags = ref<TagCount[]>([])
 const loading = ref(true)
-const favoriteBusyId = ref(null)
+const favoriteBusyId = ref<number | null>(null)
 
 const podiumEntries = computed(() => {
   const entries = ranking.value.slice(0, 3).map((item, index) => ({ item, rank: index + 1 }))
@@ -195,14 +196,14 @@ const podiumEntries = computed(() => {
 })
 const remainingItems = computed(() => ranking.value.slice(3))
 
-function goDetail(id) {
+function goDetail(id: number | string): void {
   router.push(ROUTE_PATH.item(id))
 }
-function goTag(tag) {
+function goTag(tag: string): void {
   router.push({ path: '/', query: { keyword: tag } })
 }
 
-async function fetchRanking() {
+async function fetchRanking(): Promise<void> {
   loading.value = true
   try {
     const [rankingRes, tagsRes] = await Promise.all([getItemRanking({ limit: 20 }), getTrendingTags({ limit: 10 })])
@@ -213,7 +214,7 @@ async function fetchRanking() {
   }
 }
 
-async function handleFavorite(item) {
+async function handleFavorite(item: Item): Promise<void> {
   if (!isLoggedIn()) {
     router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.RANKING } })
     return

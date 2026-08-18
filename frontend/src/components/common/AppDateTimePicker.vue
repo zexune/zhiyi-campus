@@ -20,8 +20,9 @@
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import type { ElDatePicker } from 'element-plus'
 
 let pickerSequence = 0
 
@@ -34,9 +35,13 @@ const props = defineProps({
   min: { type: String, default: '' }
 })
 
-const emit = defineEmits(['update:modelValue', 'change'])
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+  (e: 'change', value: string): void
+}>()
 
-const pickerRef = ref(null)
+// Element Plus 未在类型层暴露 handleClose 等实例方法，此处按用法局部补充
+const pickerRef = ref<(InstanceType<typeof ElDatePicker> & { handleClose?: () => void }) | null>(null)
 pickerSequence += 1
 const popperInstanceClass = `app-date-picker-${pickerSequence}`
 const popperClass = `app-date-picker ${popperInstanceClass}`
@@ -48,20 +53,21 @@ const minimumDate = computed(() => {
   return Number.isNaN(value.getTime()) ? null : value
 })
 
-function ownPanelFor(target) {
+function ownPanelFor(target: EventTarget | null): Element | null {
   if (!(target instanceof Element)) return null
   return target.closest(`.${popperInstanceClass}`)
 }
 
-function markEmptyTimeSession(event) {
+function markEmptyTimeSession(event: Event) {
   if (props.modelValue) return
   const panel = ownPanelFor(event.target)
   if (!panel) return
-  const timeInput = event.target.closest('.el-date-picker__time-header .el-date-picker__editor-wrap:last-child input')
+  // ownPanelFor 命中即说明 target 是面板内的 DOM 元素
+  const timeInput = (event.target as HTMLElement).closest('.el-date-picker__time-header .el-date-picker__editor-wrap:last-child input')
   if (timeInput) emptyTimeSession = true
 }
 
-function handlePanelClick(event) {
+function handlePanelClick(event: Event) {
   const panel = ownPanelFor(event.target)
   if (!emptyTimeSession) return
   if (!panel) {
@@ -69,16 +75,16 @@ function handlePanelClick(event) {
     return
   }
 
-  const confirmButton = event.target.closest('.el-time-panel__btn.confirm')
+  const confirmButton = (event.target as HTMLElement).closest('.el-time-panel__btn.confirm')
   if (confirmButton) {
     emptyTimeSession = false
     return
   }
 
-  const cancelButton = event.target.closest('.el-time-panel__btn.cancel')
+  const cancelButton = (event.target as HTMLElement).closest('.el-time-panel__btn.cancel')
   if (!cancelButton) {
-    const insideTimePanel = event.target.closest('.el-time-panel')
-    const insideTimeInput = event.target.closest('.el-date-picker__time-header .el-date-picker__editor-wrap:last-child')
+    const insideTimePanel = (event.target as HTMLElement).closest('.el-time-panel')
+    const insideTimeInput = (event.target as HTMLElement).closest('.el-date-picker__time-header .el-date-picker__editor-wrap:last-child')
     if (!insideTimePanel && !insideTimeInput) emptyTimeSession = false
     return
   }
@@ -89,10 +95,10 @@ function handlePanelClick(event) {
   event.preventDefault()
   event.stopImmediatePropagation()
   emptyTimeSession = false
-  pickerRef.value?.handleClose()
+  pickerRef.value?.handleClose?.()
 }
 
-function handleVisibleChange(visible) {
+function handleVisibleChange(visible: boolean) {
   if (!visible) emptyTimeSession = false
 }
 
@@ -105,19 +111,19 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', handlePanelClick, true)
 })
 
-function disabledDate(date) {
+function disabledDate(date: Date) {
   if (!minimumDate.value) return false
   const endOfDay = new Date(date)
   endOfDay.setHours(23, 59, 59, 999)
   return endOfDay < minimumDate.value
 }
 
-function emitValue(value) {
+function emitValue(value: string | null) {
   if (emptyTimeSession) return
   emit('update:modelValue', value || '')
 }
 
-function emitChange(value) {
+function emitChange(value: string | null) {
   if (emptyTimeSession) return
   emit('change', value || '')
 }

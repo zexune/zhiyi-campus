@@ -92,16 +92,22 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, watch } from 'vue'
+import type { PropType } from 'vue'
+import type { Order } from '@/types/models'
+import type { ReviewPayload } from '@/api/order'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
-  order: { type: Object, default: null },
+  order: { type: Object as PropType<Order | null>, default: null },
   submitting: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['close', 'submit'])
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'submit', payload: ReviewPayload): void
+}>()
 const RATING_LABELS = ['很不满意', '有待改进', '还算顺利', '体验不错', '非常满意']
 const form = reactive(defaultForm())
 
@@ -109,11 +115,11 @@ function defaultForm() {
   return { rating: 5, accurate: true, comment: '' }
 }
 
-function ratingLabel(rating) {
+function ratingLabel(rating: number) {
   return RATING_LABELS[Math.min(Math.max(Number(rating) || 1, 1), 5) - 1]
 }
 
-function handleModelValue(value) {
+function handleModelValue(value: boolean) {
   if (!value && !props.submitting) emit('close')
 }
 

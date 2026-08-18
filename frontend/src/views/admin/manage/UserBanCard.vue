@@ -63,11 +63,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive } from 'vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { banUser, searchUsers, unbanUser } from '@/api/admin'
+import type { AdminUser } from '@/types/models'
 import { BAN_ACTION, USER_STATUS, USER_STATUS_LABELS } from '@/constants/domain'
+import type { UserStatus } from '@/constants/domain'
 import { avatarColorClass, formatDateTime } from '@/utils/format'
 import './manage-cards.css'
 
@@ -76,7 +78,22 @@ const BAN_TYPE_OPTIONS = [
   { label: '永久封禁', value: BAN_ACTION.PERMANENT }
 ]
 
-const form = reactive({
+interface UserBanFormState {
+  keyword: string
+  searching: boolean
+  searched: boolean
+  users: AdminUser[]
+  selectedId: number | null
+  selected: AdminUser | null
+  type: string
+  banDays: number
+  reason: string
+  submitting: boolean
+  result: string
+  resultType: string
+}
+
+const form = reactive<UserBanFormState>({
   keyword: '',
   searching: false,
   searched: false,
@@ -91,11 +108,13 @@ const form = reactive({
   resultType: ''
 })
 
-function userStatusLabel(status) {
-  return USER_STATUS_LABELS[status] || status
+function userStatusLabel(status: UserStatus | string) {
+  // 越界值经查表兜底原样回显（与 utils/trade 的模式一致）
+  return USER_STATUS_LABELS[status as UserStatus] || status
 }
-function isBanned(user) {
-  return [USER_STATUS.BANNED_TEMP, USER_STATUS.BANNED_PERM].includes(user?.status)
+function isBanned(user: AdminUser | null) {
+  const bannedStatuses: readonly UserStatus[] = [USER_STATUS.BANNED_TEMP, USER_STATUS.BANNED_PERM]
+  return bannedStatuses.includes(user?.status as UserStatus)
 }
 
 async function searchBanUsers() {
@@ -119,7 +138,7 @@ async function searchBanUsers() {
   }
 }
 
-function selectBanUser(user) {
+function selectBanUser(user: AdminUser) {
   form.selected = user
   form.selectedId = user.id
   form.type = BAN_ACTION.TEMPORARY
@@ -129,6 +148,8 @@ function selectBanUser(user) {
 }
 
 async function handleBanUser() {
+  const target = form.selected
+  if (!target) return
   if (!form.reason) {
     ElMessage.warning('请填写封禁原因')
     return
@@ -138,18 +159,20 @@ async function handleBanUser() {
     return
   }
   try {
-    await ElMessageBox.confirm(`确认${form.type === BAN_ACTION.TEMPORARY ? `封禁 ${form.banDays} 天` : '永久封禁'}用户「${form.selected.nickname}」？`, '账号封禁', { type: 'warning' })
+    await ElMessageBox.confirm(`确认${form.type === BAN_ACTION.TEMPORARY ? `封禁 ${form.banDays} 天` : '永久封禁'}用户「${target.nickname}」？`, '账号封禁', { type: 'warning' })
   } catch {
     return
   }
   form.submitting = true
   try {
-    await banUser({ userId: form.selected.id, type: form.type, reason: form.reason, banDays: form.type === BAN_ACTION.TEMPORARY ? form.banDays : null })
-    form.selected.status = form.type === BAN_ACTION.TEMPORARY ? USER_STATUS.BANNED_TEMP : USER_STATUS.BANNED_PERM
+    await banUser({ userId: target.id, type: form.type, reason: form.reason, banDays: form.type === BAN_ACTION.TEMPORARY ? form.banDays : null })
+    target.status = form.type === BAN_ACTION.TEMPORARY ? USER_STATUS.BANNED_TEMP : USER_STATUS.BANNED_PERM
     form.result = '✅ 用户已封禁，现有登录令牌已失效'
     form.resultType = 'success'
   } catch (error) {
-    form.result = '❌ ' + (error.response?.data?.message || '封禁失败')
+    // axios 错误形状（统一拦截器外抛出的原始错误）
+    const err = error as { response?: { data?: { message?: string } } }
+    form.result = '❌ ' + (err.response?.data?.message || '封禁失败')
     form.resultType = 'error'
   } finally {
     form.submitting = false
@@ -157,20 +180,24 @@ async function handleBanUser() {
 }
 
 async function handleUnbanUser() {
+  const target = form.selected
+  if (!target) return
   try {
-    await ElMessageBox.confirm(`确认解除用户「${form.selected.nickname}」的封禁？`, '解除封禁', { type: 'info' })
+    await ElMessageBox.confirm(`确认解除用户「${target.nickname}」的封禁？`, '解除封禁', { type: 'info' })
   } catch {
     return
   }
   form.submitting = true
   try {
-    await unbanUser({ userId: form.selected.id })
-    form.selected.status = USER_STATUS.ACTIVE
-    form.selected.banUntilTime = null
+    await unbanUser({ userId: target.id })
+    target.status = USER_STATUS.ACTIVE
+    target.banUntilTime = null
     form.result = '✅ 用户封禁已解除'
     form.resultType = 'success'
   } catch (error) {
-    form.result = '❌ ' + (error.response?.data?.message || '解封失败')
+    // axios 错误形状（统一拦截器外抛出的原始错误）
+    const err = error as { response?: { data?: { message?: string } } }
+    form.result = '❌ ' + (err.response?.data?.message || '解封失败')
     form.resultType = 'error'
   } finally {
     form.submitting = false

@@ -62,25 +62,45 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { PropType } from 'vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import ReputationRadar from '@/components/common/ReputationRadar.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
+import type { ReputationVo } from '@/utils/reputation'
+
+/** getSellerDetail 响应中本对话框实际渲染的字段（宽松契约：全部可缺省） */
+interface SellerDetail {
+  id?: number
+  nickname?: string
+  level?: number
+  schoolName?: string
+  campus?: string
+  college?: string
+  grade?: string
+  dormitory?: string
+  phone?: string
+  schoolEmail?: string
+}
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
-  seller: { type: Object, default: null },
-  reputation: { type: Object, default: null },
+  seller: { type: Object as PropType<SellerDetail | null>, default: null },
+  reputation: { type: Object as PropType<ReputationVo | null>, default: null },
   loading: { type: Boolean, default: false },
   error: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['close', 'retry'])
-const closeButton = ref(null)
-const dialogSheet = ref(null)
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'retry'): void
+}>()
+const closeButton = ref<HTMLElement | null>(null)
+const dialogSheet = ref<HTMLElement | null>(null)
 let previousBodyOverflow = ''
-let previouslyFocusedElement = null
+// 打开弹窗前记录焦点元素，关闭时归还焦点（activeElement 契约为 Element，此处按 HTMLElement 使用）
+let previouslyFocusedElement: HTMLElement | null = null
 
 const detailFields = computed(() => [
   { label: '昵称', value: props.seller?.nickname },
@@ -92,13 +112,13 @@ const detailFields = computed(() => [
   { label: '宿舍楼', value: props.seller?.dormitory }
 ])
 
-function handleKeydown(event) {
+function handleKeydown(event: KeyboardEvent) {
   if (props.visible && event.key === 'Escape') {
     emit('close')
     return
   }
   if (props.visible && event.key === 'Tab') {
-    const focusable = [...(dialogSheet.value?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])') || [])]
+    const focusable = [...(dialogSheet.value?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])') || [])]
     if (!focusable.length) return
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
@@ -116,7 +136,7 @@ watch(
   () => props.visible,
   async (visible) => {
     if (visible) {
-      previouslyFocusedElement = document.activeElement
+      previouslyFocusedElement = document.activeElement as HTMLElement | null
       previousBodyOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
       await nextTick()

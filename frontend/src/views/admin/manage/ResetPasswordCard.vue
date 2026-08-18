@@ -59,13 +59,26 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive } from 'vue'
 import { resetUserPassword, searchUsers } from '@/api/admin'
+import type { AdminUser } from '@/types/models'
 import { avatarColorClass } from '@/utils/format'
 import './manage-cards.css'
 
-const form = reactive({
+interface ResetPasswordFormState {
+  keyword: string
+  searching: boolean
+  searched: boolean
+  users: AdminUser[]
+  selectedId: number | null
+  selected: AdminUser | null
+  submitting: boolean
+  result: string
+  resultType: string
+}
+
+const form = reactive<ResetPasswordFormState>({
   keyword: '',
   searching: false,
   searched: false,
@@ -97,15 +110,17 @@ async function searchUsersAction() {
   }
 }
 
-function selectUser(u) {
+function selectUser(u: AdminUser) {
   form.selectedId = u.id
   form.selected = u
   form.result = ''
 }
 
 async function handleResetPassword() {
+  const target = form.selected
+  if (!target) return
   try {
-    await ElMessageBox.confirm(`确认将「${form.selected.nickname}」的密码重置为 123456？用户将被强制下线。`, '重置密码', {
+    await ElMessageBox.confirm(`确认将「${target.nickname}」的密码重置为 123456？用户将被强制下线。`, '重置密码', {
       confirmButtonText: '确认重置',
       cancelButtonText: '取消',
       type: 'warning'
@@ -117,11 +132,13 @@ async function handleResetPassword() {
   form.submitting = true
   form.result = ''
   try {
-    await resetUserPassword({ userId: form.selected.id })
+    await resetUserPassword({ userId: target.id })
     form.result = '✅ 密码已重置为 123456，用户下次登录需使用新密码'
     form.resultType = 'success'
   } catch (e) {
-    form.result = '❌ ' + (e.response?.data?.message || '操作失败')
+    // axios 错误形状（统一拦截器外抛出的原始错误）
+    const err = e as { response?: { data?: { message?: string } } }
+    form.result = '❌ ' + (err.response?.data?.message || '操作失败')
     form.resultType = 'error'
   } finally {
     form.submitting = false

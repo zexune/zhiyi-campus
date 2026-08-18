@@ -57,15 +57,23 @@
   </AdminLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { createCategory, deleteCategory, getAdminCategories, updateCategory } from '@/api/admin'
+import type { Category } from '@/types/models'
 
-const categories = ref([])
+interface CategoryFormState {
+  id: number | null
+  name: string
+  icon: string
+  sortOrder: number
+}
+
+const categories = ref<Category[]>([])
 const loading = ref(false)
 const saving = ref(false)
-const form = reactive({ id: null, name: '', icon: '📦', sortOrder: 0 })
+const form = reactive<CategoryFormState>({ id: null, name: '', icon: '📦', sortOrder: 0 })
 
 async function load() {
   loading.value = true
@@ -77,7 +85,7 @@ async function load() {
   }
 }
 
-function edit(category) {
+function edit(category: Category) {
   Object.assign(form, {
     id: category.id,
     name: category.name,
@@ -109,6 +117,7 @@ async function save() {
 }
 
 async function remove() {
+  if (form.id == null) return
   try {
     await ElMessageBox.confirm(`确认删除分类“${form.name}”？`, '删除分类', {
       type: 'warning',

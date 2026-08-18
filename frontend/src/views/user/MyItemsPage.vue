@@ -96,17 +96,32 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } from '@/api/item'
 import { APPEAL_STATUS, APPEAL_STATUS_LABELS, ITEM_STATUS, ITEM_STATUS_OPTIONS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
+import type { AppealStatus, ItemType } from '@/constants/domain'
+import type { Item } from '@/types/models'
 import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
-import { buildMyItemsParams } from './myItemsQuery.js'
+import { buildMyItemsParams } from './myItemsQuery'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, placeholderClass } from '@/utils/format'
 import { ROUTE_PATH } from '@/constants/routes'
+
+/** 我的发布行数据：Item 之外，后端还会带回“当前是否可申诉”标记 */
+interface MyItemRow extends Item {
+  appealable?: boolean
+}
+
+/** 申诉弹窗状态（item 为当前申诉的商品行） */
+interface AppealFormState {
+  visible: boolean
+  item: MyItemRow | null
+  reason: string
+  submitting: boolean
+}
 
 const STATUS_TABS = [{ label: '全部', value: '' }, ...ITEM_STATUS_OPTIONS]
 
@@ -120,56 +135,58 @@ const {
   loadError,
   fetchList: fetchItems,
   goToFirstPage
-} = usePagedList(({ page, size }) => getMyItems(buildMyItemsParams(page, size, statusFilter.value)))
-const appealForm = reactive({ visible: false, item: null, reason: '', submitting: false })
+} = usePagedList<MyItemRow>(({ page, size }) => getMyItems(buildMyItemsParams(page, size, statusFilter.value)))
+const appealForm = reactive<AppealFormState>({ visible: false, item: null, reason: '', submitting: false })
 
-function displayStatus(item) {
+function displayStatus(item: MyItemRow) {
   return item.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.status
 }
-function statusText(status) {
+function statusText(status: string) {
   return itemStatusLabel(status)
 }
-function statusBadge(status) {
+function statusBadge(status: string) {
   return itemStatusBadge(status)
 }
-function itemTypeLabel(type) {
-  return ITEM_TYPE_LABELS[type] || type
+function itemTypeLabel(type: string) {
+  return ITEM_TYPE_LABELS[type as ItemType] || type
 }
-function appealStatusText(status) {
-  return APPEAL_STATUS_LABELS[status] || status
+function appealStatusText(status: string) {
+  return APPEAL_STATUS_LABELS[status as AppealStatus] || status
 }
-function appealBadge(status) {
+function appealBadge(status: string) {
   return status === APPEAL_STATUS.APPROVED ? 'badge--ok' : status === APPEAL_STATUS.PENDING ? 'badge--warn' : 'badge--muted'
 }
 
-function mainImage(item) {
+function mainImage(item: MyItemRow) {
   return Array.isArray(item.images) ? item.images[0] || '' : ''
 }
 
-function canEdit(item) {
-  return [ITEM_STATUS.ON_SALE, ITEM_STATUS.OFF_SHELF].includes(item.status) && item.moderationStatus !== MODERATION_STATUS.PENDING && !item.reserved
+function canEdit(item: MyItemRow) {
+  const editableStatuses: readonly string[] = [ITEM_STATUS.ON_SALE, ITEM_STATUS.OFF_SHELF]
+  return editableStatuses.includes(item.status) && item.moderationStatus !== MODERATION_STATUS.PENDING && !item.reserved
 }
-function canOffShelf(item) {
+function canOffShelf(item: MyItemRow) {
   return item.status === ITEM_STATUS.ON_SALE && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
 }
-function canRelist(item) {
+function canRelist(item: MyItemRow) {
   return item.status === ITEM_STATUS.OFF_SHELF && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
 }
-function canDelete(item) {
-  return [ITEM_STATUS.ON_SALE, ITEM_STATUS.OFF_SHELF].includes(item.status) && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
+function canDelete(item: MyItemRow) {
+  const deletableStatuses: readonly string[] = [ITEM_STATUS.ON_SALE, ITEM_STATUS.OFF_SHELF]
+  return deletableStatuses.includes(item.status) && item.moderationStatus === MODERATION_STATUS.PASSED && !item.reserved
 }
-function hasActions(item) {
+function hasActions(item: MyItemRow) {
   return canEdit(item) || canOffShelf(item) || canRelist(item) || canDelete(item) || item.appealable
 }
 
-function handleStatusChange(status) {
+function handleStatusChange(status: string) {
   if (statusFilter.value === status) return
   statusFilter.value = status
   goToFirstPage()
   fetchItems()
 }
 
-async function handleOffShelf(item) {
+async function handleOffShelf(item: MyItemRow) {
   acting.value = true
   try {
     await offShelfItem(item.id)
@@ -180,7 +197,7 @@ async function handleOffShelf(item) {
   }
 }
 
-async function handleRelist(item) {
+async function handleRelist(item: MyItemRow) {
   try {
     await ElMessageBox.confirm(`重新上架「${item.title}」前将执行本地合规检测，命中风险会转入人工审核。`, '重新上架', {
       confirmButtonText: '检测并上架',
@@ -201,7 +218,7 @@ async function handleRelist(item) {
   }
 }
 
-function openAppeal(item) {
+function openAppeal(item: MyItemRow) {
   appealForm.item = item
   appealForm.reason = ''
   appealForm.visible = true
@@ -213,6 +230,8 @@ async function submitAppeal() {
     ElMessage.warning('申诉理由至少需要 10 个字')
     return
   }
+  // 弹窗只能经 openAppeal 打开，此时 item 必有值；判空仅为类型收窄
+  if (!appealForm.item) return
   appealForm.submitting = true
   try {
     await submitItemAppeal(appealForm.item.id, { reason })
@@ -224,7 +243,7 @@ async function submitAppeal() {
   }
 }
 
-async function handleDelete(item) {
+async function handleDelete(item: MyItemRow) {
   try {
     await ElMessageBox.confirm(`确认删除「${item.title}」吗？删除后不可恢复。`, '删除商品', {
       confirmButtonText: '删除',

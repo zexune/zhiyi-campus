@@ -9,7 +9,7 @@
   </DefaultLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 
 /**

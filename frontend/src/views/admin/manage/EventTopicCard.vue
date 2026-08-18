@@ -58,27 +58,44 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { createEventTopic, deleteEventTopic, getEventTopics, updateEventTopic } from '@/api/admin'
+import type { EventTopicPayload } from '@/api/admin'
 import { getCategories } from '@/api/item'
+import type { Category, EventTopic } from '@/types/models'
 import { ITEM_TYPE_OPTIONS } from '@/constants/domain'
 import { formatDateTime } from '@/utils/format'
 import './manage-cards.css'
 
 const TOPIC_TYPE_OPTIONS = ITEM_TYPE_OPTIONS
-const topicCategories = ref([])
+const topicCategories = ref<Category[]>([])
 const topicCategoryOptions = computed(() => [{ label: '全部分类', value: '' }, ...topicCategories.value.map((c) => ({ label: c.name, value: c.id }))])
-const topics = ref([])
-const emptyTopic = () => ({ id: null, title: '', startTime: '', endTime: '', filterType: '', filterCategoryId: '', filterTag: '', bannerText: '', enabled: true, submitting: false })
+const topics = ref<EventTopic[]>([])
+
+interface TopicFormState {
+  id: number | null
+  title: string
+  startTime: string
+  endTime: string
+  filterType: string
+  /** '' 表示未选分类（提交时转 null） */
+  filterCategoryId: number | ''
+  filterTag: string
+  bannerText: string
+  enabled: boolean
+  submitting: boolean
+}
+
+const emptyTopic = (): TopicFormState => ({ id: null, title: '', startTime: '', endTime: '', filterType: '', filterCategoryId: '', filterTag: '', bannerText: '', enabled: true, submitting: false })
 const form = reactive(emptyTopic())
 
 function resetTopicForm() {
   Object.assign(form, emptyTopic())
 }
-function editTopic(topic) {
+function editTopic(topic: EventTopic) {
   Object.assign(form, { ...topic, startTime: topic.startTime?.slice(0, 16) || '', endTime: topic.endTime?.slice(0, 16) || '', filterCategoryId: topic.filterCategoryId || '', submitting: false })
 }
 async function loadTopics() {
@@ -95,9 +112,17 @@ async function saveTopic() {
     return
   }
   form.submitting = true
-  const data = { ...form, filterType: form.filterType || null, filterCategoryId: form.filterCategoryId || null, filterTag: form.filterTag || null }
-  delete data.id
-  delete data.submitting
+  // 与表单状态同步的提交载荷（不含 id / submitting 等本地字段）
+  const data: EventTopicPayload = {
+    title: form.title,
+    startTime: form.startTime,
+    endTime: form.endTime,
+    filterType: form.filterType || null,
+    filterCategoryId: form.filterCategoryId || null,
+    filterTag: form.filterTag || null,
+    bannerText: form.bannerText,
+    enabled: form.enabled
+  }
   try {
     if (form.id) await updateEventTopic(form.id, data)
     else await createEventTopic(data)
@@ -108,7 +133,8 @@ async function saveTopic() {
     form.submitting = false
   }
 }
-async function removeTopic(topic) {
+async function removeTopic(topic: EventTopic) {
+  if (topic.id == null) return
   try {
     await ElMessageBox.confirm(`确认删除专题「${topic.title}」？`, '删除专题', { type: 'warning' })
   } catch {
