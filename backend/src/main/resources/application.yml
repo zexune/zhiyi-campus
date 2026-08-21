@@ -1,9 +1,6 @@
 server:
   port: 8080
   shutdown: graceful
-  error:
-    include-message: never
-    include-stacktrace: never
   tomcat:
     max-connections: 10000
     accept-count: 1000
@@ -29,6 +26,10 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 50MB
+  web:
+    error:
+      include-message: never
+      include-stacktrace: never
 
 springdoc:
   paths-to-match: /api/**
