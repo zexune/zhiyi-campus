@@ -2,6 +2,7 @@
 .claude/
 .codex/
 .zcode/
+.mimosa/
 
 # 依赖
 node_modules/
