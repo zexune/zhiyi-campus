@@ -109,15 +109,15 @@ public class ItemPublishService {
         Category category = requireCategory(dto.getCategoryId());
         validateImages(dto.getImages());
 
-        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
+        ContentCheck check = checkContent(dto, category);
         Item item = buildItem(publisherId, publisher.getSchoolId(), dto);
         item.setStatus(ItemStatus.ON_SALE);
-        item.setModerationStatus(analysis.risky() ? ModerationStatus.PENDING : ModerationStatus.PASSED);
+        item.setModerationStatus(check.risky() ? ModerationStatus.PENDING : ModerationStatus.PASSED);
         itemMapper.insert(item);
-        itemTagService.replaceTags(item.getId(), item.getSchoolId(), analysis.tags());
-        if (analysis.risky()) {
+        itemTagService.replaceTags(item.getId(), item.getSchoolId(), check.tags());
+        if (check.risky()) {
             saveReview(publisherId, null, item.getId(), dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
-                    analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
+                    check.reason(), check.matchedRules(), check.ruleVersion());
         }
         return marketplaceService.getSnapshot(item.getId(), publisherId);
     }
@@ -136,28 +136,28 @@ public class ItemPublishService {
         Category category = requireCategory(dto.getCategoryId());
         validateImages(dto.getImages());
         boolean correction = item.getModerationStatus() == ModerationStatus.REJECTED;
-        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
+        ContentCheck check = checkContent(dto, category);
         applyContent(item, dto);
 
         if (correction) {
             item.setStatus(ItemStatus.OFF_SHELF);
             item.setModerationStatus(ModerationStatus.PENDING);
             itemMapper.updateById(item);
-            String reason = analysis.risky()
-                    ? analysis.reason()
+            String reason = check.risky()
+                    ? check.reason()
                     : "卖家已提交整改内容，等待管理员复核";
             saveReview(publisherId, null, itemId, dto, ViolationSource.CORRECTION, "CORRECTION_REVIEW",
-                    reason, analysis.matchedRules(), analysis.ruleVersion());
-        } else if (analysis.risky()) {
+                    reason, check.matchedRules(), check.ruleVersion());
+        } else if (check.risky()) {
             item.setModerationStatus(ModerationStatus.PENDING);
             itemMapper.updateById(item);
             saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
-                    analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
+                    check.reason(), check.matchedRules(), check.ruleVersion());
         } else {
             item.setModerationStatus(ModerationStatus.PASSED);
             itemMapper.updateById(item);
         }
-        itemTagService.replaceTags(itemId, item.getSchoolId(), analysis.tags());
+        itemTagService.replaceTags(itemId, item.getSchoolId(), check.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 
@@ -177,18 +177,18 @@ public class ItemPublishService {
 
         Category category = requireCategory(item.getCategoryId());
         PublishItemDTO dto = toReviewDTO(item);
-        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
-        if (analysis.risky()) {
+        ContentCheck check = checkContent(dto, category);
+        if (check.risky()) {
             item.setModerationStatus(ModerationStatus.PENDING);
             itemMapper.updateById(item);
             saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
-                    analysis.reason(), analysis.matchedRules(), analysis.ruleVersion());
+                    check.reason(), check.matchedRules(), check.ruleVersion());
         } else {
             item.setStatus(ItemStatus.ON_SALE);
             item.setModerationStatus(ModerationStatus.PASSED);
             itemMapper.updateById(item);
         }
-        itemTagService.replaceTags(itemId, item.getSchoolId(), analysis.tags());
+        itemTagService.replaceTags(itemId, item.getSchoolId(), check.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 
@@ -343,7 +343,48 @@ public class ItemPublishService {
         dto.setTradeLocation(item.getTradeLocation());
         dto.setPickupLocation(item.getPickupLocation());
         dto.setDeliveryLocation(item.getDeliveryLocation());
+        // 重上架复检时保留用户已选标签（视为用户提供的 tags，走同一套清洗与规则审查）
+        dto.setTags(itemTagService.tagsByItemIds(java.util.Set.of(item.getId()))
+                .getOrDefault(item.getId(), List.of()));
         return dto;
+    }
+
+    /**
+     * 内容审查汇总 = 正文/地点分析 + 用户自定义标签清洗。
+     * dto.tags 为 null 表示调用方未提供（旧客户端），沿用系统生成标签；
+     * 非 null（含空数组）以用户选择为准，但必须通过规则审查，命中即整单转人工。
+     */
+    private ContentCheck checkContent(PublishItemDTO dto, Category category) {
+        LocalContentAnalyzer.AnalysisResult analysis = contentAnalyzer.analyze(dto, category);
+        if (dto.getTags() == null) {
+            return new ContentCheck(analysis.risky(), analysis.reason(), analysis.matchedRules(),
+                    analysis.ruleVersion(), analysis.tags());
+        }
+        LocalContentAnalyzer.TagCheck tagCheck = contentAnalyzer.sanitizeUserTags(dto.getTags());
+        List<String> matchedRules = new java.util.ArrayList<>(analysis.matchedRules());
+        for (String code : tagCheck.matchedRules()) {
+            if (!matchedRules.contains(code)) matchedRules.add(code);
+        }
+        String reason = java.util.stream.Stream.of(analysis.reason(), tagCheck.reason())
+                .filter(StringUtils::hasText)
+                .collect(java.util.stream.Collectors.joining("；"));
+        boolean risky = analysis.risky() || tagCheck.risky();
+        List<String> tags = risky ? List.of() : tagCheck.tags();
+        return new ContentCheck(risky, reason, matchedRules, analysis.ruleVersion(), tags);
+    }
+
+    /** 内容审查汇总结果：tags 为最终应写入的商品标签集合 */
+    private record ContentCheck(boolean risky,
+                                String reason,
+                                List<String> matchedRules,
+                                String ruleVersion,
+                                List<String> tags) {
+    }
+
+    /** 标签建议：按标题与分类生成候选，仅供前端选择，不落库 */
+    public List<String> suggestTags(String title, Long categoryId) {
+        Category category = categoryId == null ? null : requireCategory(categoryId);
+        return contentAnalyzer.suggestTags(title, category);
     }
 
     private BigDecimal normalizePrice(PublishItemDTO dto) {

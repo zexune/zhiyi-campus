@@ -3,11 +3,8 @@
     <div class="chat-admin-page rise">
       <!-- 页面标题 -->
       <div class="page-title">
-        💬 客服收件箱
-        <span class="stamp">Admin</span>
+        客服收件箱
       </div>
-
-      <!-- 导航标签 -->
 
       <!-- 主体：左右分栏 -->
       <div class="chat-layout card">
@@ -15,7 +12,12 @@
         <div class="chat-sidebar">
           <div class="sidebar-header">
             <span class="sidebar-title">会话列表</span>
-            <button class="btn btn--sm btn--ghost" :disabled="sessionsLoading" @click="fetchSessions">🔄 刷新</button>
+            <button class="btn btn--sm btn--ghost" :disabled="sessionsLoading" aria-label="刷新会话列表" @click="fetchSessions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+                <path d="M20 4v7h-7" />
+              </svg>
+            </button>
           </div>
 
           <div v-if="sessionsLoading" class="sidebar-state muted">加载中...</div>
@@ -41,7 +43,13 @@
         <!-- ===== 右侧：聊天详情 ===== -->
         <div class="chat-main">
           <!-- 未选择会话 -->
-          <div v-if="!activeConv" class="chat-placeholder muted">👈 选择一个会话开始回复</div>
+          <div v-if="!activeConv" class="chat-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+              <path d="M8 9h8M8 13h5" />
+            </svg>
+            <span>在左侧选择一个会话开始回复</span>
+          </div>
 
           <!-- 聊天中 -->
           <template v-else>
@@ -268,7 +276,7 @@ onUnmounted(() => {
   .chat-sidebar {
     max-width: 100% !important;
     border-right: none !important;
-    border-bottom: var(--bw) solid var(--ink);
+    border-bottom: var(--bw) solid var(--line);
   }
 }
 
@@ -277,7 +285,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 320px;
   min-width: 240px;
-  border-right: var(--bw) solid var(--ink);
+  border-right: var(--bw) solid var(--line);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -287,7 +295,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: var(--bw) solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
 }
 .sidebar-title {
   font-family: var(--font-display);
@@ -371,14 +379,22 @@ onUnmounted(() => {
   flex: 1;
   display: grid;
   place-items: center;
-  font-size: 15px;
+  align-content: center;
+  gap: 12px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.chat-placeholder svg {
+  width: 44px;
+  height: 44px;
+  opacity: 0.55;
 }
 .chat-header {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 14px 20px;
-  border-bottom: var(--bw) solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
   flex-shrink: 0;
 }
 .chat-header__info {
@@ -412,10 +428,10 @@ onUnmounted(() => {
   padding: 10px 16px;
   font-size: 14px;
   line-height: 1.55;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--white);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
 }
 .msg-bubble--mine .msg-bubble__text {
   background: var(--blue);
@@ -439,7 +455,7 @@ onUnmounted(() => {
   align-items: flex-end;
   gap: 10px;
   padding: 14px 20px;
-  border-top: var(--bw) solid var(--ink);
+  border-top: var(--bw) solid var(--line);
   flex-shrink: 0;
 }
 .chat-input {
@@ -449,7 +465,7 @@ onUnmounted(() => {
   font-family: inherit;
   background: var(--white);
   color: var(--ink);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   resize: none;
   outline: none;

@@ -68,13 +68,6 @@
           <button class="school-retry" type="button" :disabled="schoolsLoading" @click="fetchSchools">重新加载</button>
         </div>
       </el-form-item>
-      <el-form-item prop="schoolEmail" class="field">
-        <label for="r-email">
-          学校邮箱
-          <span class="opt">选填</span>
-        </label>
-        <input id="r-email" v-model.trim="form.schoolEmail" class="input" type="email" :placeholder="emailPlaceholder" autocomplete="email" />
-      </el-form-item>
       <button class="btn btn--primary btn--lg btn--block" type="submit" :disabled="schoolsLoading">下一步</button>
     </el-form>
 
@@ -100,19 +93,13 @@
           </button>
         </div>
       </el-form-item>
-      <div class="field-row">
-        <el-form-item prop="securityAnswer" class="field">
-          <label for="r-a">
-            密保答案
-            <span class="req">*</span>
-          </label>
-          <input id="r-a" v-model="form.securityAnswer" class="input" type="text" placeholder="不区分大小写" />
-        </el-form-item>
-        <el-form-item class="field">
-          <label for="r-phone">手机号（选填）</label>
-          <input id="r-phone" v-model.trim="form.phone" class="input" type="tel" placeholder="仅用于接收通知" />
-        </el-form-item>
-      </div>
+      <el-form-item prop="securityAnswer" class="field">
+        <label for="r-a">
+          密保答案
+          <span class="req">*</span>
+        </label>
+        <input id="r-a" v-model="form.securityAnswer" class="input" type="text" placeholder="不区分大小写" />
+      </el-form-item>
       <p class="hint reg-hint">忘记密码时凭密保找回，请务必记住答案；拿不准就点「随机」用系统预设的问题</p>
       <div class="reg-actions">
         <button class="btn btn--lg" type="button" @click="step = 1">上一步</button>
@@ -142,24 +129,22 @@ import '../auth.css'
 const router = useRouter()
 const userStore = useUserStore()
 
-const { schools, schoolOptions, schoolsLoading, schoolsError, fetchSchools, syncForm } = useSchoolOptions()
+const { schoolOptions, schoolsLoading, schoolsError, fetchSchools, syncForm } = useSchoolOptions()
 
 const step = ref(1)
 const step1FormRef = ref(null)
 const step2FormRef = ref(null)
 const loading = ref(false)
 
-/** 注册表单（两步共用；schoolId 允许未选，步骤1 rules 强制必填） */
+/** 注册表单（两步共用；schoolId 允许未选，步骤1 rules 强制必填）。学校邮箱/手机号注册后到个人设置填写 */
 interface RegisterFormState {
   studentId: string
   password: string
   confirmPassword: string
   nickname: string
   schoolId: number | null
-  schoolEmail: string
   securityQuestion: string
   securityAnswer: string
-  phone: string
 }
 
 const form = reactive<RegisterFormState>({
@@ -168,15 +153,10 @@ const form = reactive<RegisterFormState>({
   confirmPassword: '',
   nickname: '',
   schoolId: readSavedSchoolId(),
-  schoolEmail: '',
   securityQuestion: '',
-  securityAnswer: '',
-  phone: ''
+  securityAnswer: ''
 })
 syncForm(form)
-
-const selectedSchool = computed(() => schools.value.find((s) => s.id === form.schoolId) || null)
-const emailPlaceholder = computed(() => (selectedSchool.value?.emailDomain ? `学号${selectedSchool.value.emailDomain}` : '先选择学校，再填写学校邮箱'))
 
 const defaultNickname = computed(() => {
   const sid = form.studentId
@@ -204,22 +184,7 @@ const step1Rules = {
     { required: true, message: '请再输入一次密码', trigger: 'blur' },
     { validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => (value === form.password ? callback() : callback(new Error('两次输入的密码不一致'))), trigger: 'blur' }
   ],
-  schoolId: [{ required: true, message: '请选择所属学校', trigger: 'change' }],
-  schoolEmail: [
-    {
-      validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
-        const email = String(value || '')
-          .trim()
-          .toLowerCase()
-        if (!email) return callback()
-        if (!/^[^@\s]+@[^@\s]+$/.test(email)) return callback(new Error('学校邮箱格式不正确'))
-        const domain = selectedSchool.value?.emailDomain?.trim().toLowerCase()
-        if (domain && !email.endsWith(domain)) return callback(new Error(`学校邮箱须使用 ${domain} 后缀`))
-        callback()
-      },
-      trigger: 'blur'
-    }
-  ]
+  schoolId: [{ required: true, message: '请选择所属学校', trigger: 'change' }]
 }
 
 const step2Rules = {
@@ -276,10 +241,12 @@ async function handleRegister() {
       nickname: form.nickname,
       // 步骤1 rules 已强制选择学校；此处仅类型收窄，异常空值仍按原样提交由后端校验兜底
       schoolId: form.schoolId as number,
-      schoolEmail: form.schoolEmail || null,
+      // 学校邮箱已从注册流程移除，注册后到个人设置填写
+      schoolEmail: null,
       securityQuestion: form.securityQuestion,
       securityAnswer: form.securityAnswer,
-      phone: form.phone
+      // 手机号已从注册流程移除，注册后到个人设置填写
+      phone: ''
     })
     rememberSchoolId(form.schoolId)
     userStore.setLogin(res.data)

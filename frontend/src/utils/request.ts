@@ -49,17 +49,41 @@ const instance = axios.create({
   headers: { Accept: 'application/json' }
 })
 
+// 单飞标记：并发多个请求同时 401 时只做一次跳转，避免重复整页加载
+let authRedirecting = false
+
 function redirectToLogin(): void {
+  if (authRedirecting) return
+  authRedirecting = true
   const adminSession = getRole() === 'ADMIN' || window.location.pathname.startsWith('/admin/')
   const loginPath = adminSession ? '/admin/login' : '/login'
   clearAuth()
   if (window.location.pathname !== loginPath) {
-    window.location.href = loginPath
+    // 保留当前位置供重新登录后回跳；replace 避免历史记录里残留死会话页面
+    const target = `${loginPath}?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
+    window.location.replace(target)
   }
+}
+
+/** 登录页挂载后解除单飞，允许下一轮会话失效再次跳转 */
+export function resetAuthRedirect(): void {
+  authRedirecting = false
+}
+
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    /** 标记该请求失败时不触发全局登录跳转（后台轮询等静默请求使用） */
+    skipAuthRedirect?: boolean
+  }
+}
+
+function isAuthRedirectSkipped(config: AxiosRequestConfig | undefined): boolean {
+  return Boolean(config?.skipAuthRedirect)
 }
 
 interface InterceptorErrorPayload {
   response?: { status?: number; data?: { message?: string } }
+  config?: AxiosRequestConfig
   message?: string
 }
 
@@ -74,7 +98,7 @@ instance.interceptors.response.use(
     }
     if (res.code !== 200) {
       ElMessage.error(res.message || '请求失败')
-      if (res.code === 401) {
+      if (res.code === 401 && !isAuthRedirectSkipped(response.config)) {
         redirectToLogin()
       }
       return Promise.reject(new Error(res.message || '请求失败'))
@@ -86,7 +110,9 @@ instance.interceptors.response.use(
     const res = error.response?.data
     if (error.response?.status === 401) {
       ElMessage.error(res?.message || '登录已失效，请重新登录')
-      redirectToLogin()
+      if (!isAuthRedirectSkipped(error.config)) {
+        redirectToLogin()
+      }
     } else if (res?.message) {
       ElMessage.error(res.message)
     } else {

@@ -3,7 +3,6 @@
     <div class="fav-page">
       <h1 class="page-title">
         我的收藏
-        <span class="stamp">FAVS</span>
       </h1>
 
       <template v-if="items.length">
@@ -20,7 +19,11 @@
               <TagList :tags="item.tags" :limit="3" @select="goTag" />
               <div class="fav-card__foot">
                 <PriceTag :value="item.price" />
-                <button class="btn btn--sm" :disabled="acting" @click.stop="handleUnfavorite(item)">取消收藏</button>
+                <button class="fav-remove" :disabled="acting" title="取消收藏" aria-label="取消收藏" @click.stop="handleUnfavorite(item)">
+                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                    <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
+                  </svg>
+                </button>
               </div>
             </div>
           </article>
@@ -28,11 +31,16 @@
         <el-pagination v-if="total > pageSize" v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchFavorites" />
       </template>
 
-      <div v-else class="card empty-card">
-        <p v-if="loadError" class="muted">{{ loadError }}</p>
+      <div v-else class="empty-state">
+        <p v-if="loadError">{{ loadError }}</p>
         <template v-else>
-          <p class="muted">还没有收藏的宝贝</p>
-          <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary">去大厅逛逛 →</router-link>
+          <span class="empty-state__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
+            </svg>
+          </span>
+          <p>还没有收藏的宝贝</p>
+          <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary">去大厅逛逛</router-link>
         </template>
       </div>
     </div>
@@ -115,7 +123,7 @@ onMounted(fetchFavorites)
 .fav-card__img {
   position: relative;
   aspect-ratio: 1 / 1;
-  border-bottom: var(--bw) solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
 }
 .fav-card__img img {
   width: 100%;
@@ -153,12 +161,32 @@ onMounted(fetchFavorites)
   margin-top: auto;
 }
 
-.empty-card {
-  padding: 48px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
+.fav-remove {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: var(--bw) solid var(--line);
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--red);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.fav-remove:hover:not(:disabled) {
+  background: var(--yellow);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-s);
+}
+.fav-remove:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.fav-remove svg {
+  width: 16px;
+  height: 16px;
 }
 </style>

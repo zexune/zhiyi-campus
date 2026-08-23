@@ -65,4 +65,20 @@ public class PublishItemDTO {
         return price != null
                 && tradeLocation != null && !tradeLocation.isBlank();
     }
+
+    /**
+     * 用户自定义标签（可空）。null 表示"未提供，沿用系统生成标签"；空数组表示用户清空了全部标签。
+     * 元素级约束与整体数量在服务层清洗（LocalContentAnalyzer#sanitizeUserTags）中统一执行，
+     * 以便与规则引擎的违规词匹配共享同一套规范化逻辑。
+     */
+    @Size(max = 6, message = "标签最多6个")
+    private List<@NotBlank(message = "标签不能为空白") @Size(max = 12, message = "标签需为2-12字") String> tags;
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
+    }
 }

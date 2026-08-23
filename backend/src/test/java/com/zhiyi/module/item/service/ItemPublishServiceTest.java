@@ -207,6 +207,9 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(category);
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
                 false, "", List.of(), "2026.1", List.of("Daily goods", "For sale")));
+        // toReviewDTO 会带上商品现有标签（视为用户提供的 tags），需为清洗调用打桩
+        when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
+                List.of("Daily goods", "For sale"), false, "", List.of()));
         when(marketplaceService.getSnapshot(100L, 7L)).thenReturn(new ItemCardVO());
 
         service.relist(7L, 100L);

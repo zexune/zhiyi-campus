@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.Result;
 import com.zhiyi.common.annotation.RoleRequired;
-import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
+import com.zhiyi.module.user.dto.AdminUserSearchQuery;
 import com.zhiyi.module.user.dto.BanUserDTO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 /**
  * 用户管理中的独立账号封禁接口。
  *
- * GET  /api/admin/users           用户检索（学号/昵称，风控工作台用）
+ * GET  /api/admin/users           用户列表（学校精确 + 学号/昵称/邮箱/手机号模糊搜索）
  * POST /api/admin/ban-user        限时或永久封禁用户
  * POST /api/admin/unban-user      提前解封 / 恢复注销账户
  * GET  /api/admin/violation-logs  处罚记录（可追溯）
@@ -44,21 +44,15 @@ public class BanController {
     private final SysUserMapper userMapper;
 
     @GetMapping("/users")
-    public Result<IPage<UserVO>> searchUsers(@RequestParam(required = false) String keyword,
+    public Result<IPage<UserVO>> searchUsers(@RequestParam(required = false) Long schoolId,
+                                             @RequestParam(required = false) String studentId,
+                                             @RequestParam(required = false) String nickname,
+                                             @RequestParam(required = false) String email,
+                                             @RequestParam(required = false) String phone,
                                              @RequestParam(defaultValue = "1") int page,
                                              @RequestParam(defaultValue = "10") int size) {
-        IPage<SysUser> result = userMapper.selectPage(
-                new Page<>(page, Math.min(size, 50)),
-                Wrappers.<SysUser>lambdaQuery()
-                        .select(SysUser::getId, SysUser::getStudentId, SysUser::getNickname,
-                                SysUser::getRole, SysUser::getStatus, SysUser::getBanUntilTime,
-                                SysUser::getLevel, SysUser::getExp, SysUser::getCreatedAt)
-                        .eq(SysUser::getRole, UserRole.USER)
-                        .and(keyword != null && !keyword.isBlank(), w -> w
-                                .like(SysUser::getStudentId, keyword).or()
-                                .like(SysUser::getNickname, keyword))
-                        .orderByDesc(SysUser::getId));
-        return Result.ok(result.convert(UserVO::from));
+        return Result.ok(banService.searchUsers(
+                new AdminUserSearchQuery(schoolId, studentId, nickname, email, phone), page, size));
     }
 
     @PostMapping("/ban-user")

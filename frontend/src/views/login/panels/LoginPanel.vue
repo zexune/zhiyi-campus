@@ -28,7 +28,6 @@
         <input id="l-pw" v-model="form.password" class="input" type="password" placeholder="请输入密码" autocomplete="current-password" />
       </el-form-item>
       <div class="form-foot">
-        <span class="muted">Token 有效期 24 小时</span>
         <a href="#" @click.prevent="emit('switch-tab', 'forgot')">忘记密码？</a>
       </div>
       <button class="btn btn--primary btn--lg btn--block" type="submit" :disabled="loading || schoolsLoading">

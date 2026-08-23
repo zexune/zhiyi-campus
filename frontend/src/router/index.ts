@@ -139,10 +139,16 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '客服收件箱', requireAuth: true, requireAdmin: true }
   },
   {
-    path: ROUTE_PATH.ADMIN_MANAGE,
-    name: ROUTE_NAME.ADMIN_MANAGE,
-    component: () => import('@/views/admin/ManagePage.vue'),
-    meta: { title: '内容管理', requireAuth: true, requireAdmin: true }
+    path: ROUTE_PATH.ADMIN_USERS,
+    name: ROUTE_NAME.ADMIN_USERS,
+    component: () => import('@/views/admin/UsersPage.vue'),
+    meta: { title: '用户管理', requireAuth: true, requireAdmin: true }
+  },
+  {
+    path: ROUTE_PATH.ADMIN_TOPICS,
+    name: ROUTE_NAME.ADMIN_TOPICS,
+    component: () => import('@/views/admin/topics/TopicsPage.vue'),
+    meta: { title: '事件专题', requireAuth: true, requireAdmin: true }
   },
   {
     path: ROUTE_PATH.ADMIN_SCHOOLS,
@@ -208,6 +214,18 @@ router.beforeEach((to) => {
     return { name: ROUTE_NAME.HOME }
   }
   return true
+})
+
+// ── 懒加载分块失败兜底：路由组件按需加载，网络抖动或发版后旧 chunk 失效时
+//    导航会被静默中止（表现为“点击后停在原页面，再点一次才跳转”）。
+//    此处改为整页直达目标路由，浏览器会重新请求并缓存分块。──
+router.onError((error, to) => {
+  const message = String((error as Error)?.message || error)
+  if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading CSS chunk/i.test(message)) {
+    if (to?.fullPath) {
+      window.location.replace(to.fullPath)
+    }
+  }
 })
 
 export default router

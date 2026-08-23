@@ -33,7 +33,13 @@
                   <span class="conv-item__time">{{ formatTimeShort(conversation.lastMessageTime) }}</span>
                 </span>
                 <span class="conv-item__preview">{{ conversation.lastMessage || '暂无消息' }}</span>
-                <span v-if="conversation.relatedItem" class="conv-item__goods">关联商品：{{ conversation.relatedItem.title }}</span>
+                <span v-if="conversation.relatedItem" class="conv-item__goods">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                    <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+                  </svg>
+                  {{ conversation.relatedItem.title }}
+                </span>
               </span>
               <span v-if="conversation.unreadCount > 0" class="conv-item__unread">{{ conversation.unreadCount }}</span>
             </button>
@@ -51,10 +57,6 @@
               <div class="nm">
                 {{ thread?.peer?.nickname || selectedConversation?.peer?.nickname || '会话' }}
                 <LevelBadge :level="thread?.peer?.level || selectedConversation?.peer?.level || 1" show-title />
-              </div>
-              <div class="st">
-                <i />
-                消息自动同步中
               </div>
             </div>
           </header>
@@ -76,7 +78,6 @@
               <button v-if="hasEarlier" class="btn btn--sm btn--ghost load-earlier" :disabled="earlierLoading" @click="loadEarlier">
                 {{ earlierLoading ? '加载中…' : '加载更早的消息' }}
               </button>
-              <span class="msg-day">当前会话</span>
               <div v-for="message in messages" :key="message.id" class="msg" :class="message.mine ? 'msg--out' : 'msg--in'">
                 <UserAvatar :nickname="message.mine ? '我' : thread?.peer?.nickname || '同学'" :user-id="message.mine ? 0 : thread?.peer?.id || 0" size="s" />
                 <div>
@@ -107,10 +108,6 @@
               </svg>
             </button>
           </footer>
-          <div class="poll-note">
-            <i />
-            每 2.5 秒自动刷新新消息
-          </div>
         </section>
 
         <section v-else class="chat-placeholder">
@@ -121,7 +118,7 @@
             </svg>
           </span>
           <h2>选择一个会话</h2>
-          <p class="muted">点击左侧用户，聊天内容会直接显示在这里。</p>
+          <p class="muted">选择左侧会话开始聊天</p>
           <button class="btn btn--yellow" :disabled="serviceLoading" @click="contactService">联系客服</button>
         </section>
       </section>
@@ -314,8 +311,9 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
   height: min(720px, calc(100vh - 150px));
+  height: min(720px, calc(100dvh - 150px));
   min-height: 620px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-l);
   background: var(--white);
   box-shadow: var(--shadow-l);
@@ -323,7 +321,7 @@ onUnmounted(() => {
 }
 .conv-list {
   min-height: 0;
-  border-right: var(--bw) solid var(--ink);
+  border-right: var(--bw) solid var(--line);
   display: flex;
   flex-direction: column;
   background: var(--paper);
@@ -348,13 +346,13 @@ onUnmounted(() => {
   padding: 9px 14px 9px 36px;
   font-size: 13.5px;
   font-family: inherit;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 999px;
   background: var(--white);
 }
 .conv-search input:focus {
   outline: none;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
 }
 .conv-search .el-icon {
   position: absolute;
@@ -375,7 +373,7 @@ onUnmounted(() => {
   padding: 13px 20px;
   cursor: pointer;
   border: none;
-  border-bottom: 1.5px dashed #e0d6c2;
+  border-bottom: var(--bw) solid var(--line);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -425,8 +423,16 @@ onUnmounted(() => {
   margin-top: 3px;
 }
 .conv-item__goods {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--green-deep);
+}
+.conv-item__goods svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
 }
 .conv-item__unread {
   position: absolute;
@@ -442,7 +448,7 @@ onUnmounted(() => {
   font-weight: 800;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
 }
 .conv-empty,
 .chat-placeholder,
@@ -464,15 +470,13 @@ onUnmounted(() => {
   font-size: 30px;
 }
 .placeholder-icon {
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-m);
-  background: var(--yellow);
-  box-shadow: var(--shadow-s);
-  transform: rotate(-4deg);
+  border-radius: 50%;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
 }
 .placeholder-icon svg {
   width: 34px;
@@ -491,7 +495,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 14px 22px;
   background: var(--white);
-  border-bottom: var(--bw) solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
 }
 .nm {
   font-weight: 900;
@@ -501,29 +505,13 @@ onUnmounted(() => {
   gap: 8px;
   flex-wrap: wrap;
 }
-.st {
-  font-size: 12px;
-  color: var(--green-deep);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.st i,
-.poll-note i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--green);
-  display: inline-block;
-  border: 1px solid var(--ink);
-}
 .related-item {
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 14px 22px 0;
   background: var(--white);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   padding: 10px 14px;
   box-shadow: var(--shadow-s);
@@ -531,7 +519,7 @@ onUnmounted(() => {
 .related-item__thumb {
   width: 46px;
   height: 46px;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   overflow: hidden;
   flex-shrink: 0;
@@ -561,16 +549,6 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 16px;
 }
-.msg-day {
-  align-self: center;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--ink-soft);
-  background: var(--white);
-  border: 1.5px solid var(--ink);
-  padding: 2px 14px;
-  border-radius: 999px;
-}
 .msg {
   display: flex;
   gap: 10px;
@@ -580,10 +558,10 @@ onUnmounted(() => {
   padding: 10px 15px;
   font-size: 14.5px;
   line-height: 1.6;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--white);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -618,7 +596,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 16px 22px;
   background: var(--white);
-  border-top: var(--bw) solid var(--ink);
+  border-top: var(--bw) solid var(--line);
   align-items: flex-end;
 }
 .chat-input :deep(.el-textarea__inner) {
@@ -628,7 +606,7 @@ onUnmounted(() => {
   padding: 11px 16px;
   font-size: 14.5px;
   font-family: inherit;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--paper);
   box-shadow: none;
@@ -640,21 +618,11 @@ onUnmounted(() => {
   width: 18px;
   height: 18px;
 }
-.poll-note {
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--ink-soft);
-  background: var(--white);
-  padding: 6px 0 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
 @media (max-width: 760px) {
   .chat-shell {
     grid-template-columns: 130px minmax(0, 1fr);
     height: calc(100vh - 126px);
+    height: calc(100dvh - 126px);
     min-height: 560px;
     border-radius: var(--r-m);
   }

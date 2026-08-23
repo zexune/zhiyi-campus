@@ -7,7 +7,6 @@
             {{ editMode ? '编辑商品信息' : '发布一件好物' }}
             <span class="stamp">{{ editMode ? '重新检测' : '本地检测' }}</span>
           </h1>
-          <p class="muted">{{ editMode ? '修改后重新执行本地合规检测；违规整改会交由管理员复核' : '提交后在本机服务内完成规则检测与标签生成，命中风险再转人工审核' }}</p>
         </div>
         <router-link :to="ROUTE_PATH.MY_ITEMS" class="btn">{{ editMode ? '返回我的发布' : '我的发布' }}</router-link>
       </header>
@@ -55,7 +54,9 @@
                 :aria-checked="form.type === ITEM_TYPE.SWAP"
                 @click="setType(ITEM_TYPE.SWAP)"
               >
-                <span class="t-icon">🔄</span>
+                <span class="t-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h12l-3-3M20 16H8l3 3" /></svg>
+                </span>
                 <span class="type-copy">
                   <b>以物换物</b>
                   <small>用闲置交换另一件好物</small>
@@ -69,7 +70,12 @@
                 :aria-checked="form.type === ITEM_TYPE.ERRAND"
                 @click="setType(ITEM_TYPE.ERRAND)"
               >
-                <span class="t-icon">🏃</span>
+                <span class="t-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="13" r="4" />
+                    <path d="M12 3v2M4.6 6.6 6 8M2 13h2M22 13h-2M19.4 6.6 18 8M9 21h6" />
+                  </svg>
+                </span>
                 <span class="type-copy">
                   <b>帮带跑腿</b>
                   <small>发布校内取送任务</small>
@@ -102,6 +108,18 @@
             <div class="char-count">{{ form.description.length }} / 500</div>
           </el-form-item>
 
+          <div class="field">
+            <label for="publish-tags">商品标签（可选，最多 6 个）</label>
+            <TagInput
+              id="publish-tags"
+              v-model="form.tags"
+              :suggestions="tagSuggestions"
+              aria-label="商品标签"
+              placeholder="输入后回车添加，如：95新、可小刀"
+              @update:model-value="markTagsTouched"
+            />
+          </div>
+
           <div class="form-pair">
             <el-form-item prop="categoryId" class="field">
               <label for="publish-category">
@@ -109,7 +127,6 @@
                 <span class="req">*</span>
               </label>
               <AppSelect id="publish-category" v-model="form.categoryId" :options="categoryOptions" placeholder="选择一个大类" aria-label="所属大类" />
-              <p class="hint">系统会根据分类与文本在本地生成普通商品标签</p>
             </el-form-item>
             <el-form-item prop="price" class="field">
               <label for="publish-price">
@@ -154,11 +171,11 @@
               >
                 <div class="upload-add" :class="{ disabled: uploading }">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
-                  {{ uploading ? '上传中…' : `添加图片 ${form.images.length}/9` }}
+                  {{ uploading ? '上传中…' : `${form.images.length} / 9` }}
                 </div>
               </el-upload>
             </div>
-            <p class="hint">支持 jpg / png / webp，单张 ≤ 5MB，最多 9 张；首张自动作为封面</p>
+            <p class="hint">jpg / png / webp · 单张 ≤ 5MB · 首张为封面</p>
           </el-form-item>
 
           <el-form-item v-if="form.type !== ITEM_TYPE.ERRAND" prop="tradeLocation" class="field">
@@ -189,9 +206,17 @@
             </el-form-item>
           </div>
 
+          <p class="compliance-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="m4.9 4.9 14.2 14.2" />
+            </svg>
+            发布内容将经过本地合规检测：违禁品与代写、代考等学术不端服务不允许发布。
+          </p>
+
           <div class="submit-bar">
             <span class="submit-note" aria-live="polite">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2F9E62" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
                 <path d="m9 12 2 2 4-4" />
               </svg>
@@ -214,61 +239,19 @@
             </div>
           </div>
         </el-form>
-
-        <aside class="card review-panel rise rise-2">
-          <h2>
-            <span class="review-mark">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-            </span>
-            本地合规检测
-          </h2>
-          <div class="review-flow">
-            <div v-for="(step, index) in reviewSteps" :key="step.title" class="review-step">
-              <div class="review-step__rail">
-                <span class="review-step__dot">{{ index + 1 }}</span>
-                <span v-if="index < reviewSteps.length - 1" class="review-step__line" />
-              </div>
-              <div class="review-step__body">
-                <b>{{ step.title }}</b>
-                <p>{{ step.description }}</p>
-              </div>
-            </div>
-          </div>
-          <div class="tag-demo">
-            <p>
-              「{{ form.title || '99新苹果平板 iPad Air5，考研结束出' }}」
-              <br />
-              可能生成的商品标签 ↓
-            </p>
-            <div>
-              <span v-for="tag in previewTags" :key="tag" class="tag">{{ tag }}</span>
-            </div>
-          </div>
-          <ul class="rule-list">
-            <li v-for="rule in rulesText" :key="rule">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#E23B3B" stroke-width="2.4" stroke-linecap="round">
-                <circle cx="12" cy="12" r="9" />
-                <path d="m4.9 4.9 14.2 14.2" />
-              </svg>
-              {{ rule }}
-            </li>
-          </ul>
-        </aside>
       </div>
     </div>
   </DefaultLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import { getCategories, getOwnItem, publishItem, updateItem, uploadItemImage } from '@/api/item'
+import TagInput from '@/components/common/TagInput.vue'
+import { getCategories, getItemTagSuggestions, getOwnItem, publishItem, updateItem, uploadItemImage } from '@/api/item'
 import type { Category, PublishItemPayload } from '@/types/models'
 import { ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
 import type { ItemType } from '@/constants/domain'
@@ -277,12 +260,6 @@ import { ROUTE_PATH } from '@/constants/routes'
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const locations = ['图书馆门口', '一食堂', '南门快递站', '体育馆']
-const reviewSteps = [
-  { title: '规则检测', description: '使用确定性的本地规则识别违禁品、代考代写等风险内容' },
-  { title: '生成标签', description: '从分类、标题与描述中提取普通标签，便于搜索和发现' },
-  { title: '分流处理', description: '未命中风险直接上架，命中风险则隐藏并交由管理员复核' }
-]
-const rulesText = ['违禁品、管制物品会转入人工审核', '代写论文、代考等学术不端服务不允许发布', '价格、图片等无法由文本规则确认的问题通过用户举报核实']
 
 /**
  * 发布表单：type 可在四种发布类型间切换；price 换物时置 null；
@@ -296,6 +273,8 @@ type PublishForm = {
   categoryId: string | number
   price: number | null
   images: string[]
+  /** 用户选择的商品标签：建议预选，可增删可自定义 */
+  tags: string[]
   tradeLocation: string
   pickupLocation: string
   deliveryLocation: string
@@ -309,7 +288,12 @@ const categoryOptions = computed(() => categories.value.map((category) => ({ lab
 const uploading = ref(false)
 const submitting = ref(false)
 const pageLoading = ref(false)
-const form = reactive<PublishForm>({ type: ITEM_TYPE.SELL, title: '', description: '', categoryId: '', price: 1, images: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
+const form = reactive<PublishForm>({ type: ITEM_TYPE.SELL, title: '', description: '', categoryId: '', price: 1, images: [], tags: [], tradeLocation: '', pickupLocation: '', deliveryLocation: '' })
+/** 标签建议（来自本地规则引擎，按标题+分类生成） */
+const tagSuggestions = ref<string[]>([])
+/** 用户是否手动调整过标签：调整后不再自动覆盖选择 */
+let tagsTouched = false
+let suggestTimer: number | undefined
 const editMode = computed(() => Boolean(route.params.id))
 const submitButtonText = computed(() => {
   if (uploading.value) return '图片上传中'
@@ -318,14 +302,36 @@ const submitButtonText = computed(() => {
   return editMode.value ? '保存修改' : '提交发布'
 })
 const submitNote = computed(() => {
-  if (uploading.value) return '图片正在上传，完成后即可提交'
-  if (submitting.value) return '正在执行本地规则检测并生成商品标签，请稍候'
-  return editMode.value ? '保存后将重新执行本地合规检测' : '提交后将在服务端本地完成合规检测'
+  if (uploading.value) return '图片上传中，完成后即可提交'
+  if (submitting.value) return '正在执行合规检测…'
+  return editMode.value ? '保存后将重新执行合规检测' : '提交后自动完成合规检测'
 })
-const previewTags = computed(() => {
-  const words = form.title.match(/[A-Za-z][A-Za-z0-9]*|[\u4e00-\u9fa5]{2,4}/g) || []
-  return [...new Set(words)].slice(0, 4).length ? [...new Set(words)].slice(0, 4) : ['校园闲置', '当面交易', '好物']
-})
+
+// 标签建议：标题（≥2字）变化时防抖拉取（分类可选，用于提高建议质量）；用户手动调整过标签后不再自动覆盖已选
+watch(
+  () => [form.title, form.categoryId] as const,
+  ([title]) => {
+    const keyword = title.trim()
+    if (keyword.length < 2) {
+      tagSuggestions.value = []
+      return
+    }
+    window.clearTimeout(suggestTimer)
+    suggestTimer = window.setTimeout(async () => {
+      try {
+        const res = await getItemTagSuggestions(keyword, form.categoryId)
+        const fresh = res.data || []
+        tagSuggestions.value = fresh
+        if (!tagsTouched) form.tags = fresh.slice(0, 6)
+      } catch {
+        // 建议失败不影响手动输入
+      }
+    }, 400)
+  }
+)
+function markTagsTouched(): void {
+  tagsTouched = true
+}
 const rules: FormRules = {
   type: [{ required: true, message: '请选择发布类型', trigger: 'change' }],
   title: [
@@ -371,10 +377,13 @@ async function fetchOwnItem(): Promise<void> {
       categoryId: item.categoryId,
       price: Number(item.price),
       images: Array.isArray(item.images) ? item.images : [],
+      tags: Array.isArray(item.tags) ? [...item.tags] : [],
       tradeLocation: item.tradeLocation || '',
       pickupLocation: item.pickupLocation || '',
       deliveryLocation: item.deliveryLocation || ''
     })
+    // 编辑已有商品：现有标签视为用户已确认的选择，不再被建议覆盖
+    if (form.tags.length) tagsTouched = true
   } finally {
     pageLoading.value = false
   }
@@ -443,6 +452,7 @@ async function handleSubmit(): Promise<void> {
       categoryId: form.categoryId,
       price: form.price,
       images: form.images,
+      tags: form.tags,
       tradeLocation: form.type === ITEM_TYPE.ERRAND ? null : form.tradeLocation,
       pickupLocation: form.pickupLocation,
       deliveryLocation: form.deliveryLocation
@@ -501,11 +511,10 @@ onMounted(async () => {
   margin-top: 6px;
 }
 .pub-wrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 28px;
-  margin-top: 30px;
-  align-items: start;
+  /* 显式 width:100% —— 父级是列向 flex，仅靠 auto 外边距会收缩为内容宽度，导致版心不稳定 */
+  width: 100%;
+  max-width: 1200px;
+  margin: 30px auto 0;
 }
 .pub-card {
   padding: 30px 32px;
@@ -516,13 +525,14 @@ onMounted(async () => {
 .type-switch {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,1fr)：显式压制列的最小内容宽度，保证四张类型卡严格等宽 */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
 .type-option {
   min-width: 0;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   padding: 18px 20px;
   cursor: pointer;
@@ -532,7 +542,7 @@ onMounted(async () => {
   gap: 14px;
   align-items: center;
   text-align: left;
-  transition: all 0.18s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   position: relative;
   overflow: hidden;
 }
@@ -544,7 +554,7 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   flex: 0 0 48px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   display: grid;
   place-items: center;
@@ -651,7 +661,7 @@ onMounted(async () => {
   min-width: 0;
 }
 .upload-thumb {
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   position: relative;
   overflow: hidden;
@@ -680,7 +690,7 @@ onMounted(async () => {
   right: 4px;
   width: 24px;
   height: 24px;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   background: var(--white);
   display: grid;
@@ -703,7 +713,7 @@ onMounted(async () => {
 .upload-add {
   width: 100%;
   height: 100%;
-  border: 2px dashed var(--ink-soft);
+  border: var(--bw) dashed var(--line-strong);
   border-radius: var(--r-s);
   display: flex;
   flex-direction: column;
@@ -715,7 +725,7 @@ onMounted(async () => {
   font-size: 12.5px;
   font-weight: 700;
   background: var(--paper-deep);
-  transition: all 0.18s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .upload-add:hover {
   border-color: var(--primary);
@@ -741,10 +751,26 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 28px;
+  margin-top: 16px;
   padding-top: 22px;
-  border-top: 1.5px dashed #e0d6c2;
+  border-top: var(--bw) solid var(--line);
   flex-wrap: wrap;
+}
+.compliance-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 24px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.compliance-note svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  margin-top: 3px;
+  color: var(--ink-faint);
 }
 .submit-note {
   color: var(--ink-soft);
@@ -774,140 +800,9 @@ onMounted(async () => {
     transform: rotate(360deg);
   }
 }
-.review-panel {
-  padding: 24px;
-  position: sticky;
-  top: 84px;
-}
-.review-panel h2 {
-  font-family: var(--font-display);
-  font-size: 21px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 14px;
-}
-.review-mark {
-  width: 34px;
-  height: 34px;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-s);
-  background: var(--yellow);
-  display: grid;
-  place-items: center;
-  transform: rotate(-5deg);
-  box-shadow: 2px 2px 0 var(--ink);
-}
-.review-mark svg {
-  width: 20px;
-  height: 20px;
-}
-.review-flow {
-  display: flex;
-  flex-direction: column;
-}
-.review-step {
-  display: flex;
-  gap: 12px;
-}
-.review-step__rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.review-step__dot {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  border: var(--bw) solid var(--ink);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--white);
-  font-weight: 900;
-  font-family: var(--font-display);
-}
-.review-step:nth-child(1) .review-step__dot {
-  background: var(--yellow);
-}
-.review-step:nth-child(2) .review-step__dot {
-  background: #cbe8ff;
-}
-.review-step:nth-child(3) .review-step__dot {
-  background: #d6f2df;
-}
-.review-step__line {
-  width: 2px;
-  flex: 1;
-  min-height: 18px;
-  background: var(--ink);
-  opacity: 0.3;
-}
-.review-step__body {
-  padding-bottom: 18px;
-}
-.review-step__body b {
-  font-size: 14.5px;
-}
-.review-step__body p {
-  margin-top: 2px;
-  color: var(--ink-soft);
-  font-size: 12.5px;
-}
-.tag-demo {
-  margin-top: 8px;
-  border: 1.5px dashed var(--ink);
-  border-radius: var(--r-s);
-  background: var(--paper-deep);
-  padding: 14px 16px;
-}
-.tag-demo p {
-  color: var(--ink-soft);
-  font-size: 12.5px;
-}
-.tag-demo div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-.tag-demo .tag {
-  animation: pop-tag 0.4s both;
-}
-@keyframes pop-tag {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-.rule-list {
-  margin-top: 16px;
-  color: var(--ink-soft);
-  font-size: 12.5px;
-}
-.rule-list li {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 6px;
-  list-style: none;
-}
-.rule-list svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 15px;
-  margin-top: 3px;
-}
 @media (max-width: 1000px) {
   .pub-wrap {
     grid-template-columns: 1fr;
-  }
-  .review-panel {
-    position: static;
   }
 }
 @media (max-width: 700px) {

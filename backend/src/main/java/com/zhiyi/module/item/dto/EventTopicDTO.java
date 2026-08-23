@@ -3,6 +3,7 @@ package com.zhiyi.module.item.dto;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class EventTopicDTO {
@@ -16,8 +17,9 @@ public class EventTopicDTO {
     @Pattern(regexp = "SELL|BUY|SWAP|ERRAND", message = "筛选类型不合法")
     private String filterType;
     private Long filterCategoryId;
-    @Size(max = 50, message = "筛选标签不能超过50字")
-    private String filterTag;
+    /** 商品标签筛选：零到多个，任一命中即属于专题；服务端会做规范化去重与限量 */
+    @Size(max = 6, message = "筛选标签最多6个")
+    private List<@NotBlank(message = "筛选标签不能为空白") @Size(max = 12, message = "筛选标签需为2-12字") String> filterTags;
     @NotBlank(message = "Banner 文案不能为空")
     @Size(max = 255, message = "Banner 文案不能超过255字")
     private String bannerText;

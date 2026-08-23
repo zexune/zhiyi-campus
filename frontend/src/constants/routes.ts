@@ -26,7 +26,8 @@ export const ROUTE_NAME = Object.freeze({
   ADMIN_DASHBOARD: 'AdminDashboard',
   ADMIN_VIOLATIONS: 'AdminViolations',
   ADMIN_CHAT: 'AdminChat',
-  ADMIN_MANAGE: 'AdminManage',
+  ADMIN_USERS: 'AdminUsers',
+  ADMIN_TOPICS: 'AdminTopics',
   ADMIN_SCHOOLS: 'AdminSchools',
   ADMIN_CATEGORIES: 'AdminCategories',
   NOT_FOUND: 'NotFound'
@@ -51,7 +52,8 @@ export interface RoutePathContract {
   readonly ADMIN_DASHBOARD: '/admin/dashboard'
   readonly ADMIN_VIOLATIONS: '/admin/violations'
   readonly ADMIN_CHAT: '/admin/chat'
-  readonly ADMIN_MANAGE: '/admin/manage'
+  readonly ADMIN_USERS: '/admin/users'
+  readonly ADMIN_TOPICS: '/admin/topics'
   readonly ADMIN_SCHOOLS: '/admin/schools'
   readonly ADMIN_CATEGORIES: '/admin/categories'
   readonly PUBLISH: '/publish'
@@ -77,7 +79,8 @@ export const ROUTE_PATH: RoutePathContract = Object.freeze<RoutePathContract>({
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_VIOLATIONS: '/admin/violations',
   ADMIN_CHAT: '/admin/chat',
-  ADMIN_MANAGE: '/admin/manage',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_TOPICS: '/admin/topics',
   ADMIN_SCHOOLS: '/admin/schools',
   ADMIN_CATEGORIES: '/admin/categories',
 

@@ -1,11 +1,9 @@
 package com.zhiyi.module.admin.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zhiyi.common.Result;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminLineageService;
 import com.zhiyi.module.admin.service.AdminManageService;
-import com.zhiyi.module.admin.vo.AdminItemVO;
 import com.zhiyi.module.admin.vo.ItemLineageVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotNull;
@@ -14,10 +12,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 超管控制台 · 内容强制管理（4.7）
+ * 超管控制台 · 账号与内容管理（4.7）
  *
- * PUT  /api/admin/item/{id}/force-off-shelf  强制下架商品
- * POST /api/admin/reset-password             强制重置用户密码
+ * POST /api/admin/reset-password          强制重置用户密码
+ * GET  /api/admin/item/{id}/lineage       商品传承链
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -27,30 +25,6 @@ public class AdminManageController {
 
     private final AdminManageService manageService;
     private final AdminLineageService lineageService;
-
-    /**
-     * 管理员商品检索（4.7 强制下架前选择商品用）
-     */
-    @GetMapping("/items")
-    public Result<IPage<AdminItemVO>> searchItems(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(manageService.searchItems(keyword, status, page, size));
-    }
-
-    /**
-     * 强制下架商品
-     */
-    @PutMapping("/item/{id}/force-off-shelf")
-    public Result<?> forceOffShelf(
-            @PathVariable Long id,
-            HttpServletRequest request) {
-        Long adminId = (Long) request.getAttribute("userId");
-        manageService.forceOffShelf(id, adminId);
-        return Result.ok("商品已强制下架");
-    }
 
     /**
      * 强制重置密码
@@ -74,7 +48,22 @@ public class AdminManageController {
     }
 
     /**
+     * 标签建议（管理端）：按专题名称生成候选标签，供专题配置选择，不落库。
+     * 管理员账号被 RoleInterceptor 限制在 /api/admin/**，故此处提供独立入口。
+     */
+    @PostMapping("/item/tag-suggestions")
+    public Result<java.util.List<String>> tagSuggestions(
+            @Validated @RequestBody TagSuggestionRequest request) {
+        return Result.ok(manageService.suggestTags(request.title(), request.categoryId()));
+    }
+
+    /**
      * 内部 DTO
      */
+    record TagSuggestionRequest(
+            @NotNull(message = "标题不能为空") String title,
+            Long categoryId) {
+    }
+
     record ResetPasswordRequest(@NotNull(message = "用户ID不能为空") Long userId) {}
 }

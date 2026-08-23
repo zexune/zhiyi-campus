@@ -1,7 +1,6 @@
 <template>
   <div class="tool-card card topic-card">
-    <h3 class="tool-card__title">🎯 大事件专题</h3>
-    <p class="tool-card__desc muted">配置专题生效时段、商品筛选规则和首页 Banner 文案。</p>
+    <h3 class="tool-card__title">大事件专题</h3>
     <div class="field">
       <label>专题名称</label>
       <input v-model.trim="form.title" class="input" maxlength="100" placeholder="如：毕业季闲置循环" />
@@ -27,8 +26,8 @@
       </div>
     </div>
     <div class="field">
-      <label>商品标签（可选）</label>
-      <input v-model.trim="form.filterTag" class="input" maxlength="50" placeholder="如：毕业季" />
+      <label>商品标签（可选，零到六个）</label>
+      <TagInput v-model="form.filterTags" :suggestions="tagSuggestions" aria-label="专题筛选标签" placeholder="输入后回车添加，如：毕业季" />
     </div>
     <div class="field">
       <label>Banner 文案</label>
@@ -59,16 +58,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
-import { createEventTopic, deleteEventTopic, getEventTopics, updateEventTopic } from '@/api/admin'
+import TagInput from '@/components/common/TagInput.vue'
+import { createEventTopic, deleteEventTopic, getAdminItemTagSuggestions, getEventTopics, updateEventTopic } from '@/api/admin'
 import type { EventTopicPayload } from '@/api/admin'
 import { getCategories } from '@/api/item'
 import type { Category, EventTopic } from '@/types/models'
 import { ITEM_TYPE_OPTIONS } from '@/constants/domain'
 import { formatDateTime } from '@/utils/format'
-import './manage-cards.css'
 
 const TOPIC_TYPE_OPTIONS = ITEM_TYPE_OPTIONS
 const topicCategories = ref<Category[]>([])
@@ -83,20 +82,51 @@ interface TopicFormState {
   filterType: string
   /** '' 表示未选分类（提交时转 null） */
   filterCategoryId: number | ''
-  filterTag: string
+  filterTags: string[]
   bannerText: string
   enabled: boolean
   submitting: boolean
 }
 
-const emptyTopic = (): TopicFormState => ({ id: null, title: '', startTime: '', endTime: '', filterType: '', filterCategoryId: '', filterTag: '', bannerText: '', enabled: true, submitting: false })
+const emptyTopic = (): TopicFormState => ({ id: null, title: '', startTime: '', endTime: '', filterType: '', filterCategoryId: '', filterTags: [], bannerText: '', enabled: true, submitting: false })
 const form = reactive(emptyTopic())
+
+/** 按专题名称生成候选标签（防抖），供管理员点选或无视后自定义 */
+const tagSuggestions = ref<string[]>([])
+let suggestTimer: number | undefined
+watch(
+  () => form.title,
+  (title) => {
+    window.clearTimeout(suggestTimer)
+    const keyword = title.trim()
+    if (keyword.length < 2) {
+      tagSuggestions.value = []
+      return
+    }
+    suggestTimer = window.setTimeout(async () => {
+      try {
+        const res = await getAdminItemTagSuggestions(keyword)
+        tagSuggestions.value = res.data || []
+      } catch {
+        // 建议失败不影响手动输入
+        tagSuggestions.value = []
+      }
+    }, 400)
+  }
+)
 
 function resetTopicForm() {
   Object.assign(form, emptyTopic())
 }
 function editTopic(topic: EventTopic) {
-  Object.assign(form, { ...topic, startTime: topic.startTime?.slice(0, 16) || '', endTime: topic.endTime?.slice(0, 16) || '', filterCategoryId: topic.filterCategoryId || '', submitting: false })
+  Object.assign(form, {
+    ...topic,
+    startTime: topic.startTime?.slice(0, 16) || '',
+    endTime: topic.endTime?.slice(0, 16) || '',
+    filterCategoryId: topic.filterCategoryId || '',
+    filterTags: [...(topic.filterTags ?? [])],
+    submitting: false
+  })
 }
 async function loadTopics() {
   const res = await getEventTopics()
@@ -119,7 +149,7 @@ async function saveTopic() {
     endTime: form.endTime,
     filterType: form.filterType || null,
     filterCategoryId: form.filterCategoryId || null,
-    filterTag: form.filterTag || null,
+    filterTags: form.filterTags.length ? form.filterTags : null,
     bannerText: form.bannerText,
     enabled: form.enabled
   }
@@ -150,3 +180,72 @@ onMounted(async () => {
   topicCategories.value = categories.data || []
 })
 </script>
+
+<style scoped>
+.tool-card {
+  padding: 24px;
+}
+.tool-card__title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.tool-card__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.field {
+  margin-bottom: 14px;
+}
+.field > label {
+  display: block;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.topic-enabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+}
+.topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+.topic-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+}
+.topic-time {
+  font-size: 12px;
+  margin-top: 3px;
+}
+.topic-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 768px) {
+  .topic-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .form-pair {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

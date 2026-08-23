@@ -1,6 +1,6 @@
 <template>
   <div class="radar">
-    <svg class="radar__svg" :viewBox="`0 0 ${size} ${size}`" role="img" :aria-label="`信誉雷达图，综合分 ${overall} 分`">
+    <svg class="radar__svg" :viewBox="`-48 -6 ${size + 96} ${size + 14}`" role="img" :aria-label="`信誉雷达图，综合分 ${overall} 分`">
       <!-- 背景同心网格（4 圈） -->
       <polygon v-for="ring in rings" :key="ring.k" :points="ring.points" class="radar__grid" />
       <!-- 轴线 -->
@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { REPUTATION_DIMENSIONS, radarPoint, radarPolygon, reputationValues, overallScore, reputationGrade } from '@/utils/reputation'
+import { REPUTATION_DIMENSIONS, axisAngle, radarPoint, radarPolygon, reputationValues, overallScore, reputationGrade } from '@/utils/reputation'
 
 /**
  * 信誉雷达图（A6）—— 六维纯 SVG 手绘风，不引入图表库，几何逻辑复用 utils/reputation.js
@@ -71,11 +71,16 @@ const dataPoints = computed(() => values.value.map((v, i) => radarPoint(v, i, ge
 
 const labels = computed(() =>
   REPUTATION_DIMENSIONS.map((d, i) => {
-    const p = radarPoint(112, i, geom.value) // 略超出满圈放标签
+    // 注意：不能用 radarPoint()（其 clampScore 会把 >100 的值钳回 100，导致标签贴住外环），
+    // 这里直接按轴角度计算外扩坐标
+    const r = geom.value.radius * 1.3
+    const a = axisAngle(i)
+    const x = Math.round(geom.value.cx + r * Math.cos(a))
+    const y = Math.round(geom.value.cy + r * Math.sin(a)) + 4
     let anchor = 'middle'
-    if (p.x < center.value - 4) anchor = 'end'
-    else if (p.x > center.value + 4) anchor = 'start'
-    return { text: d.label, x: p.x, y: p.y + 4, anchor }
+    if (x < center.value - 4) anchor = 'end'
+    else if (x > center.value + 4) anchor = 'start'
+    return { text: d.label, x, y, anchor }
   })
 )
 </script>
@@ -89,7 +94,7 @@ const labels = computed(() =>
 }
 .radar__svg {
   width: 100%;
-  max-width: 300px;
+  max-width: 340px;
   height: auto;
   overflow: visible;
 }
@@ -122,6 +127,11 @@ const labels = computed(() =>
   font-size: 12px;
   font-weight: 700;
   fill: var(--ink);
+  /* 纸色描边光晕：标签压在网格线上也保持可读 */
+  stroke: var(--white);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
 }
 
 .radar__legend {

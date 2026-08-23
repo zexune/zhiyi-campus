@@ -9,13 +9,14 @@ import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.admin.vo.ViolationVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.mapper.CategoryMapper;
+import com.zhiyi.module.item.service.LocalContentAnalyzer;
 import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.ViolationSource;
 import com.zhiyi.common.enums.ViolationStatus;
-import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
@@ -39,7 +40,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -53,79 +53,18 @@ class AdminServiceTest {
     }
 
     @Nested
-    class ForceOffShelf {
-        @Mock private ItemMapper itemMapper;
-        @Mock private SysUserMapper userMapper;
-        @Mock private ItemReservationMapper reservationMapper;
-        @Mock private PasswordEncoder passwordEncoder;
-        @Mock private UserStateCache userStateCache;
-        @Mock private TagQueryService tagQueryService;
-        private AdminManageService service;
-
-        @BeforeEach
-        void setUp() {
-            service = new AdminManageService(itemMapper, userMapper, reservationMapper,
-                    passwordEncoder, userStateCache, tagQueryService);
-        }
-
-        @Test
-        void forceOffShelfOnlyChangesItemState() {
-            Item item = onSaleItem();
-            when(itemMapper.selectById(1L)).thenReturn(item);
-
-            service.forceOffShelf(1L, 99L);
-
-            assertEquals(ItemStatus.OFF_SHELF, item.getStatus());
-            verify(itemMapper).updateById(item);
-            verifyNoInteractions(userMapper, userStateCache);
-        }
-
-        @Test
-        void rejectsReservedItem() {
-            Item item = onSaleItem();
-            when(itemMapper.selectById(1L)).thenReturn(item);
-            when(reservationMapper.selectById(1L)).thenReturn(new com.zhiyi.module.trade.entity.ItemReservation());
-
-            BusinessException error = assertThrows(BusinessException.class,
-                    () -> service.forceOffShelf(1L, 99L));
-
-            assertEquals(409, error.getCode());
-            verify(itemMapper, never()).updateById(any(Item.class));
-        }
-
-        @Test
-        void rejectsAlreadyOffShelf() {
-            Item item = onSaleItem();
-            item.setStatus(ItemStatus.OFF_SHELF);
-            when(itemMapper.selectById(1L)).thenReturn(item);
-
-            assertThrows(BusinessException.class, () -> service.forceOffShelf(1L, 99L));
-        }
-
-        private Item onSaleItem() {
-            Item item = new Item();
-            item.setId(1L);
-            item.setStatus(ItemStatus.ON_SALE);
-            item.setTitle("测试商品");
-            item.setPublisherId(2L);
-            return item;
-        }
-    }
-
-    @Nested
     class ResetPassword {
-        @Mock private ItemMapper itemMapper;
         @Mock private SysUserMapper userMapper;
-        @Mock private ItemReservationMapper reservationMapper;
         @Mock private PasswordEncoder passwordEncoder;
         @Mock private UserStateCache userStateCache;
-        @Mock private TagQueryService tagQueryService;
+        @Mock private CategoryMapper categoryMapper;
+        @Mock private LocalContentAnalyzer contentAnalyzer;
         private AdminManageService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminManageService(itemMapper, userMapper, reservationMapper,
-                    passwordEncoder, userStateCache, tagQueryService);
+            service = new AdminManageService(userMapper, passwordEncoder, userStateCache,
+                    categoryMapper, contentAnalyzer);
         }
 
         @Test

@@ -180,9 +180,9 @@ onBeforeUnmount(() => {
   background-color: var(--paper);
   background-image: radial-gradient(rgba(38, 34, 28, 0.07) 1px, transparent 1px);
   background-size: 18px 18px;
-  border: 3px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-l);
-  box-shadow: 10px 10px 0 var(--ink);
+  box-shadow: var(--shadow-l);
 }
 
 .seller-dialog__tape {
@@ -222,9 +222,9 @@ onBeforeUnmount(() => {
   padding: 0 0 3px;
   color: var(--ink);
   background: var(--white);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
@@ -235,9 +235,8 @@ onBeforeUnmount(() => {
 }
 
 .seller-dialog__close:hover {
-  transform: rotate(7deg) translate(-1px, -1px);
-  box-shadow: var(--shadow-s);
-  background: var(--yellow);
+  background: var(--paper-deep);
+  color: var(--ink);
 }
 
 .seller-dialog__close:focus-visible {
@@ -250,7 +249,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 18px;
   padding: 12px 150px 24px 4px;
-  border-bottom: 3px solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
 }
 
 .seller-dialog__identity {
@@ -324,9 +323,9 @@ onBeforeUnmount(() => {
   font-size: 16px;
   color: var(--white);
   background: var(--primary);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
 }
 
 .seller-dialog__section-head h3 {
@@ -341,7 +340,7 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   overflow: hidden;
   background: var(--white);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }
@@ -350,11 +349,11 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 82px;
   padding: 13px 15px;
-  border-bottom: 1.5px dashed rgba(38, 34, 28, 0.45);
+  border-bottom: var(--bw) solid var(--line);
 }
 
 .seller-dialog__field:nth-child(odd) {
-  border-right: 1.5px dashed rgba(38, 34, 28, 0.45);
+  border-right: var(--bw) solid var(--line);
 }
 
 .seller-dialog__field:nth-last-child(-n + 2) {
@@ -386,7 +385,7 @@ onBeforeUnmount(() => {
   position: relative;
   padding: 0 16px 16px;
   background: var(--white);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   box-shadow: var(--shadow-m);
 }
@@ -403,7 +402,7 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   overflow: hidden;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
 }
 
@@ -411,13 +410,13 @@ onBeforeUnmount(() => {
   min-height: 82px;
   background: linear-gradient(100deg, var(--paper-deep) 25%, var(--white) 40%, var(--paper-deep) 55%);
   background-size: 220% 100%;
-  border: 1px dashed rgba(38, 34, 28, 0.24);
+  border: var(--bw) dashed var(--line-strong);
   animation: seller-shimmer 1.2s linear infinite;
 }
 
 .seller-dialog__loading-radar {
   min-height: 330px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: radial-gradient(circle, transparent 28%, rgba(245, 86, 46, 0.11) 29% 30%, transparent 31%), var(--white);
   animation: seller-pulse 1.2s ease-in-out infinite alternate;
@@ -441,7 +440,7 @@ onBeforeUnmount(() => {
   font-size: 34px;
   color: var(--white);
   background: var(--red);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   box-shadow: var(--shadow-s);
   rotate: -5deg;
@@ -467,7 +466,7 @@ onBeforeUnmount(() => {
 .seller-dialog-enter-from .seller-dialog__sheet,
 .seller-dialog-leave-to .seller-dialog__sheet {
   opacity: 0;
-  transform: translateY(22px) rotate(-1deg) scale(0.98);
+  transform: translateY(22px) scale(0.98);
 }
 
 @keyframes seller-shimmer {
@@ -492,7 +491,7 @@ onBeforeUnmount(() => {
     max-height: calc(100vh - 24px);
     padding: 26px 18px 22px;
     border-radius: var(--r-l) var(--r-l) var(--r-s) var(--r-s);
-    box-shadow: 6px 6px 0 var(--ink);
+    box-shadow: var(--shadow-m);
   }
 
   .seller-dialog__file-tag {
@@ -534,7 +533,7 @@ onBeforeUnmount(() => {
   .seller-dialog__field:nth-last-child(-n + 2) {
     min-height: 72px;
     border-right: none;
-    border-bottom: 1.5px dashed rgba(38, 34, 28, 0.45);
+    border-bottom: var(--bw) solid var(--line);
   }
 
   .seller-dialog__field:last-child {

@@ -2,8 +2,7 @@
   <AdminLayout>
     <div class="category-page rise">
       <div class="page-title">
-        🗂️ 商品分类管理
-        <span class="stamp">Module 2</span>
+        商品分类管理
       </div>
 
       <div class="category-layout">
@@ -11,7 +10,6 @@
           <div class="section-head">
             <div>
               <h2>发布大类</h2>
-              <p class="muted">用户发布时必须选择一个大类，列表按排序值升序展示。</p>
             </div>
             <span class="count">{{ categories.length }} 个分类</span>
           </div>
@@ -28,7 +26,6 @@
 
         <section class="card category-form">
           <h2>{{ form.id ? '编辑分类' : '新建分类' }}</h2>
-          <p class="muted">分类图标可直接填写一个 Emoji，例如 💻、📖。</p>
 
           <div class="field">
             <label for="category-name">分类名称</label>
@@ -50,7 +47,6 @@
             <button v-if="form.id" class="btn" type="button" @click="reset">取消编辑</button>
             <button v-if="form.id" class="btn btn--danger delete-btn" type="button" :disabled="saving" @click="remove">删除</button>
           </div>
-          <p class="hint">已有商品使用的分类受数据库保护，不能直接删除。</p>
         </section>
       </div>
     </div>
@@ -174,7 +170,7 @@ onMounted(load)
   font-size: 13px;
 }
 .count {
-  border: 2px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 999px;
   padding: 5px 10px;
   background: var(--yellow);
@@ -194,7 +190,7 @@ onMounted(load)
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border: 2px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--white);
   color: var(--ink);
@@ -205,7 +201,7 @@ onMounted(load)
 .category-row:hover,
 .category-row.active {
   transform: translate(-2px, -2px);
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   background: var(--paper-deep);
 }
 .category-row.active {
@@ -216,7 +212,7 @@ onMounted(load)
   height: 40px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 10px;
   background: var(--yellow);
   font-size: 21px;

@@ -3,15 +3,12 @@
     <div class="dashboard-page rise">
       <!-- 页面标题 -->
       <div class="page-title">
-        📊 管理后台
-        <span class="stamp">Admin</span>
+        数据大盘
       </div>
-
-      <!-- 导航标签 -->
 
       <!-- 学校切换（D2：多校大盘） -->
       <div v-if="schools.length > 0" class="school-bar">
-        <span class="school-bar__label muted">🏫 学校视角：</span>
+        <span class="school-bar__label muted">学校视角</span>
         <button v-for="s in schoolOptions" :key="s.value ?? 'all'" class="school-chip" :class="{ active: selectedSchoolId === s.value }" @click="switchSchool(s.value)">
           {{ s.label }}
         </button>
@@ -30,22 +27,44 @@
         <!-- 统计卡片 -->
         <div class="stat-grid">
           <div class="stat-card card">
-            <div class="stat-card__icon">👥</div>
+            <div class="stat-card__icon stat-card__icon--blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="8" r="3.5" />
+                <path d="M2.5 20c0-3.5 2.8-5.5 6.5-5.5s6.5 2 6.5 5.5" />
+                <circle cx="17" cy="9" r="2.6" />
+                <path d="M17 14.7c2.8.3 4.5 2 4.5 4.3" />
+              </svg>
+            </div>
             <div class="stat-card__num">{{ data.totalUsers }}</div>
             <div class="stat-card__label muted">用户总数</div>
           </div>
           <div class="stat-card card">
-            <div class="stat-card__icon">📦</div>
+            <div class="stat-card__icon stat-card__icon--yellow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+              </svg>
+            </div>
             <div class="stat-card__num">{{ data.onSaleItems }}</div>
             <div class="stat-card__label muted">在售商品</div>
           </div>
           <div class="stat-card card">
-            <div class="stat-card__icon">💰</div>
+            <div class="stat-card__icon stat-card__icon--green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 10h18M16 15h.01" />
+              </svg>
+            </div>
             <div class="stat-card__num">¥{{ data.todayTradeAmount }}</div>
             <div class="stat-card__label muted">今日交易额</div>
           </div>
           <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS" class="stat-card card stat-card--link" :class="{ 'stat-card--alert': data.pendingViolations > 0 }">
-            <div class="stat-card__icon">⚠️</div>
+            <div class="stat-card__icon stat-card__icon--red" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3 2.5 20h19Z" />
+                <path d="M12 10v4M12 17.5h.01" />
+              </svg>
+            </div>
             <div class="stat-card__num">{{ data.pendingViolations }}</div>
             <div class="stat-card__label muted">待审核内容</div>
           </router-link>
@@ -53,14 +72,14 @@
 
         <!-- 近 7 日交易趋势 -->
         <div class="section">
-          <h3 class="section-title">📈 近 7 日交易趋势</h3>
+          <h3 class="section-title">近 7 日交易趋势</h3>
           <div class="trend-card card">
             <div v-if="trendPoints.length > 0" class="trend-svg-wrap">
               <svg :viewBox="`0 0 ${SVG_W} ${SVG_H}`" class="trend-svg">
                 <!-- 硬投影滤镜（悬停浮层用） -->
                 <defs>
                   <filter id="tip-shadow" x="-10%" y="-10%" width="130%" height="140%">
-                    <feDropShadow dx="3" dy="3" stdDeviation="0" flood-color="#26221C" flood-opacity="1" />
+                    <feDropShadow dx="3" dy="3" stdDeviation="0" flood-color="#1f1b16" flood-opacity="1" />
                   </filter>
                 </defs>
                 <!-- 水平网格线 -->
@@ -71,7 +90,7 @@
                   :y1="yForGrid(i)"
                   :x2="PLOT_R"
                   :y2="yForGrid(i)"
-                  stroke="#26221C"
+                  stroke="#1f1b16"
                   stroke-opacity="0.1"
                   stroke-width="1"
                   stroke-dasharray="4 4"
@@ -83,10 +102,10 @@
                 <text v-for="(p, i) in trendPoints" :key="'gx' + i" :x="xFor(i)" :y="SVG_H - 6" text-anchor="middle" class="chart-label">{{ fmtDateShort(p.date) }}</text>
 
                 <!-- 面积填充 -->
-                <polygon :points="areaPoints" fill="#F5562E" fill-opacity="0.1" />
+                <polygon :points="areaPoints" fill="#c2410c" fill-opacity="0.1" />
 
                 <!-- 折线 -->
-                <polyline :points="linePoints" fill="none" stroke="#F5562E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                <polyline :points="linePoints" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
 
                 <!-- 数据点 + 悬停交互 -->
                 <g v-for="(p, i) in trendPoints" :key="'dp' + i">
@@ -97,7 +116,7 @@
                     :y1="yFor(p.count) + 12"
                     :x2="xFor(i)"
                     :y2="SVG_H - PAD_B + 2"
-                    stroke="#26221C"
+                    stroke="#1f1b16"
                     stroke-opacity="0.25"
                     stroke-width="1.5"
                     stroke-dasharray="3 4"
@@ -110,20 +129,20 @@
                     :cy="yFor(p.count)"
                     :r="hoveredIndex === i ? 10 : 6"
                     fill="#fff"
-                    stroke="#26221C"
+                    stroke="#1f1b16"
                     stroke-width="2"
                     :style="{ transition: 'r .15s ease' }"
                     pointer-events="none"
                   />
                   <!-- 内圆（不拦截鼠标） -->
-                  <circle :cx="xFor(i)" :cy="yFor(p.count)" :r="hoveredIndex === i ? 4 : 3.5" fill="#F5562E" :style="{ transition: 'r .15s ease' }" pointer-events="none" />
+                  <circle :cx="xFor(i)" :cy="yFor(p.count)" :r="hoveredIndex === i ? 4 : 3.5" fill="#c2410c" :style="{ transition: 'r .15s ease' }" pointer-events="none" />
 
                   <!-- 常态数值标签（不拦截鼠标） -->
                   <text v-if="hoveredIndex !== i" :x="xFor(i)" :y="yFor(p.count) - 12" text-anchor="middle" class="chart-point-label" pointer-events="none">{{ p.count }}</text>
 
                   <!-- 悬停浮层卡片（不拦截鼠标） -->
                   <g v-if="hoveredIndex === i" pointer-events="none">
-                    <rect :x="tooltipX(i)" :y="tooltipY(i)" width="104" height="58" rx="8" fill="#fff" stroke="#26221C" stroke-width="2" filter="url(#tip-shadow)" />
+                    <rect :x="tooltipX(i)" :y="tooltipY(i)" width="104" height="58" rx="8" fill="#fff" stroke="#1f1b16" stroke-width="2" filter="url(#tip-shadow)" />
                     <text :x="tooltipX(i) + 52" :y="tooltipY(i) + 17" text-anchor="middle" class="chart-tip-date">{{ fmtDateCN(p.date) }}</text>
                     <text :x="tooltipX(i) + 52" :y="tooltipY(i) + 34" text-anchor="middle" class="chart-tip-count">{{ p.count }} 笔交易</text>
                     <text :x="tooltipX(i) + 52" :y="tooltipY(i) + 50" text-anchor="middle" class="chart-tip-val">¥{{ p.totalAmount }}</text>
@@ -140,7 +159,7 @@
 
         <!-- 交易热力图（D5） -->
         <div class="section">
-          <h3 class="section-title">📍 交易热力图</h3>
+          <h3 class="section-title">交易热力图</h3>
           <div v-if="heatmapData.length === 0" class="card card--flat state-card">
             <span class="muted">暂无交易地点数据</span>
           </div>
@@ -159,7 +178,7 @@
         <div class="section">
           <h3 class="section-title">最近违规待审核</h3>
           <div v-if="data.recentViolations.length === 0" class="card card--flat state-card">
-            <span class="muted">暂无待审核违规记录 🎉</span>
+            <span class="muted">暂无待审核违规记录</span>
           </div>
           <div v-else class="violation-list">
             <div v-for="v in data.recentViolations" :key="v.id" class="violation-item card card--flat">
@@ -202,7 +221,7 @@ interface SchoolOption {
 }
 
 const schoolOptions = computed(() => {
-  const opts: SchoolOption[] = [{ value: null, label: '🌐 全部学校' }]
+  const opts: SchoolOption[] = [{ value: null, label: '全部学校' }]
   schools.value.forEach((s) => {
     opts.push({ value: s.id, label: s.name })
   })
@@ -410,13 +429,36 @@ function violationBadge(type: string | undefined) {
   text-align: center;
 }
 .stat-card__icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 10px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-m);
+}
+.stat-card__icon svg {
+  width: 26px;
+  height: 26px;
+}
+.stat-card__icon--blue {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+.stat-card__icon--yellow {
+  background: var(--yellow-bg);
+  color: #8a5a00;
+}
+.stat-card__icon--green {
+  background: var(--green-bg);
+  color: var(--green-deep);
+}
+.stat-card__icon--red {
+  background: var(--red-bg);
+  color: var(--red-deep);
 }
 .stat-card__num {
-  font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 900;
+  font-size: 32px;
+  font-weight: 700;
   color: var(--ink);
   line-height: 1.2;
 }
@@ -443,28 +485,30 @@ function violationBadge(type: string | undefined) {
 .school-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: var(--spacing-lg);
   flex-wrap: wrap;
 }
 .school-bar__label {
-  font-size: 14px;
+  margin-right: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
   font-weight: 700;
 }
 .school-chip {
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 700;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 999px;
   background: var(--paper-deep);
   color: var(--ink);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .school-chip:hover {
   background: var(--white);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
 }
 .school-chip.active {
   background: var(--ink);
@@ -482,7 +526,7 @@ function violationBadge(type: string | undefined) {
   padding: 8px 0;
 }
 .heatmap-bar-row:not(:last-child) {
-  border-bottom: 1px dashed rgba(38, 34, 28, 0.1);
+  border-bottom: var(--bw) solid var(--line);
 }
 .heatmap-loc {
   width: 120px;

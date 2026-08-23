@@ -3,11 +3,16 @@
     <div class="review-page">
       <header class="page-head">
         <div>
-          <p class="eyebrow">CONTENT GOVERNANCE</p>
           <h1 class="page-title">内容治理工作台</h1>
-          <p class="muted">内容处罚与账号封禁完全分离；这里只处理商品内容、固定合规扣分及卖家申诉。</p>
+
         </div>
-        <button class="btn" :disabled="loading" @click="refreshCurrent">刷新</button>
+        <button class="btn" :disabled="loading" @click="refreshCurrent">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+            <path d="M20 4v7h-7" />
+          </svg>
+          刷新
+        </button>
       </header>
 
       <div class="workspace-tabs" role="tablist">
@@ -22,8 +27,8 @@
       </div>
 
       <template v-if="workspace === 'reviews'">
-        <div class="filter-tabs" aria-label="内容审核状态">
-          <button v-for="tab in REVIEW_STATUS_TABS" :key="tab.value" class="btn btn--sm" :class="{ 'btn--dark': reviewStatus === tab.value }" @click="changeReviewStatus(tab.value)">
+        <div class="filter-tabs seg-tabs" aria-label="内容审核状态">
+          <button v-for="tab in REVIEW_STATUS_TABS" :key="tab.value" type="button" :class="{ active: reviewStatus === tab.value }" @click="changeReviewStatus(tab.value)">
             {{ tab.label }}
           </button>
         </div>
@@ -92,8 +97,8 @@
       </template>
 
       <template v-else>
-        <div class="filter-tabs" aria-label="申诉状态">
-          <button v-for="tab in APPEAL_STATUS_TABS" :key="tab.value" class="btn btn--sm" :class="{ 'btn--dark': appealStatus === tab.value }" @click="changeAppealStatus(tab.value)">
+        <div class="filter-tabs seg-tabs" aria-label="申诉状态">
+          <button v-for="tab in APPEAL_STATUS_TABS" :key="tab.value" type="button" :class="{ active: appealStatus === tab.value }" @click="changeAppealStatus(tab.value)">
             {{ tab.label }}
           </button>
         </div>
@@ -139,7 +144,7 @@
 
       <el-dialog v-model="confirmForm.visible" title="确认内容违规" width="min(560px, 92vw)" :close-on-click-modal="!confirmForm.submitting">
         <div class="dialog-form">
-          <div class="warning-panel">确认后商品会下架，并按平台当前固定值扣除卖家合规分（默认 5 分）。该操作不会封禁账号，账号封禁只能在用户管理中执行。</div>
+          <div class="warning-panel">确认后商品将下架，并扣除卖家合规分。</div>
           <label>
             <span>
               违规原因
@@ -398,40 +403,40 @@ onMounted(async () => {
   align-items: flex-end;
   gap: 18px;
 }
-.eyebrow {
-  color: var(--primary);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
+.page-head .page-title {
+  margin-bottom: 0;
 }
 .page-head .muted {
   margin-top: 7px;
   max-width: 760px;
 }
 .workspace-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-m);
-  background: var(--white);
-  overflow: hidden;
-  box-shadow: var(--shadow-s);
+  display: inline-flex;
+  gap: 2px;
+  margin-top: var(--spacing-md);
+  padding: 3px;
+  background: var(--paper-deep);
+  border-radius: var(--r-s);
 }
 .workspace-tab {
-  padding: 15px 20px;
+  padding: 9px 26px;
   border: 0;
+  border-radius: 6px;
   background: transparent;
-  color: var(--ink);
-  font-size: 16px;
-  font-weight: 900;
+  color: var(--ink-soft);
+  font-size: 14.5px;
+  font-weight: 500;
   cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
-.workspace-tab + .workspace-tab {
-  border-left: var(--bw) solid var(--ink);
+.workspace-tab:hover {
+  color: var(--ink);
 }
 .workspace-tab.active {
-  background: var(--ink);
-  color: var(--white);
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-s);
 }
 .count {
   display: inline-grid;
@@ -452,6 +457,13 @@ onMounted(async () => {
   align-items: center;
   gap: 9px;
   flex-wrap: wrap;
+}
+.filter-tabs {
+  flex-wrap: wrap;
+}
+.page-head .btn .ic {
+  width: 16px;
+  height: 16px;
 }
 .review-list {
   display: flex;
@@ -486,7 +498,7 @@ onMounted(async () => {
 }
 .party-grid > div {
   padding: 10px 12px;
-  border: 1.5px solid #d8cebb;
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--paper-deep);
 }
@@ -509,7 +521,7 @@ onMounted(async () => {
   border-radius: var(--r-s);
 }
 .content-box {
-  border: 1.5px dashed #cfc3ad;
+  border: var(--bw) dashed var(--line-strong);
   background: #faf7f0;
 }
 .content-box__label {
@@ -541,7 +553,7 @@ onMounted(async () => {
   gap: 10px;
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1.5px dashed #d8cebb;
+  border-top: var(--bw) solid var(--line);
 }
 .appeal-compare {
   display: grid;

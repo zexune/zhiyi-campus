@@ -128,11 +128,13 @@ test('@system 真实前后端完成交易闭环，并在用户与管理界面呈
   await expect(page.getByText('用户总数', { exact: true })).toBeVisible()
   await expect(page.getByText('近 7 日交易趋势', { exact: false })).toBeVisible()
 
-  // 内容管理页四个运营工具卡（拆分后应完整渲染且互不影响；标题带 emoji 前缀）
-  await page.goto('/admin/manage')
-  const toolCards = page.locator('.tool-grid .tool-card')
-  await expect(toolCards).toHaveCount(4)
-  for (const title of ['强制下架商品', '强制重置密码', '用户封禁管理', '大事件专题']) {
-    await expect(toolCards.filter({ hasText: title }).first()).toBeVisible()
-  }
+  // 用户管理页（原内容管理拆分）：筛选区与表格行渲染，本旅程注册的买家/卖家应出现在表中
+  await page.goto('/admin/users')
+  await expect(page.getByText('用户管理', { exact: true })).toBeVisible()
+  await expect(page.getByPlaceholder('模糊搜索学号')).toBeVisible()
+  await expect(page.locator('.user-table tbody tr').first()).toBeVisible()
+
+  // 事件专题页保留原大事件专题卡片
+  await page.goto('/admin/topics')
+  await expect(page.getByText('大事件专题', { exact: true })).toBeVisible()
 })

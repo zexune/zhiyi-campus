@@ -24,6 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -182,6 +183,58 @@ class TradingSystemIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.totalUsers").value(initialUserCount + 2));
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("管理端用户列表支持学校精确与学号/昵称/邮箱/手机号模糊筛选，且不返回管理员账号")
+    void adminUserListFiltersBySchoolAndFuzzyKeywordFields() throws Exception {
+        Session probeA = register("22224101", "筛选探针甲");
+        register("22224102", "筛选探针乙");
+        jdbc.update("""
+                INSERT INTO sys_user
+                    (student_id, password, nickname, school_id, role, status, level, exp,
+                     wallet_balance, security_question, security_answer)
+                VALUES ('22224103', 'test-hash', '筛选探针丙', 2, 'USER', 'ACTIVE', 1, 0, 0, '测试问题', 'test-hash')
+                """);
+        jdbc.update("UPDATE sys_user SET school_email = 'probe@shu.edu.cn', phone = '13800001111' WHERE id = ?", probeA.id());
+
+        JsonNode adminLogin = body(mockMvc.perform(post("/api/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"123456\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andReturn());
+        String adminToken = adminLogin.required("data").required("token").stringValue();
+
+        // 学号模糊命中单条，并批量带出学校名称与联系方式
+        JsonNode byStudentId = adminSearchUsers(adminToken, Map.of("studentId", "22224101"));
+        assertEquals(1, byStudentId.required("data").required("total").asLong());
+        JsonNode records = byStudentId.required("data").required("records");
+        assertEquals(1, records.size());
+        JsonNode row = records.get(0);
+        assertEquals("筛选探针甲", row.required("nickname").stringValue());
+        assertEquals("上海大学", row.required("schoolName").stringValue());
+        assertEquals("probe@shu.edu.cn", row.required("schoolEmail").stringValue());
+
+        // 昵称模糊一次命中三条；邮箱/手机号模糊只命中补全过资料的探针甲
+        assertEquals(3, adminSearchUsers(adminToken, Map.of("nickname", "筛选探针")).required("data").required("total").asLong());
+        assertEquals(1, adminSearchUsers(adminToken, Map.of("email", "probe@")).required("data").required("total").asLong());
+        assertEquals(1, adminSearchUsers(adminToken, Map.of("phone", "1380000111")).required("data").required("total").asLong());
+        // 学校为精确筛选：schoolId=2 只剩探针丙，再叠加学号条件后为空交集
+        assertEquals(1, adminSearchUsers(adminToken, Map.of("schoolId", "2")).required("data").required("total").asLong());
+        assertEquals(0, adminSearchUsers(adminToken, Map.of("schoolId", "2", "studentId", "22224101")).required("data").required("total").asLong());
+        // 种子管理员（学号 admin）固定 role=ADMIN，不进入普通用户列表
+        assertEquals(0, adminSearchUsers(adminToken, Map.of("studentId", "admin")).required("data").required("total").asLong());
+    }
+
+    private JsonNode adminSearchUsers(String adminToken, Map<String, String> params) throws Exception {
+        var request = get("/api/admin/users").header(HttpHeaders.AUTHORIZATION, bearer(adminToken));
+        params.forEach(request::param);
+        return body(mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andReturn());
     }
 
     @Test

@@ -5,15 +5,16 @@
         <div>
           <h1 class="page-title">
             我的发布
-            <span class="stamp">MY POSTS</span>
           </h1>
-          <p class="muted">商品状态、内容审核与订单占用分别管理，避免互相混淆。</p>
         </div>
-        <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary">发布商品</router-link>
+        <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          发布商品
+        </router-link>
       </div>
 
-      <div class="status-tabs" aria-label="商品状态筛选">
-        <button v-for="tab in STATUS_TABS" :key="tab.value" class="btn btn--sm" :class="{ 'btn--dark': statusFilter === tab.value }" @click="handleStatusChange(tab.value)">{{ tab.label }}</button>
+      <div class="status-tabs seg-tabs" aria-label="商品状态筛选">
+        <button v-for="tab in STATUS_TABS" :key="tab.value" type="button" :class="{ active: statusFilter === tab.value }" @click="handleStatusChange(tab.value)">{{ tab.label }}</button>
       </div>
 
       <template v-if="items.length">
@@ -49,7 +50,7 @@
             </div>
 
             <div class="item-row__actions">
-              <router-link v-if="canEdit(item)" :to="ROUTE_PATH.editItem(item.id)" class="btn btn--sm btn--yellow edit-button">
+              <router-link v-if="canEdit(item)" :to="ROUTE_PATH.editItem(item.id)" class="btn btn--sm edit-button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
@@ -59,7 +60,7 @@
               <button v-if="canOffShelf(item)" class="btn btn--sm" :disabled="acting" @click="handleOffShelf(item)">下架</button>
               <button v-if="canRelist(item)" class="btn btn--sm btn--green" :disabled="acting" @click="handleRelist(item)">重新上架</button>
               <button v-if="item.appealable" class="btn btn--sm btn--primary" :disabled="acting" @click="openAppeal(item)">申诉</button>
-              <button v-if="canDelete(item)" class="btn btn--sm btn--danger" :disabled="acting" @click="handleDelete(item)">删除</button>
+              <button v-if="canDelete(item)" class="btn btn--sm btn-danger-soft" :disabled="acting" @click="handleDelete(item)">删除</button>
               <span v-if="!hasActions(item)" class="muted action-hint">当前不可操作</span>
             </div>
           </article>
@@ -68,11 +69,17 @@
         <el-pagination v-if="total > pageSize" v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchItems" />
       </template>
 
-      <div v-else class="card empty-card">
-        <p v-if="loadError" class="muted">{{ loadError }}</p>
+      <div v-else class="empty-state">
+        <p v-if="loadError">{{ loadError }}</p>
         <template v-else>
-          <p class="muted">该筛选条件下暂无商品</p>
-          <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary">去发布第一件闲置 →</router-link>
+          <span class="empty-state__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+            </svg>
+          </span>
+          <p>该筛选条件下暂无商品</p>
+          <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--primary">去发布第一件闲置</router-link>
         </template>
       </div>
 
@@ -82,7 +89,7 @@
             商品：
             <strong>{{ appealForm.item?.title }}</strong>
           </p>
-          <p class="muted">每次已确认的违规记录仅能申诉一次，请在确认违规后的 7 天内说明理由。申诉成功后会撤销本次扣分；不存在其他已确认违规时，商品将重新上架。</p>
+          <p class="muted">违规确认后 7 天内可申诉一次，成功后将撤销扣分并重新上架。</p>
           <el-input v-model="appealForm.reason" type="textarea" :rows="5" minlength="10" maxlength="500" show-word-limit placeholder="请填写 10-500 字的申诉理由" />
         </div>
         <template #footer>
@@ -281,11 +288,6 @@ onMounted(fetchItems)
 .page-head .muted {
   margin-top: 6px;
 }
-.status-tabs {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
 .item-list {
   display: flex;
   flex-direction: column;
@@ -301,7 +303,7 @@ onMounted(fetchItems)
 .item-row__thumb {
   width: 84px;
   height: 84px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   overflow: hidden;
 }
@@ -343,18 +345,14 @@ onMounted(fetchItems)
 .action-hint {
   font-size: 12px;
 }
+.page-head .btn .ic {
+  width: 16px;
+  height: 16px;
+}
 .appeal-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-.empty-card {
-  padding: 48px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
 }
 @media (max-width: 900px) {
   .item-row {
@@ -398,5 +396,15 @@ onMounted(fetchItems)
     grid-column: 2;
     grid-row: auto;
   }
+}
+.btn-danger-soft {
+  background: var(--white);
+  border-color: var(--red-bg);
+  color: var(--red-deep);
+}
+.btn-danger-soft:hover {
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red-deep);
 }
 </style>

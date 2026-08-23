@@ -11,12 +11,60 @@
         </router-link>
 
         <nav class="admin-nav" aria-label="管理后台导航">
-          <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD">数据大盘</router-link>
-          <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS">内容治理</router-link>
-          <router-link :to="ROUTE_PATH.ADMIN_CHAT">客服收件箱</router-link>
-          <router-link :to="ROUTE_PATH.ADMIN_MANAGE">用户与内容</router-link>
-          <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS">学校管理</router-link>
-          <router-link :to="ROUTE_PATH.ADMIN_CATEGORIES">分类管理</router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="9" rx="1.5" />
+              <rect x="14" y="3" width="7" height="5" rx="1.5" />
+              <rect x="14" y="12" width="7" height="9" rx="1.5" />
+              <rect x="3" y="16" width="7" height="5" rx="1.5" />
+            </svg>
+            数据大盘
+          </router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_VIOLATIONS">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3 2.5 20h19Z" />
+              <path d="M12 10v4M12 17.5h.01" />
+            </svg>
+            内容治理
+          </router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_CHAT">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+            </svg>
+            客服收件箱
+          </router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_USERS">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="8" r="3.5" />
+              <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
+              <circle cx="17.5" cy="9.5" r="2.5" />
+              <path d="M16 14.6c2.8-.4 5.5 1.5 5.5 4.4" />
+            </svg>
+            用户管理
+          </router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_TOPICS">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M16 3v4M8 3v4M3 10h18M12 15l1.2 2.4 2.6.4-1.9 1.8.5 2.6L12 21l-2.4 1.2.5-2.6-1.9-1.8 2.6-.4Z" />
+            </svg>
+            事件专题
+          </router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_SCHOOLS">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m4 6 8-4 8 4v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10Z" />
+              <path d="M9 12h6M12 9v6" />
+            </svg>
+            学校管理
+          </router-link>
+          <router-link :to="ROUTE_PATH.ADMIN_CATEGORIES">
+            <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+            分类管理
+          </router-link>
         </nav>
 
         <div class="admin-account">
@@ -29,7 +77,7 @@
 
     <main class="admin-main"><slot /></main>
 
-    <footer class="admin-footer">智易校园管理后台 · 管理员账号与校园用户空间已隔离</footer>
+    <footer class="admin-footer">智易校园管理后台</footer>
 
     <el-dialog v-model="passwordDialogVisible" title="修改管理员密码" width="min(440px, 92vw)" append-to-body>
       <form class="password-form" @submit.prevent="changePassword">
@@ -63,9 +111,10 @@ const passwordDialogVisible = ref(false)
 const passwordSaving = ref(false)
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 
-function logout() {
-  userStore.logout()
-  router.replace(ROUTE_PATH.ADMIN_LOGIN)
+/** 登出：必须等本地登录态清理完成后再导航，否则守卫仍视为已登录会把 /admin/login 弹回仪表盘 */
+async function logout() {
+  await userStore.logout()
+  await router.replace(ROUTE_PATH.ADMIN_LOGIN)
 }
 
 async function changePassword() {
@@ -99,15 +148,17 @@ async function changePassword() {
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: var(--bw) solid var(--ink);
-  background: var(--ink);
-  color: var(--white);
+  border-bottom: var(--bw) solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--ink);
 }
 .admin-header__inner {
   width: min(1440px, 100%);
-  min-height: 68px;
+  min-height: 60px;
   margin: 0 auto;
-  padding: 10px 22px;
+  padding: 8px 22px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -115,27 +166,28 @@ async function changePassword() {
 .admin-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: var(--white);
-  font-family: var(--font-display);
-  font-size: 19px;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
   white-space: nowrap;
 }
 .admin-brand__mark {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border: 2px solid var(--white);
-  border-radius: 9px;
+  border-radius: var(--r-s);
   background: var(--primary);
-  box-shadow: 3px 3px 0 var(--yellow);
+  color: #fff;
+  font-size: 16px;
 }
 .admin-brand small {
   display: block;
-  color: var(--yellow);
+  color: var(--ink-soft);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 2px;
 }
 .admin-nav {
@@ -143,24 +195,37 @@ async function changePassword() {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   overflow-x: auto;
   scrollbar-width: thin;
 }
 .admin-nav a {
   flex: 0 0 auto;
-  padding: 8px 11px;
-  border: 1.5px solid transparent;
-  border-radius: 8px;
-  color: #ede8de;
-  font-size: 13px;
-  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--r-s);
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
 }
-.admin-nav a:hover,
-.admin-nav a.router-link-active {
-  border-color: var(--white);
-  background: var(--yellow);
+.an-ic {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+.admin-nav a:hover {
+  background: var(--paper-deep);
   color: var(--ink);
+}
+.admin-nav a.router-link-active {
+  background: var(--primary-bg);
+  color: var(--primary-deep);
+  font-weight: 600;
 }
 .admin-account {
   display: flex;
@@ -173,7 +238,8 @@ async function changePassword() {
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
+  color: var(--ink-soft);
 }
 .admin-main {
   width: min(1200px, 100%);
@@ -182,9 +248,9 @@ async function changePassword() {
   padding: var(--spacing-lg) 20px;
 }
 .admin-footer {
-  padding: 22px;
-  border-top: 1.5px solid #d8cebb;
-  color: var(--ink-soft);
+  padding: 20px;
+  border-top: var(--bw) solid var(--line);
+  color: var(--ink-faint);
   text-align: center;
   font-size: 12px;
 }
@@ -195,7 +261,7 @@ async function changePassword() {
 .password-form label {
   margin-top: 8px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
 }
 .password-actions {
   display: flex;

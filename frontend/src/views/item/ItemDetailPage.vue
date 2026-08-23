@@ -5,8 +5,6 @@
         <router-link :to="ROUTE_PATH.HOME">交易大厅</router-link>
         <span>/</span>
         <button v-if="item?.categoryName" class="crumb-link" @click="goTag(item.categoryName)">{{ item.categoryName }}</button>
-        <span v-if="item?.categoryName">/</span>
-        <span>商品详情</span>
       </nav>
 
       <el-skeleton v-if="loading" :rows="10" animated />
@@ -51,7 +49,7 @@
                 <div v-if="item.tags?.length" class="item-tags">
                   <button v-for="tag in item.tags" :key="tag" class="tag" @click="goTag(tag)">{{ tag }}</button>
                 </div>
-                <span v-else>暂无标签</span>
+                <span v-else class="muted">暂无标签</span>
               </div>
               <div v-if="item.type !== ITEM_TYPE.ERRAND" class="meta-row">
                 <span class="lab">交易地点</span>
@@ -65,9 +63,20 @@
                 <span class="lab">发布时间</span>
                 <span>{{ formatDateTime(item.createdAt) }}</span>
               </div>
-              <div class="meta-row">
-                <span class="lab">浏览 / 收藏</span>
-                <span>{{ item.viewCount || 0 }} 次浏览 · {{ favoriteCount }} 人收藏</span>
+              <div class="meta-row stat-row" aria-label="浏览与收藏数">
+                <span class="stat-chip" title="浏览次数">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  {{ item.viewCount || 0 }}
+                </span>
+                <span class="stat-chip" title="收藏人数">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
+                  </svg>
+                  {{ favoriteCount }}
+                </span>
               </div>
             </div>
 
@@ -88,7 +97,7 @@
               </div>
               <button class="btn btn--sm seller-card__detail" type="button" @click="openSellerDetail">
                 查看详情
-                <span aria-hidden="true">↗</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8" /></svg>
               </button>
             </div>
 
@@ -118,13 +127,11 @@
                 <button v-if="item.type === ITEM_TYPE.SELL" class="btn btn--primary" :disabled="!isTradable || buyLoading" @click="handleBuy">
                   {{ buyLoading ? '下单中...' : '立即购买' }}
                 </button>
-                <button class="btn btn--danger" :disabled="reportForm.submitting" @click="openReportDialog">举报</button>
+                <button class="btn btn--danger btn--icon" :disabled="reportForm.submitting" title="举报商品" aria-label="举报商品" @click="openReportDialog">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2.5 4L17 12H4" /></svg>
+                </button>
               </template>
             </div>
-            <p class="muted escrow-note">
-              <template v-if="item.type === ITEM_TYPE.BUY">点击「我要出售」与发布者联系，双方沟通后确认交易细节</template>
-              <template v-else>点击「立即购买」后货款将由平台托管，当面验货满意再确认收货</template>
-            </p>
           </div>
         </section>
 
@@ -138,9 +145,7 @@
               </svg>
             </span>
             <div>
-              <small>BOOK LINEAGE</small>
               <h2 id="lineage-title">教材传承时间轴</h2>
-              <p>一本书在校园里的每次交接，都值得被记住。</p>
             </div>
           </div>
 
@@ -164,8 +169,14 @@
         </section>
       </template>
 
-      <div v-else class="empty-panel">
-        <p class="muted">商品不存在或已被删除</p>
+      <div v-else class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+          </svg>
+        </span>
+        <p>商品不存在或已被删除</p>
         <router-link :to="ROUTE_PATH.HOME" class="btn btn--primary">回到大厅</router-link>
       </div>
 
@@ -181,7 +192,6 @@
 
       <el-dialog v-model="reportForm.visible" title="举报商品" width="min(520px, 92vw)" :close-on-click-modal="!reportForm.submitting">
         <div class="report-form">
-          <p class="muted">举报不会自动下架商品，管理员核实后再处理，防止恶意举报影响正常交易。</p>
           <label>
             <span>举报类型</span>
             <AppSelect v-model="reportForm.type" :options="REPORT_TYPE_OPTIONS" />
@@ -529,7 +539,7 @@ onMounted(() => {
 .gallery__main {
   position: relative;
   aspect-ratio: 1 / 1;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-l);
   box-shadow: var(--shadow-m);
   display: grid;
@@ -555,19 +565,19 @@ onMounted(() => {
   translate: 0 -50%;
   width: 40px;
   height: 40px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   background: var(--white);
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   font-size: 26px;
   line-height: 1;
 }
 
 .gallery__nav:hover {
-  background: var(--yellow);
+  background: var(--paper-deep);
 }
 
 .gallery__nav--prev {
@@ -599,13 +609,13 @@ onMounted(() => {
 .th {
   width: 68px;
   height: 68px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   overflow: hidden;
   background: var(--paper-deep);
   cursor: pointer;
   opacity: 0.55;
-  transition: all 0.15s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .th:hover {
@@ -614,8 +624,7 @@ onMounted(() => {
 
 .th.active {
   opacity: 1;
-  box-shadow: 3px 3px 0 var(--ink);
-  transform: translate(-1px, -1px);
+  border-color: var(--primary);
 }
 
 .th img {
@@ -631,8 +640,8 @@ onMounted(() => {
 }
 
 .info-head h1 {
-  font-size: 26px;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 700;
   line-height: 1.4;
   flex: 1;
 }
@@ -645,7 +654,7 @@ onMounted(() => {
   gap: 16px;
   flex-wrap: wrap;
   background: var(--white);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }
@@ -655,10 +664,9 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--green-deep);
-  background: #d6f2df;
-  border: 1.5px solid var(--green);
+  background: var(--green-bg);
   padding: 4px 12px;
   border-radius: 999px;
 }
@@ -691,12 +699,11 @@ onMounted(() => {
 .reservation-note {
   margin: -8px 0 18px;
   padding: 10px 14px;
-  border: 1.5px solid #c88719;
   border-radius: var(--r-s);
-  background: #fff4ce;
-  color: #6a4700;
+  background: var(--yellow-bg);
+  color: #8a5a00;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .report-form {
@@ -708,7 +715,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .seller-card {
@@ -717,7 +724,7 @@ onMounted(() => {
   gap: 14px;
   padding: 16px 18px;
   margin: 22px 0;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--paper-deep);
 }
@@ -728,7 +735,7 @@ onMounted(() => {
 }
 
 .seller-card__name {
-  font-weight: 900;
+  font-weight: 700;
   font-size: 16px;
   display: flex;
   align-items: center;
@@ -737,28 +744,25 @@ onMounted(() => {
 }
 
 .seller-card__relation-tag {
-  padding: 3px 9px;
-  color: var(--ink);
-  background: var(--yellow);
-  border: 1.5px solid var(--ink);
+  padding: 2px 9px;
+  color: #8a5a00;
+  background: var(--yellow-bg);
   border-radius: 999px;
-  box-shadow: 1px 1px 0 var(--ink);
   font-size: 11.5px;
-  font-weight: 900;
-  line-height: 1.3;
+  font-weight: 600;
+  line-height: 1.6;
 }
 
 .seller-card__verified {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  border: 1.5px solid var(--ink);
-  border-radius: 6px;
-  background: #d6f2df;
-  box-shadow: 1px 1px 0 var(--ink);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--green-bg);
+  color: var(--green-deep);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .seller-card__verified svg {
@@ -767,11 +771,11 @@ onMounted(() => {
 }
 
 .seller-card__relation-tag:nth-of-type(3n + 2) {
-  background: #dceeff;
+  background: var(--blue-bg);
 }
 
 .seller-card__relation-tag:nth-of-type(3n) {
-  background: #d6f2df;
+  background: var(--green-bg);
 }
 
 .seller-card__detail {
@@ -786,7 +790,7 @@ onMounted(() => {
 .lineage-section {
   margin-top: 28px;
   padding: 22px 24px 26px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--white);
   box-shadow: var(--shadow-m);
@@ -797,39 +801,29 @@ onMounted(() => {
   align-items: center;
   gap: 14px;
   padding-bottom: 18px;
-  border-bottom: 1.5px dashed #d8cebb;
+  border-bottom: var(--bw) solid var(--line);
 }
 
 .lineage-section__icon {
-  width: 50px;
-  height: 50px;
-  flex: 0 0 50px;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-s);
-  background: var(--yellow);
-  box-shadow: 3px 3px 0 var(--ink);
-  transform: rotate(-4deg);
+  border-radius: var(--r-m);
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-s);
+
 }
 
 .lineage-section__icon svg {
   width: 27px;
   height: 27px;
 }
-.lineage-section__head small {
-  color: var(--primary);
-  font-size: 10.5px;
-  font-weight: 900;
-}
 .lineage-section__head h2 {
-  font-family: var(--font-display);
-  font-size: 24px;
-}
-.lineage-section__head p {
-  margin-top: 2px;
-  color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .lineage-timeline {
@@ -853,7 +847,7 @@ onMounted(() => {
   top: 17px;
   left: 34px;
   right: 0;
-  border-top: 2px dashed var(--ink);
+  border-top: var(--bw) solid var(--line);
 }
 
 .lineage-timeline__dot {
@@ -863,10 +857,10 @@ onMounted(() => {
   height: 34px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   background: var(--yellow);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   font-family: var(--font-display);
 }
 
@@ -884,7 +878,7 @@ onMounted(() => {
 }
 .lineage-timeline__content span {
   padding: 2px 6px;
-  border: 1px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 5px;
   background: var(--paper-deep);
   font-size: 10px;
@@ -927,21 +921,36 @@ onMounted(() => {
   min-width: 150px;
 }
 
-.escrow-note {
-  font-size: 12.5px;
-  margin-top: 12px;
+/* 图标型举报按钮：不随操作主按钮拉伸 */
+.action-bar .btn--icon {
+  flex: 0 0 48px;
+  min-width: 48px;
+  padding: 10px 0;
+}
+.action-bar .btn--icon svg {
+  width: 19px;
+  height: 19px;
 }
 
-.empty-panel {
-  min-height: 280px;
-  display: grid;
-  place-items: center;
-  justify-content: center;
-  gap: var(--spacing-md);
-  background: var(--white);
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-m);
-  box-shadow: var(--shadow-m);
+/* 浏览 / 收藏数据小胶囊 */
+.stat-row {
+  gap: 8px;
+}
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 11px;
+  border: var(--bw) solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.stat-chip svg {
+  width: 14px;
+  height: 14px;
 }
 
 @media (max-width: 860px) {

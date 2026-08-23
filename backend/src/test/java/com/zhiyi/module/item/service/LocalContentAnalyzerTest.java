@@ -5,6 +5,7 @@ import com.zhiyi.module.item.entity.Category;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -63,6 +64,51 @@ class LocalContentAnalyzerTest {
         dto.setDescription("正常描述");
         dto.setPrice(price);
         return dto;
+    }
+
+    @Test
+    void sanitizesUserTagsWithNormalizationAndCap() {
+        LocalContentAnalyzer.TagCheck check = analyzer.sanitizeUserTags(
+                List.of(" 95新 ", "95XIN", "", "a", "可小刀", "可小刀"));
+
+        assertFalse(check.risky());
+        // 空白 trim、忽略大小写去重（保留首次出现的原始写法）、过短（<2字）剔除
+        assertEquals(List.of("95新", "95XIN", "可小刀"), check.tags());
+    }
+
+    @Test
+    void capsUserTagsAtSix() {
+        LocalContentAnalyzer.TagCheck check = analyzer.sanitizeUserTags(
+                List.of("标签一", "标签二", "标签三", "标签四", "标签五", "标签六", "标签七", "标签八"));
+
+        assertEquals(6, check.tags().size());
+    }
+
+    @Test
+    void flagsRiskyUserTagsAndWithholdsThem() {
+        LocalContentAnalyzer.TagCheck check = analyzer.sanitizeUserTags(List.of("代写数学作业"));
+
+        assertTrue(check.risky());
+        assertTrue(check.tags().isEmpty());
+        assertTrue(check.matchedRules().contains("ACADEMIC_MISCONDUCT"));
+        assertTrue(check.reason().contains("标签"));
+    }
+
+    @Test
+    void nullUserTagsMeansNotProvided() {
+        LocalContentAnalyzer.TagCheck check = analyzer.sanitizeUserTags(null);
+
+        assertFalse(check.risky());
+        assertTrue(check.tags().isEmpty());
+    }
+
+    @Test
+    void suggestsTagsFromTitleAndCategoryWithoutPersisting() {
+        List<String> suggestions = analyzer.suggestTags("99新 iPad 平板", category());
+
+        assertFalse(suggestions.isEmpty());
+        assertTrue(suggestions.contains("数码电子"));
+        assertTrue(suggestions.contains("iPad"));
     }
 
     private Category category() {

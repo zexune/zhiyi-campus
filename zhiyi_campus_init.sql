@@ -162,7 +162,7 @@ CREATE TABLE event_topic (
     end_time DATETIME NOT NULL COMMENT '结束时间',
     filter_type VARCHAR(10) DEFAULT NULL COMMENT '商品类型筛选',
     filter_category_id BIGINT DEFAULT NULL COMMENT '分类筛选',
-    filter_tag VARCHAR(50) DEFAULT NULL COMMENT '商品标签筛选',
+    filter_tags JSON DEFAULT NULL COMMENT '商品标签筛选（JSON数组，任一命中即属于专题）',
     banner_text VARCHAR(255) NOT NULL COMMENT 'Banner文案',
     enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
     created_by BIGINT NOT NULL COMMENT '创建管理员',

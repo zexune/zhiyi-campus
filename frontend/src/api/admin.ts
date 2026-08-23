@@ -8,7 +8,6 @@ import type {
   Conversation,
   DashboardStats,
   EventTopic,
-  Item,
   ItemLineage,
   PageQuery,
   PageResult,
@@ -40,10 +39,14 @@ export interface ConfirmViolationPayload {
   handleNote: string | null
 }
 
-export interface SearchUsersQuery {
-  keyword: string
-  page: number
-  size: number
+export interface AdminUserQuery extends PageQuery {
+  /** 学校精确匹配；不传查全部学校 */
+  schoolId?: number | null
+  /** 以下字段均为模糊搜索 */
+  studentId?: string
+  nickname?: string
+  email?: string
+  phone?: string
 }
 
 export interface BanUserPayload {
@@ -51,13 +54,6 @@ export interface BanUserPayload {
   type: string
   reason: string
   banDays: number | null
-}
-
-export interface SearchAdminItemsQuery {
-  keyword: string
-  status?: string
-  page: number
-  size: number
 }
 
 export interface SchoolPayload {
@@ -79,7 +75,8 @@ export interface EventTopicPayload {
   endTime: string
   filterType: string | null
   filterCategoryId: number | null
-  filterTag: string | null
+  /** 商品标签筛选：零到多个，任一命中即属于专题 */
+  filterTags: string[] | null
   bannerText: string
   enabled: boolean
 }
@@ -126,8 +123,8 @@ export function rejectAppeal(id: number, data: { handleNote: string | null }) {
   return request.put<void>(`/admin/appeals/${id}/reject`, data)
 }
 
-/** 用户搜索（封禁弹窗选人） */
-export function searchUsers(params: SearchUsersQuery) {
+/** 管理端用户列表：学校精确 + 学号/昵称/邮箱/手机号模糊搜索 */
+export function searchAdminUsers(params: AdminUserQuery) {
   return request.get<PageResult<AdminUser>>('/admin/users', { params })
 }
 
@@ -146,11 +143,6 @@ export function unbanUser(data: { userId: number }) {
   return request.post<void>('/admin/unban-user', data)
 }
 
-/** 管理员商品检索（4.7 强制下架前选择商品用） */
-export function searchAdminItems(params: SearchAdminItemsQuery) {
-  return request.get<PageResult<Item>>('/admin/items', { params })
-}
-
 /** 交易热力图（D5） */
 export function getTradeHeatmap(schoolId?: number | null) {
   return request.get<TradeHeatEntry[]>('/admin/trade-heatmap', { params: schoolId ? { schoolId } : {} })
@@ -162,9 +154,12 @@ export function getItemLineage(itemId: number, schoolId?: number | null) {
   return request.get<ItemLineage>(`/admin/item/${itemId}/lineage`, { params })
 }
 
-/** 强制下架商品 */
-export function forceOffShelf(itemId: number) {
-  return request.put<void>(`/admin/item/${itemId}/force-off-shelf`)
+/** 标签建议（管理端）：按专题名称生成候选，仅供选择，不落库 */
+export function getAdminItemTagSuggestions(title: string, categoryId?: number | null) {
+  return request.post<string[]>('/admin/item/tag-suggestions', {
+    title,
+    categoryId: categoryId ?? null
+  })
 }
 
 /** 强制重置密码 */

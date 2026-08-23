@@ -13,13 +13,29 @@
 
     <main class="login-main">
       <section class="login-copy">
-        <span class="eyebrow">ADMIN CONSOLE</span>
-        <h1>独立管理入口</h1>
+        <span class="login-copy__mark" aria-hidden="true">智</span>
+        <div>
+          <h1>智易校园 · 管理后台</h1>
+          <p>仅限授权运营人员使用</p>
+          <ul class="login-scope" aria-label="后台能力范围">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19Z" /><path d="M12 10v4M12 17.5h.01" /></svg>
+              内容审核
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>
+              用户风控
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>
+              数据看板
+            </li>
+          </ul>
+        </div>
       </section>
 
       <section class="card login-card" aria-labelledby="admin-login-title">
         <h2 id="admin-login-title">管理员登录</h2>
-        <p class="muted">请输入后台账号和密码</p>
         <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="submit">
           <el-form-item prop="username" class="field">
             <label for="admin-username">管理员账号</label>
@@ -39,12 +55,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminLogin } from '@/api/admin'
 import { useUserStore } from '@/stores/user'
 import { ROUTE_PATH } from '@/constants/routes'
 import { validateForm } from '@/utils/formValidate'
+import { resetAuthRedirect } from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,6 +74,11 @@ const rules = {
   username: [{ required: true, message: '请输入管理员账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
+
+// 登录页挂载：解除 401 单飞跳转标记
+onMounted(() => {
+  resetAuthRedirect()
+})
 
 async function submit() {
   const valid = await validateForm(formRef)
@@ -80,83 +102,123 @@ async function submit() {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, var(--ink) 0 46%, var(--paper) 46% 100%);
+  background: linear-gradient(180deg, #f1ece1 0%, var(--paper) 60%);
 }
 .login-header {
-  min-height: 72px;
-  padding: 14px max(22px, calc((100vw - 1200px) / 2));
+  min-height: 60px;
+  padding: 10px max(22px, calc((100vw - 1200px) / 2));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  border-bottom: 2px solid var(--ink);
-  background: var(--white);
+  border-bottom: var(--bw) solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
 }
 .admin-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 17px;
+  font-weight: 800;
 }
 .admin-brand__mark {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
+  border-radius: var(--r-s);
   background: var(--primary);
   color: var(--white);
-  box-shadow: 3px 3px 0 var(--ink);
+  font-size: 16px;
 }
 .admin-brand small {
   display: block;
-  color: var(--primary);
-  font-size: 10px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 2px;
 }
 .user-login {
-  color: var(--blue);
-  font-size: 13px;
-  font-weight: 800;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+.user-login:hover {
+  color: var(--primary);
 }
 .login-main {
-  width: min(1080px, calc(100% - 40px));
+  width: min(1000px, calc(100% - 40px));
   flex: 1;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr minmax(320px, 420px);
+  grid-template-columns: 1fr minmax(320px, 400px);
   align-items: center;
-  gap: 80px;
+  gap: 72px;
   padding: 64px 0;
 }
 .login-copy {
-  color: var(--white);
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
 }
-.eyebrow {
-  display: inline-block;
-  margin-bottom: 14px;
-  color: var(--yellow);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 3px;
+.login-copy__mark {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-l);
+  background: var(--primary);
+  color: var(--white);
+  font-size: 27px;
+  font-weight: 700;
+  box-shadow: var(--shadow-m);
 }
 .login-copy h1 {
-  font-family: var(--font-display);
-  font-size: clamp(42px, 6vw, 72px);
-  line-height: 1;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+.login-copy p {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 14.5px;
+}
+.login-scope {
+  margin-top: 22px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.login-scope li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: var(--bw) solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+}
+.login-scope li svg {
+  width: 15px;
+  height: 15px;
+  color: var(--primary);
 }
 .login-card {
-  padding: 34px;
-  box-shadow: 8px 8px 0 var(--primary);
+  padding: 32px;
+  box-shadow: var(--shadow-m);
 }
 .login-card h2 {
-  font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
 }
 .login-card > .muted {
   margin: 6px 0 24px;
@@ -180,22 +242,22 @@ async function submit() {
   display: block;
   margin-bottom: 7px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
 }
 @media (max-width: 760px) {
-  .admin-login-page {
-    background: var(--paper);
-  }
   .login-main {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 32px;
     padding: 36px 0;
   }
-  .login-copy {
-    color: var(--ink);
+  .login-copy__mark {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-m);
+    font-size: 21px;
   }
-  .eyebrow {
-    color: var(--primary);
+  .login-copy h1 {
+    font-size: 22px;
   }
 }
 @media (max-width: 480px) {
@@ -210,7 +272,6 @@ async function submit() {
   }
   .login-card {
     padding: 26px 20px;
-    box-shadow: 5px 5px 0 var(--primary);
   }
 }
 </style>

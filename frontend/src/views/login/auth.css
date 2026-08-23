@@ -60,12 +60,6 @@
 .reg-hint {
   margin: 0 0 16px;
 }
-.field label .opt {
-  color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 12px;
-  margin-left: 6px;
-}
 
 /* 密码强度条 */
 .pw-strength {
@@ -77,12 +71,12 @@
   height: 6px;
   flex: 1;
   border-radius: 3px;
-  background: #e8e0cf;
-  border: 1px solid #d8cdb6;
+  background: var(--paper-deep);
+  border: var(--bw) solid var(--line);
 }
 .pw-strength i.on {
   background: var(--green);
-  border-color: var(--ink);
+  border-color: var(--green-deep);
 }
 
 .reg-actions {
@@ -130,7 +124,7 @@
 .random-btn {
   flex-shrink: 0;
   padding: 10px 14px;
-  background: var(--yellow);
+  background: var(--primary-bg);
 }
 .random-btn .icon {
   width: 17px;
@@ -139,7 +133,7 @@
 
 .form-foot {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin: 4px 0 18px;
   font-size: 13.5px;
@@ -186,7 +180,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   display: grid;
   place-items: center;
   font-size: 13px;
@@ -200,13 +194,13 @@
   color: var(--ink);
 }
 .step.current .step__no {
-  background: var(--yellow);
-  box-shadow: 2px 2px 0 var(--ink);
+  background: var(--primary-bg);
+  box-shadow: var(--shadow-s);
 }
 .step-line {
   flex: 1;
   height: 2px;
-  background: var(--ink);
+  background: var(--line-strong);
   opacity: 0.25;
   min-width: 14px;
 }
@@ -214,7 +208,7 @@
 /* 密保问题展示框 */
 .question-box {
   background: var(--paper-deep);
-  border: 1.5px dashed var(--ink);
+  border: var(--bw) dashed var(--line-strong);
   border-radius: var(--r-s);
   padding: 13px 16px;
   font-size: 15px;
@@ -235,13 +229,13 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  background: #fdebeb;
+  background: var(--red-bg);
   border: var(--bw) solid var(--red);
   border-radius: var(--r-s);
   padding: 13px 15px;
   font-size: 13.5px;
   margin-top: 20px;
-  color: #8c1d1d;
+  color: var(--red-deep);
 }
 .banned-tip svg {
   width: 20px;

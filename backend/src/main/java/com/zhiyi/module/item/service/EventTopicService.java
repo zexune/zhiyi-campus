@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Service
@@ -43,7 +44,7 @@ public class EventTopicService {
         topic.setEndTime(dto.getEndTime());
         topic.setFilterType(trimToNull(dto.getFilterType()));
         topic.setFilterCategoryId(dto.getFilterCategoryId());
-        topic.setFilterTag(trimToNull(dto.getFilterTag()));
+        topic.setFilterTags(normalizeTags(dto.getFilterTags()));
         topic.setBannerText(dto.getBannerText().trim());
         topic.setEnabled(dto.getEnabled());
         if (id == null) {
@@ -51,6 +52,21 @@ public class EventTopicService {
             topicMapper.insert(topic);
         } else topicMapper.updateById(topic);
         return topic;
+    }
+
+    /** 筛选标签规范化：trim、去重（忽略大小写）、限量 6 个；全空存 null */
+    private List<String> normalizeTags(List<String> raw) {
+        if (raw == null || raw.isEmpty()) return null;
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String tag : raw) {
+            if (!StringUtils.hasText(tag)) continue;
+            String trimmed = tag.trim();
+            if (trimmed.length() < 2 || trimmed.length() > 12) continue;
+            boolean duplicated = unique.stream().anyMatch(t -> t.equalsIgnoreCase(trimmed));
+            if (!duplicated) unique.add(trimmed);
+            if (unique.size() >= 6) break;
+        }
+        return unique.isEmpty() ? null : List.copyOf(unique);
     }
 
     @Transactional

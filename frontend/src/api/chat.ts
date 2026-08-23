@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { AxiosRequestConfig } from 'axios'
 import type { ChatMessage, ChatStartResult, ChatThread, Conversation } from '@/types/models'
 
 export interface ChatMessagesQuery {
@@ -35,8 +36,8 @@ export function sendChatMessage(data: SendChatPayload) {
   return request.post<ChatMessage>('/chat/send', data)
 }
 
-export function getUnreadCount() {
-  return request.get<number>('/chat/unread-count')
+export function getUnreadCount(config?: AxiosRequestConfig) {
+  return request.get<number>('/chat/unread-count', config)
 }
 
 export function getUnreadMessages(params: { conversationId?: string }) {

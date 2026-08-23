@@ -3,13 +3,12 @@
     <div class="profile-page">
       <h1 class="page-title">
         个人中心
-        <span class="stamp">MY PAGE</span>
       </h1>
 
       <div v-if="user" class="profile-grid">
         <!-- 左：身份卡 + 经验记录 -->
         <div class="left-col">
-          <section class="card id-card sticker-tilt">
+          <section class="card id-card">
             <div class="id-card__head">
               <UserAvatar :nickname="user.nickname" :user-id="user.id" size="l" />
               <div>
@@ -19,13 +18,17 @@
                 </div>
                 <div class="muted">学号：{{ user.studentId }}</div>
                 <div class="school-line">
-                  <span class="muted">🏫 {{ user.schoolName || '未选择学校' }}</span>
+                  <span class="muted">
+                    <svg class="school-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m4 6 8-4 8 4v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10Z" />
+                      <path d="M9 13h6M12 10v6" />
+                    </svg>
+                    {{ user.schoolName || '未选择学校' }}
+                  </span>
                 </div>
                 <div class="muted">注册于 {{ formatDateTime(user.createdAt) }}</div>
               </div>
             </div>
-
-            <hr class="doodle-hr" />
 
             <!-- 等级进度条（需求 1.5 个人主页展示） -->
             <div class="level-progress">
@@ -37,10 +40,8 @@
               <div class="level-progress__track">
                 <div class="level-progress__fill" :style="{ width: progressPercent + '%' }"></div>
               </div>
-              <p class="hint">完成一笔订单（买/卖）+50 EXP；内容违规仅影响独立的合规分</p>
+              <p class="hint">完成订单 +50 EXP</p>
             </div>
-
-            <hr class="doodle-hr" />
 
             <div class="wallet-line">
               <span>钱包余额</span>
@@ -90,15 +91,12 @@
                 <AppSelect id="p-school" v-model="editForm.schoolId" :options="schoolOptions" placeholder="请选择你当前就读的学校" aria-label="所属学校" />
               </div>
               <div class="field">
-                <label for="p-email">
-                  学校邮箱
-                  <span class="opt">选填</span>
-                </label>
+                <label for="p-email">学校邮箱</label>
                 <input id="p-email" v-model.trim="editForm.schoolEmail" class="input" type="email" :placeholder="schoolEmailPlaceholder" autocomplete="email" />
               </div>
               <div class="field">
                 <label for="p-phone">手机号</label>
-                <input id="p-phone" v-model.trim="editForm.phone" class="input" type="tel" placeholder="选填，仅用于接收通知" />
+                <input id="p-phone" v-model.trim="editForm.phone" class="input" type="tel" placeholder="仅用于接收通知" />
               </div>
               <div class="field-row">
                 <div class="field">
@@ -161,13 +159,11 @@
               </form>
             </div>
 
-            <hr class="doodle-hr" />
-
             <div class="sec-block">
               <div class="sec-block__head">
                 <div>
                   <b class="danger-text">注销账号</b>
-                  <p class="hint">注销后无法登录，学号保留占用；如需恢复请联系管理员。有进行中的订单时无法注销，在售商品将自动下架。</p>
+                  <p class="hint">注销后学号将被占用且无法恢复；在售商品将自动下架。</p>
                 </div>
                 <button class="btn btn--sm btn--danger" @click="openCancel">注销</button>
               </div>
@@ -190,7 +186,7 @@
         :close-on-press-escape="!cancelling"
       >
         <p class="cancel-warn">
-          ⚠️ 此操作不可自助恢复：注销后立即退出登录，无法再使用该账号交易。
+          此操作不可自助恢复：注销后立即退出登录，无法再使用该账号交易。
           <br />
           钱包余额
           <b>¥{{ user?.walletBalance ?? 0 }}</b>
@@ -363,7 +359,8 @@ async function handleChangePassword() {
   try {
     await changePassword({ ...pwForm })
     ElMessage.success('密码修改成功，请重新登录')
-    userStore.logout()
+    // 等本地登录态清理完成后再导航，避免守卫读到残留登录态
+    await userStore.logout()
     router.push(ROUTE_PATH.LOGIN)
   } catch {
     /* 提示由 request.js 处理 */
@@ -388,7 +385,8 @@ async function handleCancelAccount() {
     await cancelAccount({ password: cancelPassword.value })
     ElMessage.success('账号已注销，感谢使用智易校园')
     cancelVisible.value = false
-    userStore.logout()
+    // 等本地登录态清理完成后再导航，避免守卫读到残留登录态
+    await userStore.logout()
     router.push(ROUTE_PATH.LOGIN)
   } catch {
     /* 提示由 request.js 处理 */
@@ -483,7 +481,7 @@ onMounted(async () => {
 }
 .level-progress__track {
   height: 14px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 999px;
   background: var(--paper-deep);
   overflow: hidden;
@@ -536,7 +534,7 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border: 1.5px dashed var(--ink-soft);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--paper-deep);
   font-size: 14px;
@@ -582,7 +580,7 @@ onMounted(async () => {
 .sec-form {
   margin-top: 14px;
   padding: 16px;
-  border: 1.5px dashed var(--ink-soft);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--paper-deep);
 }
@@ -597,11 +595,10 @@ onMounted(async () => {
   gap: 8px;
   flex-wrap: wrap;
 }
-.field label .opt {
-  color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 12px;
-  margin-left: 6px;
+.school-ic {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
 }
 
 .field-row {

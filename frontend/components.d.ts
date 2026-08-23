@@ -38,6 +38,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SellerDetailDialog: typeof import('./src/components/user/SellerDetailDialog.vue')['default']
+    TagInput: typeof import('./src/components/common/TagInput.vue')['default']
     TagList: typeof import('./src/components/common/TagList.vue')['default']
     UserAvatar: typeof import('./src/components/common/UserAvatar.vue')['default']
     WipPage: typeof import('./src/components/common/WipPage.vue')['default']

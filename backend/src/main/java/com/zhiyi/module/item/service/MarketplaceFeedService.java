@@ -112,10 +112,24 @@ public class MarketplaceFeedService {
                 throw new BusinessException(ResultCode.BAD_REQUEST, "商品类型不合法");
             }
         }
-        if (StringUtils.hasText(criteria.tag())) {
-            String normalized = criteria.tag().trim().toLowerCase(Locale.ROOT);
-            wrapper.apply("EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id = it.tag_id "
-                    + "WHERE it.item_id = item.id AND t.normalized_name = {0})", normalized);
+        if (criteria.tags() != null && !criteria.tags().isEmpty()) {
+            // 多标签 OR 语义：任一命中即入选；规范化去重后用参数化 IN 一次匹配
+            List<String> normalized = criteria.tags().stream()
+                    .filter(StringUtils::hasText)
+                    .map(t -> t.trim().toLowerCase(Locale.ROOT))
+                    .distinct()
+                    .toList();
+            if (!normalized.isEmpty()) {
+                // apply 的占位符语法为 {0},{1}...，与 varargs 一一对应
+                StringBuilder placeholders = new StringBuilder();
+                for (int i = 0; i < normalized.size(); i++) {
+                    if (i > 0) placeholders.append(',');
+                    placeholders.append('{').append(i).append('}');
+                }
+                wrapper.apply("EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id = it.tag_id "
+                        + "WHERE it.item_id = item.id AND t.normalized_name IN ("
+                        + placeholders + "))", normalized.toArray());
+            }
         }
         applyTier(wrapper, tier, viewer);
         applySort(wrapper, sort);
@@ -202,7 +216,7 @@ public class MarketplaceFeedService {
                            BigDecimal maxPrice,
                            String sort,
                            String type,
-                           String tag) {
+                           List<String> tags) {
     }
 
     private record TierCount(FeedTier tier, long count) {

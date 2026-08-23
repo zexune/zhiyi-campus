@@ -3,29 +3,6 @@
     <div class="home-page">
       <section class="hero">
         <div class="hero__inner">
-          <div class="float-sticker fs-1" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 18V5l12-2v13" />
-              <circle cx="6" cy="18" r="3" />
-              <circle cx="18" cy="16" r="3" />
-            </svg>
-            吉他 ¥260
-          </div>
-          <div class="float-sticker fs-2" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#3B7BD8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="3" width="16" height="18" rx="2" />
-              <path d="M8 7h8M8 11h8M8 15h5" />
-            </svg>
-            高数教材 ¥15
-          </div>
-          <div class="float-sticker fs-3" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#26221C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="2" width="14" height="20" rx="2" />
-              <path d="M12 18h.01" />
-            </svg>
-            iPad Air5 ¥2000
-          </div>
-
           <h1 class="rise">
             校园里的好东西
             <br />
@@ -33,7 +10,29 @@
             <span class="hl">这块布告栏</span>
             上
           </h1>
-          <p class="sub rise rise-1">本地合规检测 · 平台担保交易 · 当面验货，放心买卖</p>
+          <div class="trust-row rise rise-1" aria-label="平台保障">
+            <span class="trust-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              平台担保
+            </span>
+            <span class="trust-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
+              </svg>
+              本校同学
+            </span>
+            <span class="trust-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+              当面验货
+            </span>
+          </div>
 
           <form class="searchbar rise rise-2" role="search" @submit.prevent="handleSearch">
             <span class="searchbar__icon" aria-hidden="true">
@@ -56,7 +55,11 @@
           </form>
 
           <div class="hot-words rise rise-3">
-            <span class="lab">热搜：</span>
+            <span class="lab" title="热门搜索" aria-label="热门搜索">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-5 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.5-2.9 1.5-4 .3 1.5 1 2.5 2 2.5Z" />
+              </svg>
+            </span>
             <button class="tag" type="button" @click="quickSearch('iPad')">iPad</button>
             <button class="tag" type="button" @click="quickSearch('四级真题')">四级真题</button>
             <button class="tag" type="button" @click="quickSearch('小米充电宝')">小米充电宝</button>
@@ -76,7 +79,7 @@
         </span>
         <div>
           <h2>先登录，再逛本校交易大厅</h2>
-          <p>登录后只会展示你所在学校的商品、榜单和聊天内容。</p>
+          <p>登录后展示你所在学校的商品与榜单。</p>
         </div>
         <router-link :to="{ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } }" class="btn btn--primary">登录并进入</router-link>
       </section>
@@ -146,7 +149,7 @@
               <div v-for="group in allTags" :key="group.categoryId" class="tag-group">
                 <span class="tag-group__label">{{ group.categoryName }}</span>
                 <div class="tag-group__chips">
-                  <button v-for="tag in group.tags" :key="tag.name" class="tag-cloud__chip" :class="{ active: activeTag === tag.name }" @click="filterByTag(tag.name, group.categoryId)">
+                  <button v-for="tag in group.tags" :key="tag.name" class="tag-cloud__chip" :class="{ active: activeTags.includes(tag.name) }" @click="filterByTag(tag.name, group.categoryId)">
                     {{ tag.name }}
                     <span class="tag-cloud__count">{{ tag.count }}</span>
                   </button>
@@ -167,9 +170,8 @@
               <button :class="{ active: filters.sort === 'priceDesc' }" @click="filters.sort = 'priceDesc'">价格 ↓</button>
             </div>
             <span class="muted goods-total">
-              共
               <strong>{{ total }}</strong>
-              件在售好物
+              件在售
             </span>
           </div>
 
@@ -236,8 +238,14 @@
             </article>
           </div>
 
-          <div v-else class="empty-panel">
-            <p class="muted">未找到相关商品</p>
+          <div v-else class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3M8 11h6" />
+              </svg>
+            </span>
+            <p>未找到相关商品</p>
             <button class="btn btn--primary" @click="resetFilters">清空筛选</button>
           </div>
 
@@ -256,14 +264,11 @@
 
         <aside>
           <div class="hall-aside__sticky">
-            <div class="card rank-card sticker-tilt-r" aria-label="近期爆款榜单">
+            <div class="card rank-card" aria-label="近期爆款榜单">
               <div class="rank-card__head">
-                <div>
-                  <h3>近期爆款榜</h3>
-                  <p class="muted rank-sub">按收藏数实时更新</p>
-                </div>
-                <router-link :to="ROUTE_PATH.RANKING" class="rank-more" title="查看完整榜单">
-                  查看完整榜单
+                <h3>近期爆款榜</h3>
+                <router-link :to="ROUTE_PATH.RANKING" class="rank-more" title="查看完整榜单" aria-label="查看完整榜单">
+                  完整榜单
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6" /></svg>
                 </router-link>
               </div>
@@ -285,9 +290,9 @@
               <p v-else class="muted ranking-empty">暂无榜单数据</p>
             </div>
 
-            <div class="publish-cta sticker-tilt">
-              <h4>宿舍角落在吃灰？</h4>
-              <p>发布 30 秒搞定，本地自动生成标签</p>
+            <div class="publish-cta">
+              <h4>宿舍在吃灰？</h4>
+              <p>拍照发布，30 秒上架</p>
               <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--yellow">去发布闲置</router-link>
             </div>
           </div>
@@ -310,7 +315,7 @@ import { ROUTE_PATH } from '@/constants/routes'
 
 const {
   TYPE_OPTIONS,
-  activeTag,
+  activeTags,
   activeTopic,
   allTags,
   applyPriceFilterNow,

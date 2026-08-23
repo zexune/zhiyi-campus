@@ -76,7 +76,7 @@ export interface TopicBanner {
   action: string
   categoryName?: string
   keyword?: string
-  filterTag?: string | null
+  filterTags?: string[] | null
   filterType?: string | null
   filterCategoryId?: number | null
 }
@@ -89,14 +89,16 @@ export interface MarketFilters {
   minPrice: number | '' | undefined
   maxPrice: number | '' | undefined
   type: string
-  tag: string
+  /** 标签筛选：数组以支持专题多标签（任一命中）；手动点选标签云时为单元素数组 */
+  tags: string[]
   sort: string
 }
 
 /** useMarketplaceHome 的返回契约：refs 用 Ref<T>，方法显式标注参数与返回 */
 export interface MarketplaceHomeReturn {
   TYPE_OPTIONS: SelectOption[]
-  activeTag: Ref<string>
+  /** 当前生效的标签筛选（专题可多标签；手动点选为单元素） */
+  activeTags: Ref<string[]>
   activeTopic: Ref<TopicBanner | null>
   allTags: Ref<TagCloudGroup[]>
   applyPriceFilterNow: () => void
@@ -153,7 +155,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   const favoriteBusyId = ref<number | null>(null)
   const activeTopic = ref<TopicBanner | null>(CAMPUS_TOPICS.find(isTopicActive) || null)
   const allTags = ref<TagCloudGroup[]>([])
-  const activeTag = ref('')
+  const activeTags = ref<string[]>([])
   const showTagCloud = ref(false)
   let priceFilterTimer: number | undefined
   let resettingFilters = false
@@ -164,7 +166,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     minPrice: undefined,
     maxPrice: undefined,
     type: '',
-    tag: '',
+    tags: [],
     sort: 'random'
   })
 
@@ -175,7 +177,8 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     if (filters.minPrice !== undefined && filters.minPrice !== null) params.minPrice = filters.minPrice
     if (filters.maxPrice !== undefined && filters.maxPrice !== null) params.maxPrice = filters.maxPrice
     if (filters.type) params.type = filters.type
-    if (filters.tag) params.tag = filters.tag
+    // axios 对数组参数序列化为重复的 tag=a&tag=b，后端按 List 绑定并做 OR 匹配
+    if (filters.tags.length) params.tag = filters.tags
     return params
   }
 
@@ -245,13 +248,14 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   function filterByTag(tag: string, categoryId: number | string): void {
-    if (activeTag.value === tag) {
-      activeTag.value = ''
-      filters.tag = ''
+    // 手动点选标签云保持单选语义：再次点击取消，点其他标签替换
+    if (activeTags.value.includes(tag)) {
+      activeTags.value = []
+      filters.tags = []
       filters.categoryId = ''
     } else {
-      activeTag.value = tag
-      filters.tag = tag
+      activeTags.value = [tag]
+      filters.tags = [tag]
       filters.categoryId = categoryId
       filters.keyword = ''
     }
@@ -291,8 +295,8 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   function searchByTag(tag: string): void {
     filters.keyword = tag
-    filters.tag = ''
-    activeTag.value = ''
+    filters.tags = []
+    activeTags.value = []
     router.replace({ path: '/', query: { keyword: tag } })
     handleSearch()
     scrollToHall()
@@ -300,8 +304,8 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   function applyTopic(topic: TopicBanner): void {
     filters.keyword = topic.keyword || ''
-    filters.tag = topic.filterTag || ''
-    activeTag.value = topic.filterTag || ''
+    filters.tags = topic.filterTags ?? []
+    activeTags.value = [...(topic.filterTags ?? [])]
     filters.type = topic.filterType || ''
     const category = categories.value.find((item) => item.name === topic.categoryName)
     filters.categoryId = topic.filterCategoryId || category?.id || ''
@@ -319,10 +323,10 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
       minPrice: undefined,
       maxPrice: undefined,
       type: '',
-      tag: '',
+      tags: [],
       sort: 'random'
     })
-    activeTag.value = ''
+    activeTags.value = []
     page.value = 1
     fetchItems()
     nextTick(() => {
@@ -388,7 +392,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   return {
     // AppSelect 的 options prop 按可变数组形状声明；常量运行时仍为冻结对象，仅此处放宽类型
     TYPE_OPTIONS: ITEM_TYPE_OPTIONS as SelectOption[],
-    activeTag,
+    activeTags,
     activeTopic,
     allTags,
     applyPriceFilterNow,

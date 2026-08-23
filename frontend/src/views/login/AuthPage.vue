@@ -29,8 +29,8 @@
 
         <div class="feature-list">
           <div class="feature-item rise rise-2">
-            <div class="feature-item__icon" style="background: #d6f2df">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2F9E62" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="feature-item__icon" style="background: var(--green-bg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
                 <path d="m9 12 2 2 4-4" />
               </svg>
@@ -41,8 +41,8 @@
             </div>
           </div>
           <div class="feature-item rise rise-3">
-            <div class="feature-item__icon" style="background: #ffe1b8">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#F5562E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="feature-item__icon" style="background: var(--yellow-bg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 8V4H8" />
                 <rect x="4" y="8" width="16" height="12" rx="2" />
                 <path d="M2 14h2M20 14h2M15 13v2M9 13v2" />
@@ -54,8 +54,8 @@
             </div>
           </div>
           <div class="feature-item rise rise-4">
-            <div class="feature-item__icon" style="background: #cbe8ff">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#3B7BD8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="feature-item__icon" style="background: var(--blue-bg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11.5 8.5 14 4l2.5 4.5L21 10l-3.5 3 1 5-4.5-2.5L9.5 18l1-5L7 10Z" transform="translate(-2 1)" />
               </svg>
             </div>
@@ -69,8 +69,6 @@
 
       <!-- 右侧表单卡：三个面板共享学校数据，由本组件负责加载与面板间协调 -->
       <section class="card auth-card rise rise-1" aria-label="账户操作">
-        <span class="auth-card__pin" aria-hidden="true"></span>
-
         <div class="auth-tabs" role="tablist">
           <button role="tab" :aria-selected="tab === 'login'" :class="{ active: tab === 'login' }" @click="switchTab('login')">登 录</button>
           <button role="tab" :aria-selected="tab === 'register'" :class="{ active: tab === 'register' }" @click="switchTab('register')">注 册</button>
@@ -99,6 +97,7 @@ import LoginPanel from './panels/LoginPanel.vue'
 import RegisterPanel from './panels/RegisterPanel.vue'
 import { readSavedSchoolId, useSchoolOptions } from '@/composables/useSchoolOptions'
 import { ROUTE_PATH } from '@/constants/routes'
+import { resetAuthRedirect } from '@/utils/request'
 
 /**
  * 认证页（模块一 1.1/1.2/1.3）—— 登录 / 注册 / 密保找回三面板的编排层：
@@ -129,7 +128,11 @@ function handleResetDone({ schoolId, studentId }: { schoolId: number | null; stu
   switchTab('login')
 }
 
-onMounted(fetchSchools)
+// 登录页挂载：解除 401 单飞跳转标记，允许下一轮会话失效再次重定向
+onMounted(() => {
+  resetAuthRedirect()
+  fetchSchools()
+})
 </script>
 
 <style scoped>
@@ -162,19 +165,17 @@ onMounted(fetchSchools)
 
 /* —— 左侧宣传面 —— */
 .auth-side h1 {
-  font-family: var(--font-display);
-  font-size: clamp(36px, 4.5vw, 54px);
+  font-size: clamp(34px, 4vw, 46px);
   line-height: 1.3;
-  letter-spacing: 2px;
+  letter-spacing: -0.5px;
+  font-weight: 800;
 }
 .auth-side h1 .hl {
   display: inline-block;
-  background: var(--yellow);
+  background: var(--yellow-bg);
   padding: 0 12px;
-  border: var(--bw) solid var(--ink);
   border-radius: var(--r-s);
-  box-shadow: var(--shadow-s);
-  transform: rotate(-2deg);
+  color: var(--ink);
 }
 .auth-side p {
   margin-top: 16px;
@@ -194,7 +195,7 @@ onMounted(fetchSchools)
   align-items: center;
   gap: 14px;
   background: var(--white);
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   padding: 14px 18px;
   box-shadow: var(--shadow-s);
@@ -202,13 +203,7 @@ onMounted(fetchSchools)
   transition: transform 0.2s;
 }
 .feature-item:hover {
-  transform: translateX(6px);
-}
-.feature-item:nth-child(2) {
-  transform: rotate(-0.8deg);
-}
-.feature-item:nth-child(3) {
-  transform: rotate(0.8deg);
+  transform: translateX(4px);
 }
 .feature-item__icon {
   width: 42px;
@@ -216,7 +211,6 @@ onMounted(fetchSchools)
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
   border-radius: var(--r-s);
 }
 .feature-item__icon svg {
@@ -253,53 +247,39 @@ onMounted(fetchSchools)
   }
 }
 
-.auth-card__pin {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  translate: -50% 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--red);
-  border: var(--bw) solid var(--ink);
-  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.25);
-}
-
 /* 选项卡 */
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   margin-bottom: 26px;
-  border: var(--bw) solid var(--ink);
   border-radius: var(--r-s);
-  overflow: hidden;
+  background: var(--paper-deep);
+  padding: 3px;
+  gap: 2px;
 }
 .auth-tabs button {
   border: none;
-  background: var(--white);
-  padding: 11px 4px;
+  background: transparent;
+  padding: 10px 4px;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 700;
-  font-size: 14.5px;
+  font-weight: 500;
+  font-size: 14px;
   color: var(--ink-soft);
-  border-right: var(--bw) solid var(--ink);
-  transition: all 0.18s;
-}
-.auth-tabs button:last-child {
-  border-right: none;
+  border-radius: 6px;
+  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
 .auth-tabs button:hover {
-  background: var(--paper-deep);
   color: var(--ink);
 }
 .auth-tabs button.active {
-  background: var(--primary);
-  color: #fff;
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-s);
 }
 .auth-tabs button:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: -3px;
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
 }
 </style>

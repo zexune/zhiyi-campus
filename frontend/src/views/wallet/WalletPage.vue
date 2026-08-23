@@ -3,51 +3,49 @@
     <div class="wallet-page rise">
       <!-- 页面标题 -->
       <div class="page-title">
-        💰 我的钱包
-        <span class="stamp">Wallet</span>
+        我的钱包
       </div>
 
       <!-- 导航标签 -->
       <div class="nav-tabs">
-        <span class="nav-tab active">💰 我的钱包</span>
-        <router-link :to="ROUTE_PATH.ORDERS_BOUGHT" class="nav-tab">🛒 我买的</router-link>
-        <router-link :to="ROUTE_PATH.ORDERS_SOLD" class="nav-tab">📦 我卖的</router-link>
+        <span class="nav-tab active">我的钱包</span>
+        <router-link :to="ROUTE_PATH.ORDERS_BOUGHT" class="nav-tab">我买的</router-link>
+        <router-link :to="ROUTE_PATH.ORDERS_SOLD" class="nav-tab">我卖的</router-link>
       </div>
 
       <!-- 余额卡片 -->
-      <div class="balance-card card sticker-tilt">
-        <div class="balance-card__label">当前余额</div>
-        <!-- 加载中 -->
-        <div v-if="balanceLoading" class="balance-card__amount">
-          <span class="price muted">加载中...</span>
-        </div>
-        <!-- 加载失败 -->
-        <div v-else-if="balanceError" class="balance-card__error">
-          <span class="muted">余额加载失败</span>
-          <button class="btn btn--sm" @click="fetchBalance">重新加载</button>
-        </div>
-        <!-- 正常 -->
-        <div v-else class="balance-card__amount">
-          <span class="price">
-            <span class="rmb">¥</span>
-            {{ balanceText }}
-          </span>
+      <div class="balance-card card">
+        <div class="balance-card__info">
+          <div class="balance-card__label">当前余额</div>
+          <!-- 加载中 -->
+          <div v-if="balanceLoading" class="balance-card__amount">
+            <span class="price muted">加载中...</span>
+          </div>
+          <!-- 加载失败 -->
+          <div v-else-if="balanceError" class="balance-card__error">
+            <span class="muted">余额加载失败</span>
+            <button class="btn btn--sm" @click="fetchBalance">重新加载</button>
+          </div>
+          <!-- 正常 -->
+          <div v-else class="balance-card__amount">
+            <span class="price">
+              <span class="rmb">¥</span>
+              {{ balanceText }}
+            </span>
+          </div>
         </div>
         <div class="balance-card__actions">
           <button class="btn btn--primary" @click="showRecharge = true">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
             充值
           </button>
-          <button class="btn" @click="fetchLogs">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
+          <button class="btn" :disabled="loading" title="刷新流水" aria-label="刷新流水" @click="fetchLogs">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+              <path d="M20 4v7h-7" />
             </svg>
             刷新流水
           </button>
-          <router-link :to="ROUTE_PATH.ORDERS_BOUGHT" class="btn btn--dark">📋 我的订单</router-link>
         </div>
       </div>
 
@@ -101,8 +99,14 @@
           <button class="btn btn--sm" style="margin-top: 12px" @click="fetchLogs">重新加载</button>
         </div>
 
-        <div v-else-if="logs.length === 0" class="card card--flat logs-empty">
-          <div class="muted">暂无资金变动记录</div>
+        <div v-else-if="logs.length === 0" class="empty-state">
+          <span class="empty-state__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="6" width="18" height="13" rx="2" />
+              <path d="M3 10h18M16 15h.01" />
+            </svg>
+          </span>
+          <p>暂无资金变动记录</p>
         </div>
 
         <!-- 流水列表 -->
@@ -124,7 +128,7 @@
 
         <!-- 分页 -->
         <div v-if="total > 0" class="logs-pagination">
-          <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="total" layout="prev, pager, next" background @current-change="fetchLogs" />
+          <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchLogs" />
         </div>
       </div>
     </div>
@@ -244,75 +248,88 @@ onMounted(() => {
 
 <style scoped>
 .wallet-page {
-  max-width: 720px;
+  max-width: 860px;
   margin: 0 auto;
 }
 
-/* 子导航 */
+/* 子导航（分段控件形态，与全站排序选项卡一致） */
 .nav-tabs {
-  display: flex;
-  gap: var(--spacing-sm);
+  display: inline-flex;
+  gap: 2px;
   margin-top: var(--spacing-md);
-  flex-wrap: wrap;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 3px;
+  background: var(--paper-deep);
+  border-radius: var(--r-s);
 }
 
 .nav-tab {
-  padding: 8px 18px;
-  border: var(--bw) solid var(--ink);
-  border-radius: var(--r-s);
-  font-weight: 700;
+  padding: 7px 18px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
   font-size: 14px;
-  background: var(--white);
-  color: var(--ink);
+  background: transparent;
+  color: var(--ink-soft);
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.15s;
+  white-space: nowrap;
+  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
 .nav-tab:hover {
-  background: var(--yellow);
+  color: var(--ink);
 }
 
 .nav-tab.active {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-s);
 }
 
-/* 余额卡片 */
+/* 余额卡片：信息在左、操作在右 */
 .balance-card {
   margin-top: var(--spacing-lg);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  text-align: center;
+  padding: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
   background: var(--white);
 }
 
+.balance-card__info {
+  min-width: 0;
+}
+
 .balance-card__label {
-  font-size: var(--font-md);
+  font-size: 13px;
   color: var(--ink-soft);
-  font-weight: 700;
-  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+  margin-bottom: var(--spacing-xs);
 }
 
 .balance-card__amount .price {
-  font-size: 48px;
+  font-size: 40px;
 }
 
 .balance-card__error {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) 0;
+  padding: var(--spacing-sm) 0;
 }
 
 .balance-card__actions {
-  margin-top: var(--spacing-lg);
   display: flex;
-  justify-content: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 /* 充值弹窗 */
@@ -338,9 +355,8 @@ onMounted(() => {
 }
 
 .logs-title {
-  font-family: var(--font-display);
-  font-size: 22px;
-  letter-spacing: 0.5px;
+  font-size: 17px;
+  font-weight: 700;
   margin-bottom: var(--spacing-md);
 }
 
@@ -370,7 +386,7 @@ onMounted(() => {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   white-space: nowrap;
 }
 

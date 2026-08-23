@@ -74,13 +74,13 @@ public class MarketplaceService {
                                             BigDecimal maxPrice,
                                             String sort,
                                             String type,
-                                            String tag,
+                                            List<String> tags,
                                             int page,
                                             int size,
                                             Long currentUserId) {
         SysUser viewer = requireMarketplaceUser(currentUserId);
         MarketplaceFeedService.Criteria criteria = new MarketplaceFeedService.Criteria(
-                keyword, categoryId, minPrice, maxPrice, sort, type, tag);
+                keyword, categoryId, minPrice, maxPrice, sort, type, tags);
         IPage<Item> itemPage = feedService.list(criteria, viewer, page, size);
         Page<ItemCardVO> result = new Page<>(itemPage.getCurrent(), itemPage.getSize(), itemPage.getTotal());
         result.setRecords(itemCardAssembler.assemble(itemPage.getRecords(), currentUserId));

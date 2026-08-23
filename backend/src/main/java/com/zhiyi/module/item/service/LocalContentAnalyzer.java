@@ -46,6 +46,11 @@ public class LocalContentAnalyzer {
             "四级", "全新", "99新", "有笔记", "台灯", "风扇", "背包", "运动鞋", "篮球", "Switch"
     );
 
+    /** 用户自定义标签的数量上限 */
+    public static final int MAX_USER_TAGS = 6;
+    /** 用户自定义标签的单个长度上限 */
+    public static final int MAX_TAG_LENGTH = 12;
+
     @Value("${zhiyi.moderation.rule-version:2026.1}")
     private String ruleVersion = "2026.1";
 
@@ -54,11 +59,61 @@ public class LocalContentAnalyzer {
                 safe(dto.getTradeLocation()), safe(dto.getPickupLocation()), safe(dto.getDeliveryLocation()));
         String normalized = normalizeForMatching(visibleText);
 
+        RuleMatches matches = matchRules(normalized);
+
+        List<String> tags = generateTags(dto, category, visibleText);
+        String reason = matches.labels().isEmpty()
+                ? ""
+                : "本地规则检测到可能违规内容：" + String.join("、", matches.labels());
+        return new AnalysisResult(!matches.codes().isEmpty(), reason,
+                List.copyOf(matches.codes()), ruleVersion, tags);
+    }
+
+    /**
+     * 用户自定义标签清洗：trim、去重（忽略大小写）、限量限长，并对标签文本做违规词匹配。
+     * risky 为 true 时 tags 返回空列表——命中违规词的标签不允许进入商品标签体系。
+     */
+    public TagCheck sanitizeUserTags(List<String> rawTags) {
+        if (rawTags == null || rawTags.isEmpty()) {
+            return new TagCheck(List.of(), false, "", List.of());
+        }
+        Set<String> unique = new LinkedHashSet<>();
+        for (String raw : rawTags) {
+            if (raw == null) continue;
+            String tag = raw.trim();
+            if (tag.length() < 2 || tag.length() > MAX_TAG_LENGTH) continue;
+            unique.add(tag);
+            if (unique.size() >= MAX_USER_TAGS) break;
+        }
+        if (unique.isEmpty()) {
+            return new TagCheck(List.of(), false, "", List.of());
+        }
+        RuleMatches matches = matchRules(normalizeForMatching(String.join(" ", unique)));
+        if (!matches.codes().isEmpty()) {
+            String reason = "标签包含可能违规内容：" + String.join("、", matches.labels());
+            return new TagCheck(List.of(), true, reason, List.copyOf(matches.codes()));
+        }
+        return new TagCheck(List.copyOf(unique), false, "", List.of());
+    }
+
+    /**
+     * 标签建议：仅依据标题与分类生成候选，不做任何持久化。
+     * 供发布页与专题配置的"可选系统标签"使用；类型维度固定按 SELL 口径，避免建议里混入交易动词。
+     */
+    public List<String> suggestTags(String title, Category category) {
+        PublishItemDTO dto = new PublishItemDTO();
+        dto.setType(ItemType.SELL.code());
+        dto.setTitle(title == null ? "" : title);
+        dto.setDescription("");
+        return generateTags(dto, category, safe(dto.getTitle()));
+    }
+
+    private RuleMatches matchRules(String normalizedText) {
         List<String> matchedCodes = new ArrayList<>();
         List<String> matchedLabels = new ArrayList<>();
         for (Rule rule : RULES) {
             String matchedKeyword = rule.keywords().stream()
-                    .filter(keyword -> normalized.contains(normalizeForMatching(keyword)))
+                    .filter(keyword -> normalizedText.contains(normalizeForMatching(keyword)))
                     .findFirst()
                     .orElse(null);
             if (matchedKeyword != null) {
@@ -66,13 +121,7 @@ public class LocalContentAnalyzer {
                 matchedLabels.add(rule.label() + "（" + matchedKeyword + "）");
             }
         }
-
-        List<String> tags = generateTags(dto, category, visibleText);
-        String reason = matchedLabels.isEmpty()
-                ? ""
-                : "本地规则检测到可能违规内容：" + String.join("、", matchedLabels);
-        return new AnalysisResult(!matchedCodes.isEmpty(), reason,
-                List.copyOf(matchedCodes), ruleVersion, tags);
+        return new RuleMatches(List.copyOf(matchedCodes), List.copyOf(matchedLabels));
     }
 
     String normalizeForMatching(String value) {
@@ -118,10 +167,17 @@ public class LocalContentAnalyzer {
     private record Rule(String code, String label, List<String> keywords) {
     }
 
+    private record RuleMatches(List<String> codes, List<String> labels) {
+    }
+
     public record AnalysisResult(boolean risky,
                                  String reason,
                                  List<String> matchedRules,
                                  String ruleVersion,
                                  List<String> tags) {
+    }
+
+    /** 用户自定义标签的清洗结果：risky 时 tags 恒为空列表 */
+    public record TagCheck(List<String> tags, boolean risky, String reason, List<String> matchedRules) {
     }
 }

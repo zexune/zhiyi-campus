@@ -100,12 +100,15 @@ test('ROUTE_PATH 静态路径与动态构造函数保持稳定', async () => {
   assert.equal(ROUTE_PATH.LOGIN, '/login')
   assert.equal(ROUTE_PATH.ORDERS_BOUGHT, '/orders/bought')
   assert.equal(ROUTE_PATH.ADMIN_DASHBOARD, '/admin/dashboard')
+  assert.equal(ROUTE_PATH.ADMIN_USERS, '/admin/users')
+  assert.equal(ROUTE_PATH.ADMIN_TOPICS, '/admin/topics')
   assert.equal(ROUTE_PATH.item(42), '/item/42')
   assert.equal(ROUTE_PATH.editItem(42), '/item/42/edit')
   assert.equal(ROUTE_PATH.PUBLISH, '/publish')
   // 命名路由与路由表一致（守卫与编程式导航依赖）
   assert.equal(ROUTE_NAME.ORDERS_BOUGHT, 'OrdersBought')
-  assert.equal(ROUTE_NAME.ADMIN_MANAGE, 'AdminManage')
+  assert.equal(ROUTE_NAME.ADMIN_USERS, 'AdminUsers')
+  assert.equal(ROUTE_NAME.ADMIN_TOPICS, 'AdminTopics')
 })
 
 test('usePagedList goToFirstPage 与失败后重试路径', async () => {

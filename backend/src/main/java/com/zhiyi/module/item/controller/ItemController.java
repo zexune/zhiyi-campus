@@ -49,6 +49,23 @@ public class ItemController {
         return Result.ok(itemPublishService.uploadImage(file));
     }
 
+    /**
+     * 标签建议：按标题与分类生成候选标签，仅供发布页选择，不落库。
+     */
+    @PostMapping("/tag-suggestions")
+    public Result<List<String>> tagSuggestions(@Valid @RequestBody TagSuggestionRequest request) {
+        return Result.ok(itemPublishService.suggestTags(request.title(), request.categoryId()));
+    }
+
+    /**
+     * 内部 DTO
+     */
+    public record TagSuggestionRequest(
+            @jakarta.validation.constraints.NotBlank(message = "标题不能为空")
+            @jakarta.validation.constraints.Size(max = 50, message = "标题最长50字") String title,
+            Long categoryId) {
+    }
+
     @PostMapping("/publish")
     public Result<ItemCardVO> publish(@RequestAttribute("userId") Long userId,
                                       @Valid @RequestBody PublishItemDTO dto) {
@@ -74,7 +91,7 @@ public class ItemController {
                                           @RequestParam(required = false) BigDecimal minPrice,
                                           @RequestParam(required = false) BigDecimal maxPrice,
                                           @RequestParam(required = false) String type,
-                                          @RequestParam(required = false) String tag,
+                                          @RequestParam(required = false) List<String> tag,
                                           @RequestParam(defaultValue = "random") String sort,
                                           @RequestParam(defaultValue = "1") int page,
                                           @RequestParam(defaultValue = "12") int size,
@@ -89,7 +106,7 @@ public class ItemController {
                                             @RequestParam(required = false) BigDecimal minPrice,
                                             @RequestParam(required = false) BigDecimal maxPrice,
                                             @RequestParam(required = false) String type,
-                                            @RequestParam(required = false) String tag,
+                                            @RequestParam(required = false) List<String> tag,
                                             @RequestParam(defaultValue = "latest") String sort,
                                             @RequestParam(defaultValue = "1") int page,
                                             @RequestParam(defaultValue = "12") int size,

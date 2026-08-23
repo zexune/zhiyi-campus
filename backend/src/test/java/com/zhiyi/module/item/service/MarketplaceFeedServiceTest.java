@@ -60,7 +60,7 @@ class MarketplaceFeedServiceTest {
 
         new MarketplaceFeedService(itemMapper).list(
                 new MarketplaceFeedService.Criteria(null, null, null, null,
-                        "latest", null, "iPad"), viewer, 1, 12);
+                        "latest", null, List.of("iPad")), viewer, 1, 12);
 
         verify(itemMapper).selectPage(any(), argThat(wrapper -> {
             String sql = wrapper.getSqlSegment();

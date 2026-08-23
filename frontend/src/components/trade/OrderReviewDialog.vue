@@ -154,12 +154,12 @@ watch(
 
 .review-dialog__kicker span:first-child {
   padding: 3px 9px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 6px;
   background: var(--yellow);
   color: var(--ink);
-  box-shadow: 2px 2px 0 var(--ink);
-  transform: rotate(-1.5deg);
+  box-shadow: var(--shadow-s);
+
 }
 
 .review-dialog__header h2 {
@@ -188,7 +188,7 @@ watch(
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--paper-deep);
   box-shadow: var(--shadow-s);
@@ -199,7 +199,7 @@ watch(
   height: 40px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   background: var(--green);
   color: var(--white);
@@ -262,12 +262,12 @@ watch(
   height: 44px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 9px;
   background: var(--white);
   color: var(--paper-deep);
   cursor: pointer;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   font-size: 25px;
   line-height: 1;
   transition:
@@ -278,7 +278,7 @@ watch(
 }
 
 .star-btn:hover {
-  transform: translateY(-2px) rotate(-2deg);
+  transform: translateY(-2px);
   background: var(--paper);
   color: var(--yellow);
 }
@@ -289,10 +289,10 @@ watch(
 }
 
 .star-btn.selected {
-  transform: translateY(-3px) rotate(3deg);
+  transform: translateY(-3px);
   background: var(--primary);
   color: var(--white);
-  box-shadow: 4px 4px 0 var(--ink);
+  box-shadow: var(--shadow-m);
 }
 
 .star-btn:focus-visible {
@@ -336,7 +336,7 @@ watch(
   align-items: center;
   gap: 10px;
   padding: 11px 13px;
-  border: var(--bw) dashed var(--ink);
+  border: var(--bw) dashed var(--line-strong);
   border-radius: var(--r-s);
   background: var(--white);
   cursor: pointer;
@@ -355,12 +355,12 @@ watch(
   height: 24px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 6px;
   background: var(--white);
   color: transparent;
   font-weight: 900;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
 }
 
 .review-accurate input:checked + .review-accurate__box {
@@ -489,33 +489,19 @@ watch(
   flex-direction: column;
   margin: auto;
   overflow: visible;
-  border: 3px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background-color: var(--paper);
   background-image: radial-gradient(color-mix(in srgb, var(--ink) 8%, transparent) 1px, transparent 1px);
   background-size: 18px 18px;
-  box-shadow: 10px 10px 0 var(--ink);
-}
-
-.review-dialog.el-dialog::before {
-  content: '';
-  position: absolute;
-  z-index: 2;
-  top: -13px;
-  left: 50%;
-  width: 104px;
-  height: 25px;
-  border: var(--bw) solid var(--ink);
-  background: var(--yellow);
-  transform: translateX(-50%) rotate(-2deg);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-l);
 }
 
 .review-dialog .el-dialog__header {
   position: relative;
   margin: 0;
   padding: 28px 28px 16px;
-  border-bottom: var(--bw) solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
 }
 
 .review-dialog .el-dialog__headerbtn {
@@ -523,10 +509,10 @@ watch(
   right: 22px;
   width: 36px;
   height: 36px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   background: var(--white);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   transition:
     transform 0.15s,
     background-color 0.15s,
@@ -535,8 +521,8 @@ watch(
 
 .review-dialog .el-dialog__headerbtn:hover {
   background: var(--primary);
-  box-shadow: 4px 4px 0 var(--ink);
-  transform: translate(-1px, -1px) rotate(5deg);
+  box-shadow: var(--shadow-m);
+  transform: translateY(-1px);
 }
 
 .review-dialog .el-dialog__headerbtn .el-dialog__close {
@@ -558,7 +544,7 @@ watch(
 
 .review-dialog .el-dialog__footer {
   padding: 16px 28px 24px;
-  border-top: var(--bw) solid var(--ink);
+  border-top: var(--bw) solid var(--line);
 }
 
 @media (max-width: 560px) {
@@ -570,7 +556,7 @@ watch(
     width: calc(100vw - 24px) !important;
     max-height: calc(100vh - 24px);
     border-radius: var(--r-s);
-    box-shadow: 6px 6px 0 var(--ink);
+    box-shadow: var(--shadow-m);
   }
 
   .review-dialog .el-dialog__header {

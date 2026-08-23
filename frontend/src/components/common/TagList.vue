@@ -33,7 +33,7 @@ const visibleTags = computed(() => {
   min-width: 0;
   padding: 2px 8px;
   overflow-wrap: anywhere;
-  border: 1.5px dashed var(--ink-soft);
+  border: var(--bw) solid var(--line);
   border-radius: 999px;
   background: var(--paper-deep);
   color: var(--ink-soft);

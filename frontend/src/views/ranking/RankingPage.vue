@@ -10,17 +10,14 @@
               </svg>
             </span>
             近期爆款榜
-            <span class="stamp">收藏热度</span>
           </h1>
-          <p class="ranking-subtitle">收藏热度实时排名，发现校园里正在被关注的好物</p>
+          <p class="ranking-subtitle">按收藏热度实时排序</p>
         </div>
-        <router-link :to="ROUTE_PATH.HOME" class="btn btn--yellow">
+        <router-link :to="ROUTE_PATH.HOME" class="btn">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
           返回交易大厅
         </router-link>
       </header>
-
-      <hr class="doodle-hr" />
 
       <el-skeleton v-if="loading" :rows="10" animated />
 
@@ -36,7 +33,6 @@
           <div>
             <span class="trending-panel__eyebrow">TAG TOP 10</span>
             <h2 id="trending-title">热门搜索</h2>
-            <p>统计本校在售商品的高频商品标签</p>
           </div>
         </div>
         <div v-if="trendingTags.length" class="trending-tags">
@@ -63,7 +59,6 @@
             <span>TOP 3</span>
             <h2>本周人气好物</h2>
           </div>
-          <small>按收藏数实时排序</small>
         </div>
         <section class="podium" aria-label="榜单前三名">
           <article v-for="entry in podiumEntries" :key="entry.item.id" class="podium-card rise" :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]" @click="goDetail(entry.item.id)">
@@ -132,11 +127,11 @@
                 <TagList :tags="item.tags" :limit="2" compact @select="goTag" />
               </span>
               <PriceTag :value="item.price" font-size="21px" />
-              <span class="ranking-row__favorites">
+              <span class="ranking-row__favorites" title="收藏数">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
                 </svg>
-                {{ item.favoriteCount || 0 }} 收藏
+                {{ item.favoriteCount || 0 }}
               </span>
               <button
                 class="favorite-button"
@@ -252,12 +247,12 @@ onMounted(fetchRanking)
   height: 44px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--primary);
   color: var(--white);
   box-shadow: var(--shadow-s);
-  transform: rotate(-5deg);
+
 }
 .ranking-title__icon svg {
   width: 25px;
@@ -268,9 +263,6 @@ onMounted(fetchRanking)
   color: var(--ink-soft);
   font-size: 14px;
 }
-.ranking-page > .doodle-hr {
-  margin: -8px 0 0;
-}
 
 .trending-panel {
   display: grid;
@@ -278,7 +270,7 @@ onMounted(fetchRanking)
   gap: 24px;
   align-items: center;
   padding: 18px 20px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--white);
   box-shadow: var(--shadow-m);
@@ -294,11 +286,11 @@ onMounted(fetchRanking)
   flex: 0 0 46px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--yellow);
-  box-shadow: 2px 2px 0 var(--ink);
-  transform: rotate(-4deg);
+  box-shadow: var(--shadow-s);
+
 }
 .trending-panel__icon svg {
   width: 25px;
@@ -314,11 +306,6 @@ onMounted(fetchRanking)
   font-size: 23px;
   line-height: 1.1;
 }
-.trending-panel__head p {
-  margin-top: 4px;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
 .trending-tags {
   display: flex;
   align-items: center;
@@ -331,11 +318,11 @@ onMounted(fetchRanking)
   align-items: center;
   gap: 7px;
   padding: 6px 10px 6px 7px;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 7px;
   background: var(--paper);
   color: var(--ink);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   cursor: pointer;
   transition:
     transform 0.15s,
@@ -346,14 +333,14 @@ onMounted(fetchRanking)
   transform: translate(-1px, -2px);
 }
 .trending-tag--top {
-  background: var(--yellow);
+  background: var(--yellow-bg);
 }
 .trending-tag__rank {
   min-width: 23px;
   height: 23px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 5px;
   background: var(--white);
   font-family: var(--font-display);
@@ -385,14 +372,14 @@ onMounted(fetchRanking)
 }
 .section-heading span {
   padding: 3px 9px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 6px;
   background: var(--primary);
   color: var(--white);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   font-family: var(--font-display);
   font-size: 14px;
-  transform: rotate(-2deg);
+
 }
 .section-heading h2 {
   font-family: var(--font-display);
@@ -412,7 +399,7 @@ onMounted(fetchRanking)
 .podium-card {
   position: relative;
   overflow: hidden;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--white);
   box-shadow: var(--shadow-m);
@@ -431,10 +418,10 @@ onMounted(fetchRanking)
   top: 12px;
   left: 12px;
   padding: 4px 11px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 7px;
   background: var(--white);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: var(--shadow-s);
   font-family: var(--font-display);
   font-size: 16px;
 }
@@ -451,7 +438,7 @@ onMounted(fetchRanking)
   position: relative;
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-bottom: var(--bw) solid var(--ink);
+  border-bottom: var(--bw) solid var(--line);
 }
 .podium-card__image img {
   width: 100%;
@@ -525,7 +512,7 @@ onMounted(fetchRanking)
   gap: 8px;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1.5px dashed #e0d6c2;
+  border-top: var(--bw) solid var(--line);
   color: var(--ink-soft);
   font-size: 13px;
 }
@@ -534,7 +521,7 @@ onMounted(fetchRanking)
   align-items: center;
   gap: 3px;
   padding: 2px 6px;
-  border: 1px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 5px;
   background: var(--yellow);
   color: var(--ink);
@@ -547,24 +534,24 @@ onMounted(fetchRanking)
   height: 11px;
 }
 .seller-chip--verified {
-  background: #d6f2df;
+  background: var(--green-bg);
 }
 .seller-chip--campus {
-  background: #dceeff;
+  background: var(--blue-bg);
 }
 .inline-verified {
   margin-left: 4px;
   padding: 1px 4px;
-  border: 1px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 4px;
-  background: #d6f2df;
+  background: var(--green-bg);
   color: var(--ink);
   font-size: 9.5px;
   font-weight: 900;
 }
 
 .ranking-board {
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--white);
   box-shadow: var(--shadow-m);
@@ -574,16 +561,16 @@ onMounted(fetchRanking)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: var(--bw) solid var(--ink);
-  background: var(--yellow);
+  padding: 14px 20px;
+  border-bottom: var(--bw) solid var(--line);
+  background: var(--white);
 }
 .ranking-board__head h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-display);
-  font-size: 23px;
+  font-size: 16px;
+  font-weight: 700;
 }
 .ranking-board__head h2 svg {
   width: 23px;
@@ -591,12 +578,11 @@ onMounted(fetchRanking)
 }
 .ranking-board__head span {
   padding: 2px 9px;
-  border: var(--bw) solid var(--ink);
-  border-radius: 6px;
-  background: var(--white);
+  border-radius: 999px;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 900;
-  transform: rotate(2deg);
+  font-weight: 600;
 }
 .ranking-rows {
   list-style: none;
@@ -608,7 +594,7 @@ onMounted(fetchRanking)
   align-items: center;
   gap: 14px;
   padding: 11px 18px;
-  border-bottom: 1.5px dashed #d8cebb;
+  border-bottom: var(--bw) solid var(--line);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -623,7 +609,7 @@ onMounted(fetchRanking)
   height: 36px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 8px;
   background: var(--paper);
   font-family: var(--font-display);
@@ -633,7 +619,7 @@ onMounted(fetchRanking)
   width: 62px;
   height: 62px;
   overflow: hidden;
-  border: 1.5px solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
 }
 .ranking-row__image img {
@@ -674,7 +660,7 @@ onMounted(fetchRanking)
   height: 36px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: 50%;
   background: var(--white);
   cursor: pointer;
@@ -712,11 +698,11 @@ onMounted(fetchRanking)
   height: 82px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   background: var(--yellow);
   box-shadow: var(--shadow-m);
-  transform: rotate(-4deg);
+
 }
 .empty-ranking__icon svg {
   width: 42px;

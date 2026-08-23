@@ -82,7 +82,7 @@ export interface ExpLog {
   createdAt: string
 }
 
-/** 管理端用户搜索结果（封禁/重置密码选人） */
+/** 管理端用户列表行（用户管理页展示与操作） */
 export interface AdminUser {
   id: number
   studentId: string
@@ -90,6 +90,12 @@ export interface AdminUser {
   role: string
   status: UserStatus | string
   banUntilTime?: string | null
+  schoolId?: number | null
+  schoolName?: string | null
+  schoolEmail?: string | null
+  phone?: string | null
+  levelTitle?: string | null
+  createdAt?: string | null
 }
 
 // ==================== 商品 ====================
@@ -173,7 +179,8 @@ export interface EventTopic {
   endTime: string
   filterType?: ItemType | string | null
   filterCategoryId?: number | null
-  filterTag?: string | null
+  /** 商品标签筛选：零到多个，任一命中即属于专题 */
+  filterTags?: string[] | null
   bannerText?: string
   enabled: boolean
 }

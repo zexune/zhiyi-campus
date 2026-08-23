@@ -25,7 +25,7 @@
 - **收藏与站内沟通**：支持商品收藏、买卖双方会话、未读消息统计和管理员客服会话。
 - **交易闭环**：支持平台钱包、充值流水、数据库原子商品预留、创建/取消订单、确认收货以及交易评价；订单与商品状态独立建模。
 - **信誉与成长体系**：包含经验值、等级、六维信誉雷达、校园关系标签和违规处罚记录。
-- **运营管理后台**：提供数据看板、交易热力图、商品强制下架、商品流转谱系、独立用户封禁、内容审核与申诉复核、学校/分类/活动管理和客服收件箱。
+- **运营管理后台**：提供数据看板、交易热力图、商品流转谱系、独立用户封禁、内容审核与申诉复核、学校/分类/活动管理和客服收件箱。
 
 ## 技术栈
 
@@ -266,7 +266,7 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 | `/api/chat` | 会话、消息、客服与未读统计 | [`ChatController`](backend/src/main/java/com/zhiyi/module/social/controller/ChatController.java) |
 | `/api/wallet` | 余额、充值与资金流水 | [`WalletController`](backend/src/main/java/com/zhiyi/module/trade/controller/WalletController.java) |
 | `/api/order` | 下单、确认、取消、买卖订单与评价 | [`OrderController`](backend/src/main/java/com/zhiyi/module/trade/controller/OrderController.java) |
-| `/api/admin` | 独立管理员认证、看板、用户封禁、内容/申诉治理、学校、分类、活动与客服管理 | [`后台控制器`](backend/src/main/java/com/zhiyi/module/admin/controller/)、[`BanController`](backend/src/main/java/com/zhiyi/module/user/controller/BanController.java)、[`AdminCategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/AdminCategoryController.java)、[`EventTopicController`](backend/src/main/java/com/zhiyi/module/item/controller/EventTopicController.java) |
+| `/api/admin` | 独立管理员认证、看板、用户列表（学校精确 + 学号/昵称/邮箱/手机号模糊）、封禁与强制重置密码、内容/申诉治理、学校、分类、活动与客服管理 | [`后台控制器`](backend/src/main/java/com/zhiyi/module/admin/controller/)、[`BanController`](backend/src/main/java/com/zhiyi/module/user/controller/BanController.java)、[`AdminCategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/AdminCategoryController.java)、[`EventTopicController`](backend/src/main/java/com/zhiyi/module/item/controller/EventTopicController.java) |
 
 ### Swagger / OpenAPI
 
@@ -295,11 +295,11 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 - 数据库分别建模商品、内容审核、订单和订单预留，状态与交易约束由对应业务表管理。
 - 商品持久化状态只有 `ON_SALE`、`SOLD`、`OFF_SHELF`；内容审核为 `PASSED`、`PENDING`、`REJECTED`；订单为 `WAITING_MEET`、`COMPLETED`、`CANCELLED`。前端的“审核中”由审核状态派生。
 - 聊天会话列表与未读数使用 SQL `GROUP BY` 聚合（每会话一行），消息历史按 `id` 倒序 keyset 分页（`beforeId` 向前翻页）；新增查询必须保持有界，不得全量加载消息明细。
-- 内容违规只执行可配置的固定合规扣分。商品强制下架不自动扣经验，账号封禁和解封只能在用户管理中独立执行。
+- 内容违规只执行可配置的固定合规扣分，商品下架统一由内容审核工作台裁决执行；账号封禁和解封只能在用户管理中独立执行。
 - 后端使用 Java 25 虚拟线程处理请求；数据库吞吐受 HikariCP/MySQL 连接池上限约束。
 - API 统一响应和鉴权快照使用不可变 Record；业务 JSON 栈使用 Jackson 3，Swagger/OpenAPI 的传递依赖由 springdoc 管理，业务代码不要引入 Jackson 2 类型。
 - 前端页面统一使用 Vue 3 `<script setup>` / Composition API，Element Plus 组件与 API 按需导入；登录态与用户摘要由 `src/utils/auth.ts` 统一管理（响应式，唯一真相源），Pinia 不再持久化。
-- 复杂页面采用“页面编排 + 子组件”边界：认证页三面板在 `views/login/panels/`、内容管理四工具卡在 `views/admin/manage/`，页面文件只负责布局与协调；跨面板共享的学校下拉走 `composables/useSchoolOptions.ts`。
+- 复杂页面采用“页面编排 + 子组件”边界：认证页三面板在 `views/login/panels/`、事件专题卡片在 `views/admin/topics/EventTopicCard.vue`，页面文件只负责布局与协调；跨面板共享的学校下拉走 `composables/useSchoolOptions.ts`。
 - 前端有三类“唯一出处”约定：路由路径与命名路由集中在 `src/constants/routes.ts`（页面不得硬编码路径字符串）；时间/价格/占位图等展示格式化集中在 `src/utils/format.ts`；服务端分页列表（loading/error/empty + 分页状态机）统一用 `composables/usePagedList.ts`。
 - 表单校验使用 Element Plus 声明式 `:rules`（提交统一走 `utils/formValidate.ts` 的 `validateForm`），不要在提交函数里手写 if 逐字段校验。
 - 首页交易大厅的视图、`useMarketplaceHome` 状态副作用和 scoped 样式分文件维护。

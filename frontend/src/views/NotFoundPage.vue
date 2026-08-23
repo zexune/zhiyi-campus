@@ -1,6 +1,6 @@
 <template>
   <div class="nf-page">
-    <div class="card nf-card sticker-tilt">
+    <div class="card nf-card">
       <div class="nf-code">404</div>
       <p>这张布告好像被风吹走了…</p>
       <router-link to="/" class="btn btn--primary">回到交易大厅</router-link>

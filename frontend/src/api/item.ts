@@ -11,7 +11,8 @@ export interface ItemListQuery extends PageQuery {
   minPrice?: number | string
   maxPrice?: number | string
   type?: string
-  tag?: string
+  /** 标签筛选：可传多个，任一命中即入选（专题多标签场景） */
+  tag?: string | string[]
 }
 
 export interface ReportPayload {
@@ -37,6 +38,14 @@ export function getItemLineage(id: number | string) {
 
 export function getCategories() {
   return request.get<Category[]>('/category/list')
+}
+
+/** 标签建议：按标题与分类生成候选，仅供选择，不落库 */
+export function getItemTagSuggestions(title: string, categoryId?: number | string | null) {
+  return request.post<string[]>('/item/tag-suggestions', {
+    title,
+    categoryId: categoryId === '' ? null : (categoryId ?? null)
+  })
 }
 
 export function getItemRanking(params: { limit: number }) {

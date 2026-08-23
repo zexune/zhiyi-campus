@@ -2,8 +2,7 @@
   <AdminLayout>
     <div class="schools-page rise">
       <div class="page-title">
-        🏫 学校管理
-        <span class="stamp">Admin</span>
+        学校管理
       </div>
 
       <!-- 加载 -->
@@ -24,7 +23,13 @@
               </span>
             </div>
             <div class="school-row__actions">
-              <button v-if="s.status !== 'DELETED'" class="btn btn--sm" @click="startEdit(s)">✏️ 编辑</button>
+              <button v-if="s.status !== 'DELETED'" class="btn btn--sm" @click="startEdit(s)">
+                <svg class="row-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+                编辑
+              </button>
               <button v-if="s.status !== 'DELETED'" class="btn btn--sm btn--danger" :aria-label="`删除学校${s.name}`" :disabled="deletingId === s.id" @click="handleDelete(s)">
                 {{ deletingId === s.id ? '删除中...' : '删除' }}
               </button>
@@ -39,7 +44,7 @@
         <Teleport to="body">
           <div v-if="dialog.visible" class="modal-overlay" @click.self="closeDialog">
             <div class="modal-card card" role="dialog" aria-modal="true" :aria-label="dialog.isCreate ? '新增学校' : '编辑学校'">
-              <h3 class="modal-title">{{ dialog.isCreate ? '🏫 新增学校' : '✏️ 编辑学校' }}</h3>
+              <h3 class="modal-title">{{ dialog.isCreate ? '新增学校' : '编辑学校' }}</h3>
 
               <div class="field">
                 <label>
@@ -68,10 +73,16 @@
                 <label>状态</label>
                 <div class="radio-group">
                   <button type="button" class="radio-card" :class="{ active: dialog.form.status === 'ACTIVE' }" @click="dialog.form.status = 'ACTIVE'">
-                    <span class="radio-card__label">🟢 启用</span>
+                    <span class="radio-card__label">
+                      <i class="status-dot status-dot--on" aria-hidden="true"></i>
+                      启用
+                    </span>
                   </button>
                   <button type="button" class="radio-card" :class="{ active: dialog.form.status === 'DISABLED' }" @click="dialog.form.status = 'DISABLED'">
-                    <span class="radio-card__label">⚫ 停用</span>
+                    <span class="radio-card__label">
+                      <i class="status-dot status-dot--off" aria-hidden="true"></i>
+                      停用
+                    </span>
                   </button>
                 </div>
               </div>
@@ -88,7 +99,10 @@
 
         <!-- 新增按钮 -->
         <div class="add-bar">
-          <button class="btn btn--primary" @click="startCreate">➕ 新增学校</button>
+          <button class="btn btn--primary" @click="startCreate">
+            <svg class="row-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            新增学校
+          </button>
         </div>
       </template>
     </div>
@@ -278,6 +292,31 @@ onMounted(fetchSchools)
   font-weight: 700;
   font-size: 16px;
 }
+.row-ic {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+.radio-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: var(--bw) solid var(--line);
+  display: inline-block;
+}
+.status-dot--on {
+  background: var(--green);
+}
+.status-dot--off {
+  background: var(--paper-deep);
+}
 
 .add-bar {
   margin-top: 20px;
@@ -342,11 +381,11 @@ onMounted(fetchSchools)
   align-items: center;
   justify-content: center;
   padding: 12px;
-  border: var(--bw) solid var(--ink);
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--paper-deep);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .radio-card:hover {
   background: var(--white);
@@ -355,9 +394,5 @@ onMounted(fetchSchools)
   background: var(--ink);
   color: var(--paper);
   box-shadow: var(--shadow-s);
-}
-.radio-card__label {
-  font-size: 14px;
-  font-weight: 700;
 }
 </style>
