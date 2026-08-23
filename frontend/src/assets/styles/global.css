@@ -48,9 +48,7 @@
 
   /* —— 字体（系统栈，零外部请求） —— */
   --font-display: var(--font-body);
-  --font-body:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    'Noto Sans CJK SC', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
 
   /* —— z-index 阶梯 —— */
   --z-nav: 50;

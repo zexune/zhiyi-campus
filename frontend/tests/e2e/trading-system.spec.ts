@@ -130,7 +130,8 @@ test('@system 真实前后端完成交易闭环，并在用户与管理界面呈
 
   // 用户管理页（原内容管理拆分）：筛选区与表格行渲染，本旅程注册的买家/卖家应出现在表中
   await page.goto('/admin/users')
-  await expect(page.getByText('用户管理', { exact: true })).toBeVisible()
+  // 导航链接与页面标题同文，断言收窄到标题元素避免 strict mode 冲突
+  await expect(page.locator('.page-title')).toHaveText('用户管理')
   await expect(page.getByPlaceholder('模糊搜索学号')).toBeVisible()
   await expect(page.locator('.user-table tbody tr').first()).toBeVisible()
 

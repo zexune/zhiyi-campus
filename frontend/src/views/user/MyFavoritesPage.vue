@@ -1,9 +1,7 @@
 <template>
   <DefaultLayout>
     <div class="fav-page">
-      <h1 class="page-title">
-        我的收藏
-      </h1>
+      <h1 class="page-title">我的收藏</h1>
 
       <template v-if="items.length">
         <div class="fav-grid">

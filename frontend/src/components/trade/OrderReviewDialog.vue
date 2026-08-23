@@ -159,7 +159,6 @@ watch(
   background: var(--yellow);
   color: var(--ink);
   box-shadow: var(--shadow-s);
-
 }
 
 .review-dialog__header h2 {

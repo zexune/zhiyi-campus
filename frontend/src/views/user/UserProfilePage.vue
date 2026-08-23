@@ -1,9 +1,7 @@
 <template>
   <DefaultLayout>
     <div class="profile-page">
-      <h1 class="page-title">
-        个人中心
-      </h1>
+      <h1 class="page-title">个人中心</h1>
 
       <div v-if="user" class="profile-grid">
         <!-- 左：身份卡 + 经验记录 -->

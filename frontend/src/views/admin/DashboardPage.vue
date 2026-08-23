@@ -2,9 +2,7 @@
   <AdminLayout>
     <div class="dashboard-page rise">
       <!-- 页面标题 -->
-      <div class="page-title">
-        数据大盘
-      </div>
+      <div class="page-title">数据大盘</div>
 
       <!-- 学校切换（D2：多校大盘） -->
       <div v-if="schools.length > 0" class="school-bar">
@@ -504,7 +502,12 @@ function violationBadge(type: string | undefined) {
   background: var(--paper-deep);
   color: var(--ink);
   cursor: pointer;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 .school-chip:hover {
   background: var(--white);

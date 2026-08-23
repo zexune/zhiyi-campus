@@ -1,9 +1,7 @@
 <template>
   <AdminLayout>
     <div class="category-page rise">
-      <div class="page-title">
-        商品分类管理
-      </div>
+      <div class="page-title">商品分类管理</div>
 
       <div class="category-layout">
         <section v-loading="loading" class="card category-list">

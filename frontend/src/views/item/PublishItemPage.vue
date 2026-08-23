@@ -110,14 +110,7 @@
 
           <div class="field">
             <label for="publish-tags">商品标签（可选，最多 6 个）</label>
-            <TagInput
-              id="publish-tags"
-              v-model="form.tags"
-              :suggestions="tagSuggestions"
-              aria-label="商品标签"
-              placeholder="输入后回车添加，如：95新、可小刀"
-              @update:model-value="markTagsTouched"
-            />
+            <TagInput id="publish-tags" v-model="form.tags" :suggestions="tagSuggestions" aria-label="商品标签" placeholder="输入后回车添加，如：95新、可小刀" @update:model-value="markTagsTouched" />
           </div>
 
           <div class="form-pair">
@@ -542,7 +535,12 @@ onMounted(async () => {
   gap: 14px;
   align-items: center;
   text-align: left;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
   position: relative;
   overflow: hidden;
 }
@@ -725,7 +723,12 @@ onMounted(async () => {
   font-size: 12.5px;
   font-weight: 700;
   background: var(--paper-deep);
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 .upload-add:hover {
   border-color: var(--primary);

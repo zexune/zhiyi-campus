@@ -252,7 +252,6 @@ onMounted(fetchRanking)
   background: var(--primary);
   color: var(--white);
   box-shadow: var(--shadow-s);
-
 }
 .ranking-title__icon svg {
   width: 25px;
@@ -290,7 +289,6 @@ onMounted(fetchRanking)
   border-radius: var(--r-s);
   background: var(--yellow);
   box-shadow: var(--shadow-s);
-
 }
 .trending-panel__icon svg {
   width: 25px;
@@ -379,7 +377,6 @@ onMounted(fetchRanking)
   box-shadow: var(--shadow-s);
   font-family: var(--font-display);
   font-size: 14px;
-
 }
 .section-heading h2 {
   font-family: var(--font-display);
@@ -702,7 +699,6 @@ onMounted(fetchRanking)
   border-radius: var(--r-m);
   background: var(--yellow);
   box-shadow: var(--shadow-m);
-
 }
 .empty-ranking__icon svg {
   width: 42px;

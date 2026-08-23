@@ -1,9 +1,7 @@
 <template>
   <AdminLayout>
     <div class="schools-page rise">
-      <div class="page-title">
-        学校管理
-      </div>
+      <div class="page-title">学校管理</div>
 
       <!-- 加载 -->
       <div v-if="loading" class="card card--flat state-card">
@@ -385,7 +383,12 @@ onMounted(fetchSchools)
   border-radius: var(--r-s);
   background: var(--paper-deep);
   cursor: pointer;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 .radio-card:hover {
   background: var(--white);

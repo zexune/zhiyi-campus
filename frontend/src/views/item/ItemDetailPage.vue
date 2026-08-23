@@ -615,7 +615,12 @@ onMounted(() => {
   background: var(--paper-deep);
   cursor: pointer;
   opacity: 0.55;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 
 .th:hover {
@@ -814,7 +819,6 @@ onMounted(() => {
   background: var(--paper-deep);
   color: var(--ink-soft);
   box-shadow: var(--shadow-s);
-
 }
 
 .lineage-section__icon svg {

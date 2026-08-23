@@ -2,9 +2,7 @@
   <DefaultLayout>
     <div class="orders-page rise">
       <!-- 页面标题 -->
-      <div class="page-title">
-        我买的
-      </div>
+      <div class="page-title">我买的</div>
 
       <!-- 导航标签 -->
       <div class="nav-tabs">
@@ -255,7 +253,10 @@ onMounted(() => {
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
-  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
   display: inline-flex;
   align-items: center;
   gap: 4px;

@@ -4,7 +4,6 @@
       <header class="page-head">
         <div>
           <h1 class="page-title">内容治理工作台</h1>
-
         </div>
         <button class="btn" :disabled="loading" @click="refreshCurrent">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
@@ -427,7 +426,10 @@ onMounted(async () => {
   font-size: 14.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
 }
 .workspace-tab:hover {
   color: var(--ink);

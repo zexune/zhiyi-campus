@@ -267,7 +267,10 @@ onMounted(() => {
   font-size: 14px;
   color: var(--ink-soft);
   border-radius: 6px;
-  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
 }
 .auth-tabs button:hover {
   color: var(--ink);

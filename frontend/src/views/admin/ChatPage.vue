@@ -2,9 +2,7 @@
   <AdminLayout>
     <div class="chat-admin-page rise">
       <!-- 页面标题 -->
-      <div class="page-title">
-        客服收件箱
-      </div>
+      <div class="page-title">客服收件箱</div>
 
       <!-- 主体：左右分栏 -->
       <div class="chat-layout card">

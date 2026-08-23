@@ -25,14 +25,7 @@
 
     <div v-if="availableSuggestions.length && !atMax" class="tag-input__suggestions">
       <span class="tag-input__suggestions-label">可选：</span>
-      <button
-        v-for="suggestion in availableSuggestions"
-        :key="suggestion"
-        type="button"
-        class="tag-input__suggestion"
-        :title="`添加标签 ${suggestion}`"
-        @click="addTag(suggestion)"
-      >
+      <button v-for="suggestion in availableSuggestions" :key="suggestion" type="button" class="tag-input__suggestion" :title="`添加标签 ${suggestion}`" @click="addTag(suggestion)">
         {{ suggestion }}
       </button>
     </div>
@@ -67,9 +60,7 @@ const draft = ref('')
 const atMax = computed(() => props.modelValue.length >= props.max)
 
 /** 尚未被选用的建议（已选的不重复展示） */
-const availableSuggestions = computed(() =>
-  props.suggestions.filter((s) => !props.modelValue.some((t) => t.toLowerCase() === s.toLowerCase()))
-)
+const availableSuggestions = computed(() => props.suggestions.filter((s) => !props.modelValue.some((t) => t.toLowerCase() === s.toLowerCase())))
 
 function emitValue(value: string[]): void {
   emit('update:modelValue', value)
