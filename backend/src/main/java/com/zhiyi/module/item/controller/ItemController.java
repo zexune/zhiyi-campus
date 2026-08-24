@@ -14,6 +14,7 @@ import com.zhiyi.module.item.service.ItemPublishService;
 import com.zhiyi.module.item.service.MarketplaceService;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.MarketplaceFeedVO;
 import com.zhiyi.module.item.vo.TagTrendVO;
 import com.zhiyi.module.item.vo.TagGroupVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
@@ -85,34 +86,38 @@ public class ItemController {
         return Result.ok("修改成功", itemPublishService.update(userId, id, dto));
     }
 
+    /**
+     * 大厅 Feed（签名游标协议）：cursor 为空取首屏；hasMore + nextCursor 翻页。
+     * total 为首屏估算值（estimatedTotal），不承诺跨页精确。
+     */
     @GetMapping("/list")
-    public Result<IPage<ItemCardVO>> list(@RequestParam(required = false) String keyword,
+    public Result<MarketplaceFeedVO> list(@RequestParam(required = false) String keyword,
                                           @RequestParam(required = false) Long categoryId,
                                           @RequestParam(required = false) BigDecimal minPrice,
                                           @RequestParam(required = false) BigDecimal maxPrice,
                                           @RequestParam(required = false) String type,
                                           @RequestParam(required = false) List<String> tag,
                                           @RequestParam(defaultValue = "random") String sort,
-                                          @RequestParam(defaultValue = "1") int page,
+                                          @RequestParam(required = false) String cursor,
                                           @RequestParam(defaultValue = "12") int size,
                                           @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.listOnSaleItems(
-                keyword, categoryId, minPrice, maxPrice, sort, type, tag, page, size, userId));
+        return Result.ok(marketplaceService.listFeed(
+                keyword, categoryId, minPrice, maxPrice, sort, type, tag, cursor, size, userId));
     }
 
     @GetMapping("/search")
-    public Result<IPage<ItemCardVO>> search(@RequestParam(required = false) String keyword,
+    public Result<MarketplaceFeedVO> search(@RequestParam(required = false) String keyword,
                                             @RequestParam(required = false) Long categoryId,
                                             @RequestParam(required = false) BigDecimal minPrice,
                                             @RequestParam(required = false) BigDecimal maxPrice,
                                             @RequestParam(required = false) String type,
                                             @RequestParam(required = false) List<String> tag,
                                             @RequestParam(defaultValue = "latest") String sort,
-                                            @RequestParam(defaultValue = "1") int page,
+                                            @RequestParam(required = false) String cursor,
                                             @RequestParam(defaultValue = "12") int size,
                                             @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.listOnSaleItems(
-                keyword, categoryId, minPrice, maxPrice, sort, type, tag, page, size, userId));
+        return Result.ok(marketplaceService.listFeed(
+                keyword, categoryId, minPrice, maxPrice, sort, type, tag, cursor, size, userId));
     }
 
     @GetMapping("/tags")

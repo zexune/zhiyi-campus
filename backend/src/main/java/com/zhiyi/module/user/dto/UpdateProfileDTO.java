@@ -1,14 +1,22 @@
 package com.zhiyi.module.user.dto;
 
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
  * 更新个人资料（需求 1.1 昵称可修改 / B.1 PUT /api/user/profile）
+ *
+ * 乐观并发（M3）：请求必须携带读取资料时返回的 profileVersion；
+ * 版本不匹配返回 PROFILE_CONFLICT(1010) 与最新资料，禁止静默"最后写入者覆盖"。
  */
 @Data
 public class UpdateProfileDTO {
+
+    /** 客户端读取资料时的版本号；条件 UPDATE 匹配失败即 409 冲突。 */
+    @NotNull(message = "缺少资料版本号，请刷新后重试")
+    private Long profileVersion;
 
     @Size(min = 1, max = 50, message = "昵称须为 1-50 字")
     private String nickname;

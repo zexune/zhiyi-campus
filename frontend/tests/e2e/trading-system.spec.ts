@@ -5,13 +5,19 @@ const TEST_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0
 interface ApiCallOptions {
   data?: Record<string, unknown>
   token?: string
+  /** 资金操作（充值/下单/确认收货/取消）必须携带 X-Idempotency-Key（UUID），见 OrderController */
+  idempotent?: boolean
 }
 
-async function api<T = Record<string, unknown>>(request: APIRequestContext, method: string, path: string, { data, token }: ApiCallOptions = {}): Promise<T> {
+async function api<T = Record<string, unknown>>(request: APIRequestContext, method: string, path: string, { data, token, idempotent }: ApiCallOptions = {}): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+  // 每次资金意图生成新 UUID；脚本不模拟超时重试，无复用原键的场景
+  if (idempotent) headers['X-Idempotency-Key'] = crypto.randomUUID()
   const response = await request.fetch(path, {
     method,
     data,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    headers: Object.keys(headers).length > 0 ? headers : undefined
   })
   expect(response.ok(), `${method} ${path} HTTP 状态`).toBeTruthy()
   const body = await response.json()
@@ -97,13 +103,15 @@ test('@system 真实前后端完成交易闭环，并在用户与管理界面呈
   })
   await api(request, 'POST', '/api/wallet/recharge', {
     token: buyer.token,
+    idempotent: true,
     data: { amount: 100 }
   })
   const order = await api(request, 'POST', '/api/order/create', {
     token: buyer.token,
+    idempotent: true,
     data: { itemId: item.id }
   })
-  await api(request, 'PUT', `/api/order/${order.id}/confirm`, { token: buyer.token })
+  await api(request, 'PUT', `/api/order/${order.id}/confirm`, { token: buyer.token, idempotent: true })
   await api(request, 'POST', `/api/order/${order.id}/review`, {
     token: buyer.token,
     data: { rating: 5, accurate: true, comment: 'E2E交易顺利' }

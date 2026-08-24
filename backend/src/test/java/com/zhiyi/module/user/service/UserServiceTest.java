@@ -56,6 +56,7 @@ class UserServiceTest {
     private SysUser cardUser() {
         SysUser user = new SysUser();
         user.setId(42L);
+        user.setProfileVersion(0L);
         user.setNickname("测试同学");
         user.setLevel(3);
         user.setSchoolId(1L);
@@ -132,6 +133,7 @@ class UserServiceTest {
         UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
+        dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
         dto.setCampus("  宝山校区 ");
         dto.setCollege("  计算机学院 ");
         dto.setGrade("2024级");
@@ -154,6 +156,7 @@ class UserServiceTest {
         UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
+        dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
         dto.setCampus(" ");
         dto.setCollege(" ");
         dto.setGrade("");
@@ -186,6 +189,7 @@ class UserServiceTest {
         UserService service = new UserService(userMapper, null, new SchoolService(schoolMapper));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
+        dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
         dto.setSchoolId(2L);
         dto.setSchoolEmail("  STUDENT@DHU.EDU.CN ");
         UserVO result = service.updateProfile(42L, dto);
@@ -208,6 +212,7 @@ class UserServiceTest {
         UserService service = new UserService(userMapper, null, new SchoolService(schoolMapper));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
+        dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
         dto.setSchoolId(2L);
         dto.setSchoolEmail("student@shu.edu.cn");
 

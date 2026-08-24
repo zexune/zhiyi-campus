@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ItemStatus implements CodeEnum {
     ON_SALE("ON_SALE"),
+    /** 交易中：恰好对应一笔 WAITING_MEET 订单（item.status 是可交易性唯一权威来源）。 */
+    RESERVED("RESERVED"),
     SOLD("SOLD"),
     OFF_SHELF("OFF_SHELF");
 

@@ -94,9 +94,16 @@ import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
-import { getAdminSessions, getAdminChatMessages, getAdminUnreadMessages, sendAdminChatMessage } from '@/api/admin'
+import { getAdminSessions, getAdminChatMessages, getAdminUnreadMessages, sendAdminChatMessage, ackAdminChatRead } from '@/api/admin'
 import type { ChatMessage, ChatUser, Conversation } from '@/types/models'
 import { formatChatTime } from '@/utils/format'
+import { useContextGuard } from '@/composables/useContextGuard'
+
+/** 轮询间隔：正常 3s；连续失败 ≥3 次降频到 10s */
+const POLL_INTERVAL_MS = 3000
+const POLL_INTERVAL_DEGRADED_MS = 10000
+const POLL_FAILURE_THRESHOLD = 3
+const NEAR_BOTTOM_PX = 40
 
 // ---- 会话列表 ----
 const sessions = ref<Conversation[]>([])
@@ -124,43 +131,74 @@ const earlierLoading = ref(false)
 const inputText = ref('')
 const sending = ref(false)
 const msgContainer = ref<HTMLElement | null>(null)
+/** 已确认读到的最后一条接收消息 ID */
+let lastAckedMessageId: number | null = null
+
+// F3 根因修复：管理端聊天接入同一上下文守卫协议（contextId + generation + 同会话请求序号）
+const sessionGuard = useContextGuard<string>()
+
+function isNearBottom(): boolean {
+  const el = msgContainer.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+}
 
 async function openSession(session: Conversation) {
+  sessionGuard.switchContext(session.conversationId)
   activeConv.value = session.conversationId
   activePeer.value = session.peer
   inputText.value = ''
   hasEarlier.value = false
+  lastAckedMessageId = null
   await loadMessages()
   scrollToBottom()
 }
 
+/** 消息落地后显式 ACK：只取最后一条"接收"消息作为边界 */
+function ackVisibleMessages(conversationId: string) {
+  const lastReceived = [...messages.value].filter((item) => !item.mine).pop()
+  if (!lastReceived || lastReceived.id === lastAckedMessageId) return
+  lastAckedMessageId = lastReceived.id
+  ackAdminChatRead(conversationId, lastReceived.id).catch(() => {
+    lastAckedMessageId = null
+  })
+}
+
 async function loadMessages() {
-  if (!activeConv.value) return
+  const conversationId = activeConv.value
+  if (!conversationId) return
+  const { gen, seq } = sessionGuard.nextRequest()
   messagesLoading.value = true
   try {
     const res = await getAdminChatMessages({
-      conversationId: activeConv.value,
+      conversationId,
       peerId: activePeer.value?.id
     })
+    if (!sessionGuard.isCurrent(conversationId, gen, seq)) return
     messages.value = res.data?.messages || []
     hasEarlier.value = !!res.data?.hasMore
+    ackVisibleMessages(conversationId)
   } catch {
-    ElMessage.error('加载消息失败')
+    if (sessionGuard.isCurrent(conversationId, gen, seq)) ElMessage.error('加载消息失败')
   } finally {
-    messagesLoading.value = false
+    if (sessionGuard.isCurrent(conversationId, gen)) messagesLoading.value = false
   }
 }
 
 // 消息历史按 id 倒序 keyset 分页，向前翻页时保持视口停留在原位置
 async function loadEarlier() {
-  if (!messages.value.length || !activeConv.value || earlierLoading.value) return
+  const conversationId = activeConv.value
+  if (!conversationId || !messages.value.length || earlierLoading.value) return
+  // 历史分页顺序无关：只校验 gen + conversationId
+  const { gen } = sessionGuard.nextRequest()
   earlierLoading.value = true
   try {
     const res = await getAdminChatMessages({
-      conversationId: activeConv.value,
+      conversationId,
       peerId: activePeer.value?.id,
       beforeId: messages.value[0].id
     })
+    if (!sessionGuard.isCurrent(conversationId, gen)) return
     const older = res.data?.messages || []
     hasEarlier.value = !!res.data?.hasMore
     if (older.length) {
@@ -178,18 +216,23 @@ async function loadEarlier() {
 }
 
 async function handleSend() {
+  // F4 根因修复：入口同步互斥，Enter 连击无法穿透第二次提交
+  if (sending.value) return
   const text = inputText.value.trim()
   if (!text || !activeConv.value || !activePeer.value) return
+  const conversationId = activeConv.value
   sending.value = true
   try {
     await sendAdminChatMessage({
-      conversationId: activeConv.value,
+      conversationId,
       receiverId: activePeer.value.id,
       content: text
     })
     inputText.value = ''
-    await loadMessages()
-    scrollToBottom()
+    if (sessionGuard.isCurrent(conversationId, sessionGuard.generation.value)) {
+      await loadMessages()
+      scrollToBottom()
+    }
     // 刷新会话列表（更新 lastMessage）
     fetchSessions()
   } catch {
@@ -206,32 +249,52 @@ function scrollToBottom() {
   })
 }
 
-// ---- 轮询 ----
+// ---- 轮询（F7：递归 setTimeout + 在途保护，绝不重叠） ----
 let pollTimer: number | undefined
+let pollInFlight = false
+let pollFailures = 0
 
 async function poll() {
   if (!activeConv.value) return
-  try {
-    const res = await getAdminUnreadMessages({ conversationId: activeConv.value })
-    const unread = res.data || []
-    if (unread.length > 0) {
-      await loadMessages()
-      scrollToBottom()
-      fetchSessions()
-    }
-  } catch {
-    /* ignore poll errors */
+  const res = await getAdminUnreadMessages({ conversationId: activeConv.value })
+  const unread = res.data || []
+  if (unread.length > 0) {
+    const nearBottom = isNearBottom()
+    await loadMessages()
+    if (nearBottom) scrollToBottom()
+    fetchSessions()
   }
 }
 
-function startPolling() {
-  stopPolling()
-  pollTimer = window.setInterval(poll, 3000)
+function schedulePoll() {
+  const interval = pollFailures >= POLL_FAILURE_THRESHOLD ? POLL_INTERVAL_DEGRADED_MS : POLL_INTERVAL_MS
+  pollTimer = window.setTimeout(pollOnce, interval)
+}
+
+async function pollOnce() {
+  if (document.visibilityState === 'hidden' || !activeConv.value) {
+    schedulePoll()
+    return
+  }
+  if (pollInFlight) {
+    schedulePoll()
+    return
+  }
+  pollInFlight = true
+  try {
+    await poll()
+    pollFailures = 0
+  } catch {
+    pollFailures += 1
+  } finally {
+    pollInFlight = false
+    schedulePoll()
+  }
 }
 
 function stopPolling() {
   if (pollTimer) {
-    clearInterval(pollTimer)
+    clearTimeout(pollTimer)
     pollTimer = undefined
   }
 }
@@ -243,7 +306,7 @@ function truncate(text: string, max: number) {
 
 onMounted(() => {
   fetchSessions()
-  startPolling()
+  schedulePoll()
 })
 
 onUnmounted(() => {

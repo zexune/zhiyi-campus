@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
@@ -94,26 +94,40 @@ const form = reactive(emptyTopic())
 /** 按专题名称生成候选标签（防抖），供管理员点选或无视后自定义 */
 const tagSuggestions = ref<string[]>([])
 let suggestTimer: number | undefined
+/** 标签建议请求代数：清空关键词/卸载时递增，使在途旧响应落地前被丢弃 */
+let suggestSeq = 0
 watch(
   () => form.title,
   (title) => {
     window.clearTimeout(suggestTimer)
     const keyword = title.trim()
     if (keyword.length < 2) {
+      // 清空关键词：作废在途请求与定时器，避免迟到响应回写旧建议
+      ++suggestSeq
       tagSuggestions.value = []
       return
     }
     suggestTimer = window.setTimeout(async () => {
+      // 代数守卫：记录本次请求序号，快速连续输入时乱序返回的旧响应一律丢弃
+      const seq = ++suggestSeq
       try {
         const res = await getAdminItemTagSuggestions(keyword)
+        if (seq !== suggestSeq) return
         tagSuggestions.value = res.data || []
       } catch {
         // 建议失败不影响手动输入
+        if (seq !== suggestSeq) return
         tagSuggestions.value = []
       }
     }, 400)
   }
 )
+
+onUnmounted(() => {
+  // 卸载后不再回写任何建议（含已在途的请求）
+  ++suggestSeq
+  window.clearTimeout(suggestTimer)
+})
 
 function resetTopicForm() {
   Object.assign(form, emptyTopic())

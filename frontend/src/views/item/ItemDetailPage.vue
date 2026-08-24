@@ -213,7 +213,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
@@ -227,6 +227,8 @@ import { getSellerDetail, getUserRelation, getUserReputation } from '@/api/auth'
 import type { ItemDetail, ItemLineage } from '@/types/models'
 import { startItemConversation } from '@/api/chat'
 import { createOrder } from '@/api/order'
+import { getOrCreatePending, clearPending } from '@/utils/idempotency'
+import { ApiError } from '@/utils/request'
 import { ITEM_STATUS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
 import type { ItemStatus, ItemType } from '@/constants/domain'
 import { getUserId, isLoggedIn } from '@/utils/auth'
@@ -260,6 +262,8 @@ const route = useRoute()
 const router = useRouter()
 const item = ref<ItemDetail | null>(null)
 const loading = ref(false)
+/** 详情请求代数：路由参数复用组件实例时作废旧响应 */
+let detailGen = 0
 const favoriteLoading = ref(false)
 const chatLoading = ref(false)
 const buyLoading = ref(false)
@@ -307,11 +311,13 @@ function switchImage(offset: number): void {
 }
 
 async function fetchDetail(): Promise<void> {
+  const gen = ++detailGen
   loading.value = true
   sellerRelations.value = []
   try {
     // 路由 /item/:id 的 param 恒为单值字符串
     const res = await getItemDetail(route.params.id as string)
+    if (gen !== detailGen) return
     item.value = res.data
     activeImage.value = item.value.coverImage || item.value.images?.[0] || ''
     favorite.value = !!item.value.favoriteByCurrentUser
@@ -321,9 +327,10 @@ async function fetchDetail(): Promise<void> {
       loadLineage()
     }
   } catch {
+    if (gen !== detailGen) return
     item.value = null
   } finally {
-    loading.value = false
+    if (gen === detailGen) loading.value = false
   }
 }
 
@@ -432,6 +439,7 @@ function closeSellerDetail(): void {
 }
 
 async function handleBuy(): Promise<void> {
+  if (buyLoading.value) return
   if (!requireLogin()) return
   if (!item.value) return // 同上：仅类型收窄
   try {
@@ -444,13 +452,19 @@ async function handleBuy(): Promise<void> {
     return // 用户取消
   }
   buyLoading.value = true
+  // 下单幂等键（B6）：超时/结果不明时复用原键重试，服务端复返同一结果
+  const pending = getOrCreatePending('ORDER_CREATE', item.value.id, { itemId: item.value.id })
   try {
-    await createOrder(item.value.id)
+    await createOrder(item.value.id, pending.idempotencyKey)
+    clearPending('ORDER_CREATE', item.value.id)
     ElMessage.success('下单成功！资金已冻结，请联系卖家线下见面')
     // 刷新商品状态
     fetchDetail()
-  } catch {
-    // 错误已在拦截器提示
+  } catch (error) {
+    // 明确业务拒绝（已售/余额不足等 CLEAR）才清除幂等键；繁忙/超时保留原键供重试
+    if (error instanceof ApiError && error.idempotencyDisposition === 'CLEAR') {
+      clearPending('ORDER_CREATE', item.value.id)
+    }
   } finally {
     buyLoading.value = false
   }
@@ -491,6 +505,22 @@ onMounted(() => {
   }
   fetchDetail()
 })
+
+// 低危修复：路由 /item/:id 仅参数变化时组件实例被复用，onMounted 不会再次触发；
+// 此处监听参数变化重置页面状态并重新拉取，避免串显旧商品数据
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId === oldId || !isLoggedIn()) return
+    detailGen += 1
+    item.value = null
+    activeImage.value = ''
+    lineage.value = null
+    sellerDialogVisible.value = false
+    reportForm.visible = false
+    fetchDetail()
+  }
+)
 </script>
 
 <style scoped>

@@ -15,6 +15,8 @@ public class ChatMessage {
     private String content;
     private Long relatedItemId;
     private Boolean isRead;
+    /** 产生本消息的 Outbox 事件ID（系统消息专用，唯一索引防重复投递）。 */
+    private String sourceEventId;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

@@ -1,51 +1,64 @@
 package com.zhiyi.module.user.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.BanActionType;
+import com.zhiyi.common.enums.OrderCancelReason;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
+import com.zhiyi.module.social.service.OutboxService;
+import com.zhiyi.module.trade.service.ForceCancelService;
 import com.zhiyi.module.user.dto.AdminUserSearchQuery;
 import com.zhiyi.module.user.dto.BanUserDTO;
 import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.entity.SysUser;
-import com.zhiyi.module.user.event.UserPunishedEvent;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import com.zhiyi.module.user.support.UserStateCache;
 import com.zhiyi.module.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** 用户管理中的独立账号封禁与用户检索服务。内容警告与合规扣分不经过本服务。 */
+/**
+ * 用户封禁与检索服务。
+ *
+ * 事务与锁序（§4.10）：目标用户行 → 其买家进行中订单的商品行（item_id 升序）→ 订单行。
+ * 决策：临时与永久封禁均在同一事务内自动取消该用户作为买家的全部 WAITING_MEET
+ * 订单并退款（AUTO_CANCEL）；其作为卖家的进行中订单不取消（买家仍可确认/取消，
+ * 卖家应得资金可进入被封账户）。临时封禁到期解封后商品保持 OFF_SHELF，由卖家手动上架。
+ *
+ * 状态机：所有状态迁移都是"锁定后重读 + 明确 expected state + 同 SQL 推进
+ * token_version + 数据库时间计算到期值"的条件 UPDATE；CANCELLED 或已达目标状态不可覆盖。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class BanService {
 
+    private static final DateTimeFormatter BAN_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     private final SysUserMapper userMapper;
     private final SchoolMapper schoolMapper;
     private final ViolationLogMapper violationLogMapper;
-    private final UserStateCache userStateCache;
-    private final ApplicationEventPublisher eventPublisher;
+    private final ForceCancelService forceCancelService;
+    private final OutboxService outboxService;
 
     /**
      * 管理端用户列表：学校精确匹配，学号/昵称/邮箱/手机号模糊搜索。
-     * 只返回普通用户（管理员不进入可处罚名单），先分页再按 ID 集合批量补齐学校名称。
+     * 只返回普通用户（排除管理员与 SYSTEM 技术主体），先分页再批量补齐学校名称。
      */
     public IPage<UserVO> searchUsers(AdminUserSearchQuery query, int page, int size) {
         IPage<SysUser> result = userMapper.selectPage(
@@ -56,6 +69,7 @@ public class BanService {
                                 SysUser::getRole, SysUser::getStatus, SysUser::getBanUntilTime,
                                 SysUser::getLevel, SysUser::getExp, SysUser::getCreatedAt)
                         .eq(SysUser::getRole, UserRole.USER)
+                        .eq(SysUser::getIsSystem, false)
                         .eq(query.hasSchoolFilter(), SysUser::getSchoolId, query.schoolId())
                         .like(query.hasStudentIdFilter(), SysUser::getStudentId, query.studentId())
                         .like(query.hasNicknameFilter(), SysUser::getNickname, query.nickname())
@@ -75,38 +89,51 @@ public class BanService {
 
     @Transactional(rollbackFor = Exception.class)
     public void punish(BanUserDTO dto, Long adminId) {
-        SysUser target = userMapper.selectById(dto.getUserId());
+        BanActionType action = parseAction(dto.getType());
+        if (action == BanActionType.BAN_TEMP
+                && (dto.getBanDays() == null || dto.getBanDays() < 1 || dto.getBanDays() > 365)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "封禁天数须为 1-365 天");
+        }
+
+        // 1. 锁定目标用户行，锁后重读（REPEATABLE READ 下普通 SELECT 可能读快照）
+        SysUser target = userMapper.selectByIdForUpdate(dto.getUserId());
         if (target == null) throw new BusinessException(ResultCode.USER_NOT_FOUND);
         if (target.getRole() == UserRole.ADMIN) {
             throw new BusinessException(ResultCode.FORBIDDEN, "不能处罚管理员账户");
         }
-
-        BanActionType action = parseAction(dto.getType());
-        LocalDateTime banUntilTime = null;
-        switch (action) {
-            case BAN_TEMP -> {
-                if (dto.getBanDays() == null || dto.getBanDays() < 1 || dto.getBanDays() > 365) {
-                    throw new BusinessException(ResultCode.BAD_REQUEST, "封禁天数须为 1-365 天");
-                }
-                SysUser patch = new SysUser();
-                patch.setId(target.getId());
-                patch.setStatus(UserStatus.BANNED_TEMP);
-                banUntilTime = LocalDateTime.now().plusDays(dto.getBanDays());
-                patch.setBanUntilTime(banUntilTime);
-                userMapper.updateById(patch);
-            }
-            case BAN_PERM -> {
-                SysUser patch = new SysUser();
-                patch.setId(target.getId());
-                patch.setStatus(UserStatus.BANNED_PERM);
-                userMapper.updateById(patch);
-            }
+        if (Boolean.TRUE.equals(target.getIsSystem())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "不能处罚 SYSTEM 技术主体");
         }
 
-        if (userMapper.bumpTokenVersion(dto.getUserId()) == 0) {
-            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        // 2. 原子状态迁移（expected state + 数据库时间到期值 + 同 SQL 推进 token_version）
+        int updated;
+        if (action == BanActionType.BAN_TEMP) {
+            updated = userMapper.update(null, new LambdaUpdateWrapper<SysUser>()
+                    .eq(SysUser::getId, dto.getUserId())
+                    .in(SysUser::getStatus, UserStatus.ACTIVE, UserStatus.BANNED_TEMP)
+                    .set(SysUser::getStatus, UserStatus.BANNED_TEMP)
+                    .setSql("ban_until_time = DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL {0} DAY)", dto.getBanDays())
+                    .setSql("token_version = token_version + 1"));
+        } else {
+            updated = userMapper.update(null, new LambdaUpdateWrapper<SysUser>()
+                    .eq(SysUser::getId, dto.getUserId())
+                    .in(SysUser::getStatus, UserStatus.ACTIVE, UserStatus.BANNED_TEMP)
+                    .set(SysUser::getStatus, UserStatus.BANNED_PERM)
+                    .set(SysUser::getBanUntilTime, null)
+                    .setSql("token_version = token_version + 1"));
+        }
+        if (updated == 0) {
+            // 已注销或已是目标封禁状态：不覆盖既有状态
+            throw new BusinessException(ResultCode.CONFLICT, "用户状态已变更，无法执行处罚");
         }
 
+        // 3. 同一事务自动取消其作为买家的进行中订单并退款（AUTO_CANCEL）
+        forceCancelService.cancelActiveOrdersOfBuyer(
+                dto.getUserId(), OrderCancelReason.AUTO_CANCEL,
+                "因账号处罚，您作为买家的订单已被系统自动取消",
+                "因买家账号处罚，相关订单已被系统自动取消");
+
+        // 4. 处罚日志
         ViolationLog logRecord = new ViolationLog();
         logRecord.setUserId(dto.getUserId());
         logRecord.setAdminId(adminId);
@@ -115,34 +142,55 @@ public class BanService {
         logRecord.setBanDays(action == BanActionType.BAN_TEMP ? dto.getBanDays() : null);
         violationLogMapper.insert(logRecord);
 
-        eventPublisher.publishEvent(new UserPunishedEvent(
-                dto.getUserId(), action.code(), dto.getReason(),
-                action == BanActionType.BAN_TEMP ? dto.getBanDays() : null, banUntilTime));
-        userStateCache.invalidateAfterCommit(dto.getUserId());
-        log.info("管理员 {} 对用户 {} 执行处罚 {}：{}", adminId, dto.getUserId(), action, dto.getReason());
+        // 5. 封禁通知（Outbox 同事务写入；已取消订单的双方另有独立 event_id 通知）
+        StringBuilder content = new StringBuilder("你的账号收到平台处理：")
+                .append(action.code()).append("。原因：").append(dto.getReason());
+        if (action == BanActionType.BAN_TEMP) {
+            content.append("，封禁 ").append(dto.getBanDays()).append(" 天");
+        }
+        outboxService.appendNotice("USER:" + dto.getUserId() + ":BANNED:" + logRecord.getId(),
+                OutboxService.AGGREGATE_USER, dto.getUserId(), OutboxService.EVENT_USER_PUNISHED,
+                dto.getUserId(), content.toString());
+
+        log.info("管理员 {} 对用户 {} 执行处罚 {}：{}（自动撤单完成）",
+                adminId, dto.getUserId(), action, dto.getReason());
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void unban(Long userId, Long adminId) {
-        SysUser target = userMapper.selectById(userId);
+        SysUser target = userMapper.selectByIdForUpdate(userId);
         if (target == null) throw new BusinessException(ResultCode.USER_NOT_FOUND);
         if (target.getRole() == UserRole.ADMIN) {
             throw new BusinessException(ResultCode.FORBIDDEN, "不能操作管理员账户");
         }
+        if (Boolean.TRUE.equals(target.getIsSystem())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "不能操作 SYSTEM 技术主体");
+        }
         if (target.getStatus() != UserStatus.BANNED_TEMP
-                && target.getStatus() != UserStatus.BANNED_PERM
-                && target.getStatus() != UserStatus.CANCELLED) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "该用户当前未被封禁或注销");
+                && target.getStatus() != UserStatus.BANNED_PERM) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该用户当前未被封禁");
         }
 
-        SysUser patch = new SysUser();
-        patch.setId(userId);
-        patch.setStatus(UserStatus.ACTIVE);
-        userMapper.update(patch, Wrappers.<SysUser>lambdaUpdate()
+        // 仅允许 BANNED_* → ACTIVE：禁止把 CANCELLED 解封复活
+        int updated = userMapper.update(null, new LambdaUpdateWrapper<SysUser>()
                 .eq(SysUser::getId, userId)
-                .set(SysUser::getBanUntilTime, null));
-        userStateCache.invalidateAfterCommit(userId);
+                .in(SysUser::getStatus, UserStatus.BANNED_TEMP, UserStatus.BANNED_PERM)
+                .set(SysUser::getStatus, UserStatus.ACTIVE)
+                .set(SysUser::getBanUntilTime, null)
+                .setSql("token_version = token_version + 1"));
+        if (updated == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "用户状态已变更或已注销");
+        }
+
+        outboxService.appendNotice("USER:" + userId + ":UNBANNED:" + System.currentTimeMillis(),
+                OutboxService.AGGREGATE_USER, userId, OutboxService.EVENT_USER_PUNISHED,
+                userId, "你的账号已被管理员解封，可以重新登录使用了。");
         log.info("管理员 {} 解封用户 {}", adminId, userId);
+    }
+
+    /** 封禁剩余时间展示（管理端列表用）。 */
+    public static String describeBanUntil(java.time.LocalDateTime banUntilTime) {
+        return banUntilTime == null ? null : banUntilTime.format(BAN_TIME_FMT);
     }
 
     private BanActionType parseAction(String value) {

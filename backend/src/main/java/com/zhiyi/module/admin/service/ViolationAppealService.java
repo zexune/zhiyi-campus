@@ -7,8 +7,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.AppealStatus;
-import com.zhiyi.common.enums.ItemStatus;
-import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.admin.dto.HandleAppealDTO;
 import com.zhiyi.module.admin.dto.SubmitAppealDTO;
@@ -19,7 +17,6 @@ import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.admin.vo.AppealVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
-import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
@@ -48,7 +45,7 @@ public class ViolationAppealService {
     private final ItemMapper itemMapper;
     private final SysUserMapper userMapper;
     private final ReputationPenaltyService penaltyService;
-    private final TagQueryService tagQueryService;
+    private final ModerationProjectionService projectionService;
 
     @Value("${zhiyi.moderation.appeal-window-days:7}")
     private int appealWindowDays = 7;
@@ -127,18 +124,24 @@ public class ViolationAppealService {
 
     @Transactional
     public void approve(Long appealId, Long adminId, HandleAppealDTO dto) {
+        // 1. 无锁读申诉取 itemId；锁定商品（聚合串行点）
         ViolationAppeal appeal = requirePendingAppeal(appealId);
-        LocalDateTime handledAt = LocalDateTime.now();
+        if (appeal.getItemId() != null) {
+            itemMapper.selectByIdForUpdate(appeal.getItemId());
+        }
+
+        // 2. 抢占更新申诉状态
         if (appealMapper.update(null, new LambdaUpdateWrapper<ViolationAppeal>()
                 .eq(ViolationAppeal::getId, appealId)
                 .eq(ViolationAppeal::getStatus, AppealStatus.PENDING)
                 .set(ViolationAppeal::getStatus, AppealStatus.APPROVED)
                 .set(ViolationAppeal::getHandlerId, adminId)
                 .set(ViolationAppeal::getHandleNote, trimToNull(dto.handleNote()))
-                .set(ViolationAppeal::getHandledAt, handledAt)) == 0) {
+                .setSql("handled_at = CURRENT_TIMESTAMP(6)")) == 0) {
             throw new BusinessException(ResultCode.CONFLICT, "申诉已被其他管理员处理");
         }
 
+        // 3. 原违规记录翻案（条件 UPDATE 抢占）
         ViolationReport report = requireReport(appeal.getReportId());
         if (reportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
                 .eq(ViolationReport::getId, report.getId())
@@ -148,16 +151,11 @@ public class ViolationAppealService {
         }
         penaltyService.revokePenalty(report.getId());
 
-        long newerConfirmed = reportMapper.selectCount(new LambdaQueryWrapper<ViolationReport>()
-                .eq(ViolationReport::getItemId, report.getItemId())
-                .eq(ViolationReport::getStatus, ViolationStatus.CONFIRMED)
-                .gt(ViolationReport::getId, report.getId()));
-        Item item = itemMapper.selectById(report.getItemId());
-        if (item != null && newerConfirmed == 0 && item.getModerationStatus() == ModerationStatus.REJECTED) {
-            item.setModerationStatus(ModerationStatus.PASSED);
-            if (item.getStatus() == ItemStatus.OFF_SHELF) item.setStatus(ItemStatus.ON_SALE);
-            itemMapper.updateById(item);
-            tagQueryService.invalidate(item.getSchoolId());
+        // 4. 统一聚合投影：仍存在其他 CONFIRMED 则保持 REJECTED，否则回 PASSED/PENDING。
+        //    商品 status 永不自动重新上架（无 off_shelf_reason 字段，无法区分
+        //    "审核下架"与"卖家手动下架"）；恢复上架一律由卖家手动 relist。
+        if (report.getItemId() != null) {
+            projectionService.projectItemModerationStatus(report.getItemId());
         }
     }
 
@@ -170,7 +168,7 @@ public class ViolationAppealService {
                 .set(ViolationAppeal::getStatus, AppealStatus.REJECTED)
                 .set(ViolationAppeal::getHandlerId, adminId)
                 .set(ViolationAppeal::getHandleNote, trimToNull(dto.handleNote()))
-                .set(ViolationAppeal::getHandledAt, LocalDateTime.now())) == 0) {
+                .setSql("handled_at = CURRENT_TIMESTAMP(6)")) == 0) {
             throw new BusinessException(ResultCode.CONFLICT, "申诉已被其他管理员处理");
         }
     }

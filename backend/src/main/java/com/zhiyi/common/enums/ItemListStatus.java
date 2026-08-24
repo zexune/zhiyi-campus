@@ -9,6 +9,8 @@ import java.util.Locale;
 public enum ItemListStatus {
     ON_SALE(ItemStatus.ON_SALE),
     REVIEWING(null),
+    /** 交易中：由进行中订单派生的展示状态（RESERVED）。 */
+    RESERVED(ItemStatus.RESERVED),
     SOLD(ItemStatus.SOLD),
     OFF_SHELF(ItemStatus.OFF_SHELF);
 

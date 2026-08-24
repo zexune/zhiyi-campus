@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { ApiResult } from '@/utils/request'
 import type { Category, EventTopic, FavoriteToggleResult, Item, ItemDetail, ItemLineage, ModerationResult, PageResult, PublishItemPayload, TagCloudGroup, TagCount } from '@/types/models'
 import type { PageQuery } from '@/types/models'
 
@@ -20,12 +21,39 @@ export interface ReportPayload {
   details: string | null
 }
 
-export function getItemList(params: ItemListQuery) {
-  return request.get<PageResult<Item>>('/item/list', { params })
+/**
+ * 大厅 Feed 游标查询：cursor 为空取首屏；翻页提交上一响应的 nextCursor。
+ * 游标对客户端不透明：不得解析、修改或自行构造。
+ */
+export interface ItemFeedQuery {
+  sort?: string
+  keyword?: string
+  categoryId?: number | string
+  minPrice?: number | string
+  maxPrice?: number | string
+  type?: string
+  tag?: string | string[]
+  cursor?: string
+  size?: number
 }
 
-export function searchItems(params: ItemListQuery) {
-  return request.get<PageResult<Item>>('/item/search', { params })
+/**
+ * 大厅 Feed 游标响应：total 为首屏估算值（estimated），
+ * 不承诺跨页精确；hasMore + nextCursor 驱动"加载更多"。
+ */
+export interface ItemFeedResult {
+  records: Item[]
+  nextCursor: string | null
+  hasMore: boolean
+  estimatedTotal: number
+}
+
+export function getItemList(params: ItemFeedQuery): Promise<ApiResult<ItemFeedResult>> {
+  return request.get<ItemFeedResult>('/item/list', { params })
+}
+
+export function searchItems(params: ItemFeedQuery): Promise<ApiResult<ItemFeedResult>> {
+  return request.get<ItemFeedResult>('/item/search', { params })
 }
 
 export function getItemDetail(id: number | string) {

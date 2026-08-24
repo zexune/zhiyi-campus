@@ -32,6 +32,8 @@ export interface ResetPasswordPayload {
 }
 
 export interface UpdateProfilePayload {
+  /** 资料乐观并发版本：读取资料时返回，提交必须携带；不匹配返回 1010 冲突与最新资料 */
+  profileVersion: number
   nickname: string
   phone: string
   schoolId: number

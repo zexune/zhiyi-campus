@@ -238,7 +238,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -287,6 +287,8 @@ const tagSuggestions = ref<string[]>([])
 /** 用户是否手动调整过标签：调整后不再自动覆盖选择 */
 let tagsTouched = false
 let suggestTimer: number | undefined
+/** 标签建议请求代数：清空关键词/卸载时递增，使在途旧响应落地前被丢弃 */
+let suggestSeq = 0
 const editMode = computed(() => Boolean(route.params.id))
 const submitButtonText = computed(() => {
   if (uploading.value) return '图片上传中'
@@ -306,13 +308,19 @@ watch(
   ([title]) => {
     const keyword = title.trim()
     if (keyword.length < 2) {
+      // 清空关键词：作废在途请求与定时器，避免迟到响应回写旧建议
+      ++suggestSeq
+      window.clearTimeout(suggestTimer)
       tagSuggestions.value = []
       return
     }
     window.clearTimeout(suggestTimer)
     suggestTimer = window.setTimeout(async () => {
+      // 代数守卫：记录本次请求序号，快速连续输入时乱序返回的旧响应一律丢弃
+      const seq = ++suggestSeq
       try {
         const res = await getItemTagSuggestions(keyword, form.categoryId)
+        if (seq !== suggestSeq) return
         const fresh = res.data || []
         tagSuggestions.value = fresh
         if (!tagsTouched) form.tags = fresh.slice(0, 6)
@@ -322,6 +330,12 @@ watch(
     }, 400)
   }
 )
+
+onUnmounted(() => {
+  // 卸载后不再回写任何建议（含已在途的请求）
+  ++suggestSeq
+  window.clearTimeout(suggestTimer)
+})
 function markTagsTouched(): void {
   tagsTouched = true
 }

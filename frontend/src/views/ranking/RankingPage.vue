@@ -136,7 +136,7 @@
               <button
                 class="favorite-button"
                 :class="{ active: item.favoriteByCurrentUser }"
-                :disabled="favoriteBusyId === item.id"
+                :disabled="favoriteBusyIds.has(item.id)"
                 :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
                 @click.stop="handleFavorite(item)"
               >
@@ -172,6 +172,7 @@ import TagList from '@/components/common/TagList.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
+import { useEntityMutex } from '@/composables/useEntityMutex'
 import type { Item, TagCount } from '@/types/models'
 import { ITEM_TYPE } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
@@ -182,7 +183,12 @@ const router = useRouter()
 const ranking = ref<Item[]>([])
 const trendingTags = ref<TagCount[]>([])
 const loading = ref(true)
-const favoriteBusyId = ref<number | null>(null)
+/** F10 根因修复：per-entity 收藏互斥——A 进行中不影响 B，也不会被 B 提前解锁 */
+const favoriteMutex = useEntityMutex<number>()
+/** 模板按 busy 集合禁用按钮 */
+const favoriteBusyIds = favoriteMutex.lockedIds
+/** 榜单请求代数：收藏合并刷新的旧响应不覆盖新结果 */
+let rankingGen = 0
 
 const podiumEntries = computed(() => {
   const entries = ranking.value.slice(0, 3).map((item, index) => ({ item, rank: index + 1 }))
@@ -199,13 +205,15 @@ function goTag(tag: string): void {
 }
 
 async function fetchRanking(): Promise<void> {
+  const gen = ++rankingGen
   loading.value = true
   try {
     const [rankingRes, tagsRes] = await Promise.all([getItemRanking({ limit: 20 }), getTrendingTags({ limit: 10 })])
+    if (gen !== rankingGen) return
     ranking.value = rankingRes.data || []
     trendingTags.value = tagsRes.data || []
   } finally {
-    loading.value = false
+    if (gen === rankingGen) loading.value = false
   }
 }
 
@@ -214,14 +222,15 @@ async function handleFavorite(item: Item): Promise<void> {
     router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.RANKING } })
     return
   }
-  favoriteBusyId.value = item.id
+  if (!favoriteMutex.tryLock(item.id)) return
   try {
     const res = await toggleFavorite(item.id)
     ElMessage.success(res.data.favorite ? '已收藏' : '已取消收藏')
-    await fetchRanking()
   } finally {
-    favoriteBusyId.value = null
+    favoriteMutex.unlock(item.id)
   }
+  // 并发结束后合并一次 latest-wins 刷新
+  await fetchRanking()
 }
 
 onMounted(fetchRanking)

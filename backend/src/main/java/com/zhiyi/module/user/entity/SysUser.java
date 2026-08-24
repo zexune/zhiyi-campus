@@ -32,6 +32,10 @@ public class SysUser {
      * Token 版本：重置密码、改密、封禁或注销时原子递增，旧版本 JWT 一律拒绝。
      */
     private Integer tokenVersion;
+    /** 资料乐观并发版本：仅资料修改推进，与钱包/状态/Token 写入无关。 */
+    private Long profileVersion;
+    /** SYSTEM 技术主体标记（不可登录、不可交易；全库恰好一个）。 */
+    private Boolean isSystem;
     private Integer level;
     private Integer exp;
     private BigDecimal walletBalance;

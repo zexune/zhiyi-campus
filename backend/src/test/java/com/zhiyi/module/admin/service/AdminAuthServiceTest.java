@@ -37,6 +37,8 @@ class AdminAuthServiceTest {
     private SysUserMapper userMapper;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private LoginAttemptService loginAttemptService;
 
     private JwtUtils jwtUtils;
     private AdminAuthService service;
@@ -55,7 +57,7 @@ class AdminAuthServiceTest {
                 userMapper,
                 passwordEncoder,
                 jwtUtils,
-                new LoginAttemptService(3, 300));
+                loginAttemptService);
     }
 
     @Test

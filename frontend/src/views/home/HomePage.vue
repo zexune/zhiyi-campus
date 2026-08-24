@@ -170,8 +170,9 @@
               <button :class="{ active: filters.sort === 'priceDesc' }" @click="filters.sort = 'priceDesc'">价格 ↓</button>
             </div>
             <span class="muted goods-total">
-              <strong>{{ total }}</strong>
+              <strong>{{ estimatedTotal }}</strong>
               件在售
+              <span title="首屏估算值，非精确计数">（约）</span>
             </span>
           </div>
 
@@ -216,7 +217,7 @@
                   <button
                     class="fav-button"
                     :class="{ active: item.favoriteByCurrentUser }"
-                    :disabled="favoriteBusyId === item.id"
+                    :disabled="favoriteBusyIds.has(item.id)"
                     :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
                     @click.stop="handleFavorite(item)"
                   >
@@ -250,16 +251,21 @@
           </div>
 
           <div v-if="items.length" class="load-more">
-            <button class="btn btn--yellow btn--lg" :disabled="loading" @click="fetchItems">
-              再看一批
+            <button v-if="hasMore" class="btn btn--yellow btn--lg" :disabled="loadingMore" @click="loadMore">
+              {{ loadingMore ? '加载中…' : '加载更多' }}
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+                <path d="M20 4v7h-7" />
+              </svg>
+            </button>
+            <button v-else class="btn btn--yellow btn--lg" :disabled="loading" @click="fetchItems">
+              已经到底啦，换一批
               <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 11a8 8 0 1 0-2.34 5.66" />
                 <path d="M20 4v7h-7" />
               </svg>
             </button>
           </div>
-
-          <el-pagination v-if="total > pageSize" v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchItems" />
         </main>
 
         <aside>
@@ -322,19 +328,20 @@ const {
   applyTopic,
   categories,
   clearKeyword,
-  favoriteBusyId,
+  favoriteBusyIds,
   fetchItems,
   filterByTag,
   filters,
   goDetail,
   handleFavorite,
   handleSearch,
+  hasMore,
   itemTypeLabel,
   items,
+  loadMore,
   loading,
+  loadingMore,
   loggedIn,
-  page,
-  pageSize,
   placeholderClass,
   quickSearch,
   ranking,
@@ -343,7 +350,7 @@ const {
   selectCategory,
   showTagCloud,
   toggleTagCloud,
-  total
+  estimatedTotal
 } = useMarketplaceHome()
 </script>
 

@@ -176,6 +176,11 @@ export function getAdminChatMessages(params: { conversationId: string; peerId?: 
   return request.get<ChatThread>('/admin/chat/messages', { params })
 }
 
+/** 管理端同模式显式已读确认（GET messages 只读） */
+export function ackAdminChatRead(conversationId: string, lastSeenMessageId: number) {
+  return request.post<void>('/admin/chat/ack', null, { params: { conversationId, lastSeenMessageId } })
+}
+
 export function sendAdminChatMessage(data: { conversationId: string; receiverId: number; content: string }) {
   return request.post<ChatMessage>('/admin/chat/send', data)
 }

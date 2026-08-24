@@ -8,8 +8,8 @@
 | --- | --- | --- | --- |
 | 后端单元测试 | JUnit 5、Mockito；`mvn test` | 用户、交易、内容治理、后台治理、查询组装、边界与异常 | 否 |
 | HTTP 契约测试 | Spring MVC Test、MockMvc；`mvn test` | 参数校验、统一响应结构、金额/状态序列化、业务异常、用户端与管理端登录契约 | 否 |
-| 持久化与事务集成测试 | Spring Boot Test、Testcontainers、MySQL 9.7 LTS；`mvn verify -Pintegration` | 真实建表 SQL、MyBatis 映射、唯一约束、钱包/订单/预留/流水原子性、事务回滚 | Docker |
-| 前端工具与组件测试 | Vitest、Vue Test Utils、happy-dom；`npm test` | 领域映射、评价弹窗、钱包、买入订单、后台数据大盘及失败/空态 | 否 |
+| 持久化与事务集成测试 | Spring Boot Test、Testcontainers、MySQL 9.7 LTS；`mvn verify -Pintegration` | 真实建表 SQL、MyBatis 映射、唯一约束、钱包/订单/商品状态机/流水原子性、事务回滚、CyclicBarrier 并发竞态验收 | Docker |
+| 前端工具与组件测试 | Vitest、Vue Test Utils、happy-dom；`npm test` | 领域映射、评价弹窗、钱包、买入订单、后台数据大盘、违规治理工作台（含分页竞态回归）、后台用户管理及失败/空态 | 否 |
 | 浏览器烟测 | Playwright Chromium；`npm run test:e2e` | 生产构建、路由守卫、钱包加载/充值/刷新、浏览器运行时错误 | 否，API 使用确定性 mock |
 | 全系统 E2E | Playwright → Vue → Spring Boot → MySQL；`npm run test:system` | 注册、发布、充值、下单、确认收货、评价、后台看板与角色隔离 | MySQL 与后端 |
 
@@ -45,6 +45,8 @@ mvn verify -Pintegration
 
 该 profile 启动一次性 MySQL 9.7 LTS 容器，直接运行根目录的 `zhiyi_campus_init.sql`，并使用真实 SQL、索引、约束和事务语义。套件通过 `SELECT VERSION()` 校验数据库环境为 9.7.x。
 
+`TradingConcurrencyIT` 在同一容器上以 CyclicBarrier 屏障交错执行双事务竞态验收（fix-v3.1.md §7.1）：双下单同商品、下单 vs 编辑/删除、充值同键并发、封禁 vs 确认收货、违规确认 vs 确认收货/编辑；交易请求统一走生产入口 `TradingEntryService`（事务外准入闸门参与验收）。断言针对串行顺序无关的数据库不变量（I1-I3、I6/I7、I10-I13、I24），任何交错下都必须成立。
+
 ### 完整系统 E2E
 
 先使用 `zhiyi_campus_init.sql` 初始化专用测试数据库，并在 `http://127.0.0.1:8080` 启动后端；随后执行：
@@ -61,7 +63,7 @@ npm run test:system
 ## 覆盖率门禁
 
 - 后端 `mvn verify` 要求全项目行覆盖率不低于 60%、分支覆盖率不低于 45%；HTML 报告位于 `backend/target/site/jacoco/index.html`。
-- 前端 `npm run test:coverage` 要求全源码语句/函数/行覆盖率不低于 12%，分支覆盖率不低于 8%；评价弹窗、钱包、买入订单、后台大盘和交易工具函数另设 65%–100% 的定向门禁。HTML 报告位于 `frontend/coverage/index.html`。
+- 前端 `npm run test:coverage` 要求全源码语句/函数/行覆盖率不低于 12%，分支覆盖率不低于 8%；评价弹窗、钱包、买入订单、后台大盘和交易工具函数，以及展示格式化、表单校验、分页列表组合式函数与路由路径常量等基础模块另设 65%–100% 的定向门禁。HTML 报告位于 `frontend/coverage/index.html`。
 - 覆盖率是回归下限，不是完成标准。涉及资金、权限、状态机或事务的改动，即使覆盖率未下降，也必须补充能验证业务结果和失败回滚的断言。
 
 ## 测试数据与隔离
@@ -70,7 +72,7 @@ npm run test:system
 - 使用 Mapper mock 执行 MyBatis-Plus Lambda Wrapper 的单元测试，必须在 `@BeforeAll` 中通过 `MybatisMetadata.initialize(实体类, Mapper类)` 显式初始化所需元数据，不能依赖其他测试留下的全局缓存。
 - MVC 契约测试只加载控制器切片，并显式 mock 服务、JWT 与角色拦截器，确保失败时能定位到 HTTP 边界。
 - Testcontainers 集成测试使用一次性数据库；HTTP 交易旅程使用唯一测试数据并在用例结束时显式清理。
-- 事务失败用例在钱包流水写入处制造数据库错误，并同时断言余额、订单和商品预留均未留下部分提交。
+- 事务失败用例在钱包流水写入处制造数据库错误，并同时断言余额与订单均未留下部分提交。
 - 浏览器烟测使用精确 URL 谓词拦截 API，不能用过宽规则误拦截 Vite 源模块或静态资源。
 - 全系统 E2E 使用唯一学号和邮箱，避免并行执行时互相覆盖；管理员只使用初始化脚本提供的本地测试账号。
 

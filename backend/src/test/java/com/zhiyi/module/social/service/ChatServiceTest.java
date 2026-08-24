@@ -1,16 +1,20 @@
 package com.zhiyi.module.social.service;
 
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.UserRole;
+import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.dto.ChatSendDTO;
 import com.zhiyi.module.social.dto.ChatStartDTO;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
+import com.zhiyi.module.social.mapper.ChatResponseSampleMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
+import com.zhiyi.module.user.mapper.UserReputationMetricMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,10 +29,16 @@ import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：新增 ChatResponseSampleMapper/UserReputationMetricMapper 依赖
+ * （响应速度样本）；unreadCount 改 countUnreadByReceiver；sendSystemMessage 删除；
+ * findAdmin 用 selectHumanAdmins（恰一个）+ 非 ACTIVE 抛 FORBIDDEN；新增 ackRead。
+ */
 @ExtendWith(MockitoExtension.class)
 class ChatServiceTest {
 
@@ -38,6 +48,10 @@ class ChatServiceTest {
     private ItemMapper itemMapper;
     @Mock
     private SysUserMapper userMapper;
+    @Mock
+    private ChatResponseSampleMapper responseSampleMapper;
+    @Mock
+    private UserReputationMetricMapper reputationMetricMapper;
 
     private ChatService service;
 
@@ -48,7 +62,8 @@ class ChatServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ChatService(chatMessageMapper, itemMapper, userMapper);
+        service = new ChatService(chatMessageMapper, itemMapper, userMapper,
+                responseSampleMapper, reputationMetricMapper);
     }
 
     @Test
@@ -116,6 +131,92 @@ class ChatServiceTest {
     }
 
     @Test
+    void customerServiceConversationUsesSoleHumanAdmin() {
+        SysUser admin = user(9L, 1L, "ADMIN");
+        admin.setStatus(UserStatus.ACTIVE);
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
+
+        var vo = service.startCustomerService(1L);
+
+        assertEquals("1_9", vo.getConversationId());
+        assertEquals(9L, vo.getPeer().getId());
+    }
+
+    @Test
+    void customerServiceUnavailableWhenAdminNotActive() {
+        SysUser admin = user(9L, 1L, "ADMIN");
+        admin.setStatus(UserStatus.BANNED_TEMP);
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
+
+        BusinessException error = assertThrows(
+                BusinessException.class, () -> service.startCustomerService(1L));
+
+        assertEquals(ResultCode.FORBIDDEN.getCode(), error.getCode());
+        assertEquals("人工客服暂不可用，请稍后再试", error.getMessage());
+    }
+
+    @Test
+    void customerServiceMisconfiguredWhenAdminCountIsNotOne() {
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of());
+
+        BusinessException error = assertThrows(
+                BusinessException.class, () -> service.startCustomerService(1L));
+
+        assertEquals(ResultCode.SERVER_ERROR.getCode(), error.getCode());
+    }
+
+    @Test
+    void sellerReplyToOwnItemConversationRecordsResponseSample() {
+        // 买家 1 就商品 100（卖家 2 发布）发起会话，卖家 2 回复：记录唯一响应样本
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 1L, "USER"));
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(itemMapper.selectById(100L)).thenReturn(item(100L, 2L, 1L));
+        when(chatMessageMapper.insert(any(ChatMessage.class))).thenAnswer(invocation -> {
+            ChatMessage saved = invocation.getArgument(0);
+            saved.setId(10L);
+            saved.setCreatedAt(LocalDateTime.now());
+            return 1;
+        });
+        ChatMessage trigger = message(9L, 1L, 2L);
+        trigger.setRelatedItemId(100L);
+        trigger.setCreatedAt(LocalDateTime.now().minusSeconds(30));
+        when(chatMessageMapper.selectOne(any())).thenReturn(trigger);
+        when(responseSampleMapper.insertIgnore(eq("1_2:9"), eq(2L), eq(30L))).thenReturn(1);
+
+        ChatSendDTO dto = messageTo(1L);
+        dto.setRelatedItemId(100L);
+        service.send(2L, dto);
+
+        verify(responseSampleMapper).insertIgnore(eq("1_2:9"), eq(2L), eq(30L));
+        verify(reputationMetricMapper).accumulate(2L, 30L);
+    }
+
+    @Test
+    void buyerMessageDoesNotRecordSellerResponseSample() {
+        // 买家发言：触发消息并非"来自对方且关联自己发布商品"的卖家会话
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 1L, "USER"));
+        when(itemMapper.selectById(100L)).thenReturn(item(100L, 2L, 1L));
+        when(chatMessageMapper.insert(any(ChatMessage.class))).thenAnswer(invocation -> {
+            ChatMessage saved = invocation.getArgument(0);
+            saved.setId(10L);
+            saved.setCreatedAt(LocalDateTime.now());
+            return 1;
+        });
+        ChatMessage trigger = message(9L, 2L, 1L); // 卖家发给买家
+        trigger.setRelatedItemId(100L);
+        trigger.setCreatedAt(LocalDateTime.now().minusSeconds(30));
+        when(chatMessageMapper.selectOne(any())).thenReturn(trigger);
+
+        ChatSendDTO dto = messageTo(2L);
+        dto.setRelatedItemId(100L);
+        service.send(1L, dto);
+
+        verify(responseSampleMapper, never()).insertIgnore(any(), any(), org.mockito.ArgumentMatchers.anyLong());
+        verify(reputationMetricMapper, never()).accumulate(any(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
     void rejectsPeerIdThatDoesNotMatchStoredConversation() {
         ChatMessage stored = new ChatMessage();
         stored.setConversationId("1_2");
@@ -129,6 +230,49 @@ class ChatServiceTest {
                 () -> service.messages(1L, "1_2", 3L, null));
 
         assertEquals(400, error.getCode());
+    }
+
+    @Test
+    void readingThreadDoesNotMarkMessagesAsRead() {
+        // M1/B10：GET 只读，已读必须由前端显式 ackRead
+        ChatMessage stored = message(7L, 2L, 1L);
+        stored.setIsRead(false);
+        when(chatMessageMapper.selectList(any())).thenReturn(List.of(stored));
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 1L, "USER"));
+
+        var result = service.messages(1L, "1_2", 2L, null);
+
+        assertEquals(1, result.getMessages().size());
+        verify(chatMessageMapper, never()).update(any(), any());
+    }
+
+    @Test
+    void ackReadMarksOnlyUpToLastSeenMessage() {
+        when(chatMessageMapper.exists(any())).thenReturn(true);
+
+        service.ackRead(1L, "1_2", 7L);
+
+        verify(chatMessageMapper).update(any(), any());
+    }
+
+    @Test
+    void ackReadRejectsForeignMessageId() {
+        when(chatMessageMapper.exists(any())).thenReturn(false);
+
+        BusinessException error = assertThrows(
+                BusinessException.class, () -> service.ackRead(1L, "1_2", 999L));
+
+        assertEquals(ResultCode.BAD_REQUEST.getCode(), error.getCode());
+        verify(chatMessageMapper, never()).update(any(), any());
+    }
+
+    @Test
+    void unreadCountUsesCoveringIndexCount() {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(chatMessageMapper.countUnreadByReceiver(1L)).thenReturn(7L);
+
+        assertEquals(7L, service.unreadCount(1L));
     }
 
     @Test
@@ -151,25 +295,6 @@ class ChatServiceTest {
 
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).getPeer().getId());
-    }
-
-    @Test
-    void ordinaryAdministratorUnreadCountOnlyContainsSameSchoolMessages() {
-        when(chatMessageMapper.aggregateConversations(9L)).thenReturn(List.of(
-                aggregate("1_9", 1L, 1L, null, 1L),
-                aggregate("2_9", 2L, 2L, null, 1L)
-        ));
-        when(chatMessageMapper.selectByIds(any())).thenReturn(List.of(
-                message(1L, 1L, 9L),
-                message(2L, 2L, 9L)
-        )).thenReturn(List.of());
-        when(userMapper.selectById(9L)).thenReturn(user(9L, 1L, "ADMIN"));
-        when(userMapper.selectByIds(any())).thenReturn(List.of(
-                user(1L, 1L, "USER"),
-                user(2L, 2L, "USER")
-        ));
-
-        assertEquals(1L, service.unreadCount(9L));
     }
 
     @Test

@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.util.List;
+
 @Mapper
 public interface SysUserMapper extends BaseMapper<SysUser> {
     // MyBatis-Plus 自动提供 insert / delete / update / selectById / selectList 等
@@ -29,4 +31,24 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     /** 原子推进 Token 版本，使此前签发的所有 JWT 失效。 */
     @Update("UPDATE sys_user SET token_version = token_version + 1 WHERE id = #{userId}")
     int bumpTokenVersion(@Param("userId") Long userId);
+
+    /** 当前读锁定用户行（登录/状态迁移/交易锁序；REPEATABLE READ 下普通 SELECT 可能读快照）。 */
+    @Select("SELECT * FROM sys_user WHERE id = #{id} FOR UPDATE")
+    SysUser selectByIdForUpdate(@Param("id") Long id);
+
+    /** NOWAIT 锁定用户行：锁繁忙立即失败（errno 3572），由调用方映射为可重试背压。 */
+    @Select("SELECT * FROM sys_user WHERE id = #{id} FOR UPDATE NOWAIT")
+    SysUser selectByIdForUpdateNowait(@Param("id") Long id);
+
+    /** 鉴权主库直读：只取拦截器所需字段，普通读取不加锁。 */
+    @Select("SELECT id, role, status, ban_until_time, token_version, is_system FROM sys_user WHERE id = #{id}")
+    SysUser selectAuthState(@Param("id") Long id);
+
+    /** 唯一 SYSTEM 技术主体（系统消息发送者；启动巡检保证恰好一个）。 */
+    @Select("SELECT * FROM sys_user WHERE is_system = 1")
+    SysUser selectSystemUser();
+
+    /** 全部人工管理员（role=ADMIN 且非 SYSTEM）；由调用方校验恰好一个，禁止 LIMIT 1 掩盖配置异常。 */
+    @Select("SELECT * FROM sys_user WHERE role = 'ADMIN' AND is_system = 0")
+    List<SysUser> selectHumanAdmins();
 }

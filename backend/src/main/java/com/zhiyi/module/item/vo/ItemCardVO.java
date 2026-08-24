@@ -39,7 +39,8 @@ public class ItemCardVO {
     private Boolean appealable;
     private String appealStatus;
     private Long latestViolationId;
-    private Integer viewCount;
+    /** 浏览量（独立统计表派生，只增不减） */
+    private Long viewCount;
     private Long favoriteCount;
     private Boolean favoriteByCurrentUser;
     private LocalDateTime createdAt;

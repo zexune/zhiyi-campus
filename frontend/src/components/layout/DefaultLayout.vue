@@ -250,26 +250,40 @@ watch(
   }
 )
 
+/** M12 根因修复：递归 setTimeout 轮询——在途请求未完成则跳过本拍，绝不重叠 */
+let unreadInFlight = false
+
 async function fetchUnreadCount() {
   if (!loggedIn.value || document.visibilityState === 'hidden') return
+  if (unreadInFlight) return
+  unreadInFlight = true
   try {
     // 后台静默轮询：401 时不触发全局登录跳转，避免打断用户正在进行的导航
     const res = await getUnreadCount({ skipAuthRedirect: true })
     unreadCount.value = Number(res.data || 0)
   } catch {
-    unreadCount.value = 0
+    // 失败静默（不打断页面），下一拍继续
+  } finally {
+    unreadInFlight = false
   }
+}
+
+function scheduleUnreadPoll() {
+  // 低频轮询；页面不可见时 fetchUnreadCount 自行跳过但仍保持节奏，恢复可见即恢复拉取
+  unreadTimer = window.setTimeout(async () => {
+    await fetchUnreadCount()
+    scheduleUnreadPoll()
+  }, 15000)
 }
 
 onMounted(() => {
   fetchUnreadCount()
-  // 低频轮询 + 页面不可见时跳过，降低资源占用
-  unreadTimer = window.setInterval(fetchUnreadCount, 15000)
+  scheduleUnreadPoll()
   window.addEventListener('keydown', onKeydown)
 })
 
 onUnmounted(() => {
-  if (unreadTimer) window.clearInterval(unreadTimer)
+  if (unreadTimer) window.clearTimeout(unreadTimer)
   window.removeEventListener('keydown', onKeydown)
 })
 </script>

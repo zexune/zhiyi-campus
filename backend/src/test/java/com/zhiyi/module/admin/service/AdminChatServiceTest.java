@@ -41,17 +41,35 @@ class AdminChatServiceTest {
     }
 
     @Test
-    void noActiveAdminMeansNoInboxQuery() {
-        when(userMapper.selectOne(any())).thenReturn(null);
+    void misconfiguredAdminCountFailsLoudlyInsteadOfSilentPick() {
+        // M8/I16：零个或多个非 SYSTEM 管理员是配置错误，禁止 ORDER BY id LIMIT 1 静默选择
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of());
 
-        assertTrue(service.getSessions().isEmpty());
+        com.zhiyi.common.BusinessException error = org.junit.jupiter.api.Assertions.assertThrows(
+                com.zhiyi.common.BusinessException.class, () -> service.getSessions());
 
+        assertEquals(500, error.getCode());
+        verifyNoInteractions(messageMapper);
+    }
+
+    @Test
+    void inactiveAdminMeansCustomerServiceUnavailable() {
+        SysUser admin = user(1L, "管理员", 99);
+        admin.setStatus(com.zhiyi.common.enums.UserStatus.BANNED_TEMP);
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
+
+        com.zhiyi.common.BusinessException error = org.junit.jupiter.api.Assertions.assertThrows(
+                com.zhiyi.common.BusinessException.class, () -> service.getSessions());
+
+        assertEquals(403, error.getCode());
         verifyNoInteractions(messageMapper);
     }
 
     @Test
     void activeAdminWithNoMessagesGetsEmptyInbox() {
-        when(userMapper.selectOne(any())).thenReturn(user(1L, "管理员", 99));
+        SysUser admin = user(1L, "管理员", 99);
+        admin.setStatus(com.zhiyi.common.enums.UserStatus.ACTIVE);
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
         when(messageMapper.aggregateConversations(1L)).thenReturn(List.of());
 
         assertTrue(service.getSessions().isEmpty());
@@ -61,9 +79,10 @@ class AdminChatServiceTest {
     void sessionsAssembleFromPerConversationAggregates() {
         LocalDateTime now = LocalDateTime.now();
         SysUser admin = user(1L, "管理员", 99);
+        admin.setStatus(com.zhiyi.common.enums.UserStatus.ACTIVE);
         SysUser alice = user(2L, "小爱", 3);
         SysUser bob = user(3L, "小博", 4);
-        when(userMapper.selectOne(any())).thenReturn(admin);
+        when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
         when(messageMapper.aggregateConversations(1L)).thenReturn(List.of(
                 aggregate("3_admin", 5L, 3L, 1L),
                 aggregate("2_admin", 4L, 2L, 2L)));

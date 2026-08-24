@@ -31,6 +31,8 @@ export interface UserSummary {
 
 /** 个人中心完整资料（getProfile；localStorage 恢复时仅 id/nickname/role） */
 export interface UserProfile extends UserSummary {
+  /** 资料乐观并发版本（编辑资料须携带匹配当前版本） */
+  profileVersion?: number
   level: number
   levelTitle?: string
   exp?: number

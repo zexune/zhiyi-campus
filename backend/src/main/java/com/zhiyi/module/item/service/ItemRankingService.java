@@ -41,12 +41,12 @@ public class ItemRankingService {
                 .filter(Objects::nonNull).collect(Collectors.toCollection(ArrayList::new));
 
         if (items.size() < safeLimit) {
+            // ON_SALE 等值过滤天然排除 RESERVED（交易中），无需 item_reservation 反连接
             LambdaQueryWrapper<Item> filler = new LambdaQueryWrapper<Item>()
                     .eq(Item::getSchoolId, schoolId)
                     .eq(Item::getStatus, ItemStatus.ON_SALE)
                     .eq(Item::getModerationStatus, ModerationStatus.PASSED)
                     .eq(Item::getIsDeleted, false)
-                    .notExists("SELECT 1 FROM item_reservation r WHERE r.item_id = item.id")
                     .orderByDesc(Item::getCreatedAt)
                     .orderByDesc(Item::getId)
                     .last("LIMIT " + (safeLimit - items.size()));

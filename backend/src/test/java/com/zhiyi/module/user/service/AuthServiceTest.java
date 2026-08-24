@@ -14,7 +14,6 @@ import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.LoginAttemptService;
-import com.zhiyi.module.user.support.RecordingUserStateCache;
 import com.zhiyi.module.user.vo.LoginVO;
 import com.zhiyi.utils.JwtUtils;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,7 +28,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,13 +35,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：登录失败限流改为数据库状态机（mock LoginAttemptService）；
+ * 临时封禁到期恢复为"条件 UPDATE + FOR UPDATE 重读"原子迁移；UserStateCache 已删除。
+ */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
@@ -53,9 +57,9 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private com.zhiyi.module.user.mapper.SchoolMapper schoolMapper;
-
+    @Mock
     private LoginAttemptService loginAttemptService;
-    private RecordingUserStateCache userStateCache;
+
     private SchoolService schoolService;
     private JwtUtils jwtUtils;
     private AuthService service;
@@ -67,8 +71,6 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        loginAttemptService = new LoginAttemptService(1, 300);
-        userStateCache = new RecordingUserStateCache(userMapper);
         schoolService = new SchoolService(schoolMapper);
         jwtUtils = new JwtUtils(
                 "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
@@ -78,7 +80,6 @@ class AuthServiceTest {
                 passwordEncoder,
                 jwtUtils,
                 loginAttemptService,
-                userStateCache,
                 schoolService);
         lenient().when(schoolMapper.selectById(1L)).thenReturn(shu());
     }
@@ -111,6 +112,9 @@ class AuthServiceTest {
                 assertThrows(BusinessException.class, () -> service.login(dto));
 
         assertEquals(ResultCode.PASSWORD_ERROR.getCode(), exception.getCode());
+        // 账号不存在：同成本 dummy 比对防枚举 + 独立事务记录失败
+        verify(passwordEncoder).matches(eq("wrong"), anyString());
+        verify(loginAttemptService).recordFailure("1:admin");
         verify(userMapper).selectOne(argThat(query -> {
             LambdaQueryWrapper<?> wrapper = requireLambdaQuery(query);
             String sql = wrapper.getSqlSegment();
@@ -120,10 +124,25 @@ class AuthServiceTest {
                     () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
             assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.USER),
                     () -> "ordinary login must exclude administrators: sql=" + sql);
+            assertTrue(wrapper.getParamNameValuePairs().containsValue(false),
+                    () -> "ordinary login must exclude SYSTEM accounts: sql=" + sql);
             return true;
         }));
-        assertTrue(loginAttemptService.isLocked("1:admin"));
-        assertTrue(loginAttemptService.isLocked("  1:ADMIN  "));
+    }
+
+    @Test
+    void lockedAccountIsRejectedBeforePasswordCheck() {
+        LoginDTO dto = new LoginDTO();
+        dto.setSchoolId(1L);
+        dto.setStudentId("user01");
+        dto.setPassword("whatever");
+        when(loginAttemptService.isLocked("1:user01")).thenReturn(true);
+
+        BusinessException exception =
+                assertThrows(BusinessException.class, () -> service.login(dto));
+
+        assertEquals(ResultCode.LOGIN_LOCKED.getCode(), exception.getCode());
+        verify(userMapper, never()).selectOne(any());
     }
 
     @Test
@@ -147,16 +166,6 @@ class AuthServiceTest {
 
         LoginVO result = service.register(dto);
 
-        verify(userMapper).selectOne(argThat(query -> {
-            LambdaQueryWrapper<?> wrapper = requireLambdaQuery(query);
-            String sql = wrapper.getSqlSegment();
-            assertTrue(wrapper.getParamNameValuePairs().containsValue(1L),
-                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-            assertTrue(wrapper.getParamNameValuePairs().containsValue("abcd1234"),
-                    () -> "sql=" + sql + ", params=" + wrapper.getParamNameValuePairs());
-            return true;
-        }));
-
         ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
         verify(userMapper).insert(captor.capture());
         assertEquals("abcd1234", captor.getValue().getStudentId());
@@ -165,6 +174,8 @@ class AuthServiceTest {
         assertEquals(1, captor.getValue().getLevel());
         assertEquals(0, captor.getValue().getExp());
         assertEquals(0, captor.getValue().getTokenVersion());
+        assertEquals(0L, captor.getValue().getProfileVersion());
+        assertEquals(false, captor.getValue().getIsSystem());
         assertEquals(0, jwtUtils.getTokenVersion(jwtUtils.parse(result.getToken())));
         assertNotNull(result.getToken());
         // 未填学校邮箱也可注册，VO 带学校名称
@@ -258,7 +269,7 @@ class AuthServiceTest {
 
     @Test
     void resetPasswordBuildsLimiterKeyFromCanonicalId() {
-        loginAttemptService.recordFailure("reset:1:user01");
+        when(loginAttemptService.isLocked("reset:1:user01")).thenReturn(true);
         ResetPasswordDTO dto = new ResetPasswordDTO();
         dto.setSchoolId(1L);
         dto.setStudentId(" USER01 ");
@@ -273,25 +284,58 @@ class AuthServiceTest {
     }
 
     @Test
-    void expiredTemporaryBanInvalidatesStateAfterCommit() {
+    void expiredTemporaryBanRecoversAtomicallyAndReissuesToken() {
         SysUser user = activeUser(3L, "user01");
         user.setStatus(UserStatus.BANNED_TEMP);
         user.setBanUntilTime(LocalDateTime.now().minusMinutes(1));
+        SysUser recovered = activeUser(3L, "user01");
+        recovered.setTokenVersion(5);
         when(userMapper.selectOne(any())).thenReturn(user);
+        when(userMapper.update(any(), any())).thenReturn(1);
+        when(userMapper.selectByIdForUpdate(3L)).thenReturn(recovered);
         when(passwordEncoder.matches("secret", "old-hash")).thenReturn(true);
         LoginDTO dto = new LoginDTO();
         dto.setSchoolId(1L);
         dto.setStudentId("user01");
         dto.setPassword("secret");
 
-        service.login(dto);
+        LoginVO result = service.login(dto);
 
-        assertEquals(List.of(3L), userStateCache.afterCommitInvalidations());
-        assertTrue(userStateCache.immediateInvalidations().isEmpty());
+        // 条件迁移（数据库时间判定）+ FOR UPDATE 重读（fresh 已含推进后的版本，无冗余回读）
+        verify(userMapper).update(any(), any());
+        verify(userMapper).selectByIdForUpdate(3L);
+        // 恢复后的新 Token 携带推进后的版本
+        assertEquals(5, jwtUtils.getTokenVersion(jwtUtils.parse(result.getToken())));
+        verify(loginAttemptService).reset("1:user01");
     }
 
     @Test
-    void successfulResetInvalidatesStateAfterCommit() {
+    void stillBannedTempLoginReportsDeadline() {
+        SysUser user = activeUser(3L, "user01");
+        user.setStatus(UserStatus.BANNED_TEMP);
+        user.setBanUntilTime(LocalDateTime.now().plusDays(2));
+        SysUser fresh = activeUser(3L, "user01");
+        fresh.setStatus(UserStatus.BANNED_TEMP);
+        fresh.setBanUntilTime(user.getBanUntilTime());
+        when(userMapper.selectOne(any())).thenReturn(user);
+        when(userMapper.update(any(), any())).thenReturn(0); // 未到期：条件迁移不生效
+        when(userMapper.selectByIdForUpdate(3L)).thenReturn(fresh);
+        when(passwordEncoder.matches("secret", "old-hash")).thenReturn(true);
+        LoginDTO dto = new LoginDTO();
+        dto.setSchoolId(1L);
+        dto.setStudentId("user01");
+        dto.setPassword("secret");
+
+        BusinessException exception = assertThrows(
+                BusinessException.class, () -> service.login(dto));
+
+        assertEquals(ResultCode.USER_BANNED.getCode(), exception.getCode());
+        assertTrue(exception.getMessage().contains("封禁"));
+        verify(loginAttemptService, never()).reset(anyString());
+    }
+
+    @Test
+    void successfulResetUpdatesPasswordAndBumpsTokenVersion() {
         ResetPasswordDTO dto = new ResetPasswordDTO();
         dto.setSchoolId(1L);
         dto.setStudentId("user01");
@@ -312,8 +356,7 @@ class AuthServiceTest {
         verify(userMapper).updateById(patch.capture());
         assertEquals("new-hash", patch.getValue().getPassword());
         verify(userMapper).bumpTokenVersion(3L);
-        assertEquals(List.of(3L), userStateCache.afterCommitInvalidations());
-        assertTrue(userStateCache.immediateInvalidations().isEmpty());
+        verify(loginAttemptService).reset("reset:1:user01");
     }
 
     @Test
@@ -330,6 +373,7 @@ class AuthServiceTest {
         LoginVO result = service.login(dto);
 
         assertEquals(4, jwtUtils.getTokenVersion(jwtUtils.parse(result.getToken())));
+        verify(loginAttemptService).reset(eq("1:user01"));
     }
 
     private SysUser activeUser(Long id, String studentId) {
@@ -343,6 +387,7 @@ class AuthServiceTest {
         user.setLevel(1);
         user.setExp(0);
         user.setWalletBalance(BigDecimal.ZERO);
+        user.setTokenVersion(0);
         return user;
     }
 }

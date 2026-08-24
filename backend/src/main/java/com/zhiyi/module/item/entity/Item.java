@@ -30,9 +30,17 @@ public class Item {
     private String pickupLocation;
     private String deliveryLocation;
     private ItemStatus status;
-    /** 随机生成、稳定不变的推荐序键，替代 ORDER BY RAND()。 */
+    /** 随机生成、稳定不变的推荐序键，替代 ORDER BY RAND()；同一 listing revision 内不可变。 */
     private Long feedKey;
-    private Integer viewCount;
+    /** Feed 全局单调版本：影响 Feed 资格/排序的编辑与重新上架分配新值，使商品退出旧游标快照。 */
+    private Long listingRevision;
+    /** 发布时固化的校区层级键（小写去空格），分层推荐不回查 sys_user。 */
+    private String publisherCampusKey;
+    /** 发布时固化的宿舍楼层级键（小写去空格）。 */
+    private String publisherDormitoryKey;
+    /** 展示用浏览量：实际计数在 item_view_stat，由装配器回填，不映射数据库列。 */
+    @TableField(exist = false)
+    private Long viewCount;
     @TableLogic
     private Boolean isDeleted;
 

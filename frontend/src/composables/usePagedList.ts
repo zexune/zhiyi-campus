@@ -13,7 +13,10 @@ import type { PageQuery, PageResult } from '@/types/models'
  * - loader 收到 `{ page, size, ...params() }`，返回统一响应（res.data.records / res.data.total）；
  *   运行时兼容裸数组响应（历史接口未分页时直接返回列表）；
  * - params 必须是函数：切换筛选时先 `goToFirstPage()` 再 `fetchList()`，params() 取到的始终是最新筛选；
- * - 失败只置 loadError，不抛出（错误提示由调用方或 request.ts 决定）。
+ * - 失败只置 loadError，不抛出（错误提示由调用方或 request.ts 决定）；
+ * - F1 根因修复：内部维护单调递增代数——快速切筛选/翻页时乱序返回的旧响应
+ *   （成功、失败与 finally）一律丢弃，不覆盖新结果、不提前清 loading；
+ *   goToFirstPage 同步重置 loading / loadError，避免旧代请求结束后污染状态。
  */
 export interface UsePagedListReturn<T> {
   records: Ref<T[]>
@@ -36,27 +39,37 @@ export function usePagedList<T, P extends object = Record<string, never>>(
   const total: Ref<number> = ref(0)
   const loading: Ref<boolean> = ref(false)
   const loadError: Ref<boolean> = ref(false)
+  let generation = 0
 
   async function fetchList(): Promise<void> {
+    const gen = ++generation
     loading.value = true
     loadError.value = false
     try {
       const extra = params() ?? ({} as P)
       const res = await loader({ page: currentPage.value, size: pageSize.value, ...extra })
+      if (gen !== generation) return
       // 兼容裸数组响应（部分接口未分页时直接返回列表）
       const payload: PageResult<T> | T[] | undefined = res?.data
       records.value = Array.isArray(payload) ? payload : payload?.records || []
       total.value = Array.isArray(payload) ? payload.length : payload?.total || 0
     } catch {
+      if (gen !== generation) return
       loadError.value = true
     } finally {
-      loading.value = false
+      if (gen === generation) {
+        loading.value = false
+      }
     }
   }
 
   /** 切换筛选/刷新场景：回到第一页（不会自动拉取，配合 fetchList 使用） */
   function goToFirstPage(): void {
     currentPage.value = 1
+    // 推进代数使在途旧响应作废，并同步复位状态，避免旧代 finally 污染新一轮
+    generation += 1
+    loading.value = false
+    loadError.value = false
   }
 
   return { records, currentPage, pageSize, total, loading, loadError, fetchList, goToFirstPage }

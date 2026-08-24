@@ -114,6 +114,8 @@ import { orderStatusBadge, orderStatusLabel } from '@/utils/trade'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, formatPrice, placeholderClass } from '@/utils/format'
 import { ROUTE_PATH } from '@/constants/routes'
+import { getOrCreatePending, clearPending } from '@/utils/idempotency'
+import { ApiError } from '@/utils/request'
 
 // ---- 评价弹窗（A7）----
 const reviewVisible = ref(false)
@@ -168,26 +170,39 @@ const actingId = ref<number | null>(null) // 正在操作的订单 ID，防重�
 
 // ---- 确认收货 ----
 async function handleConfirm(order: Order) {
+  // 同步互斥：在 await 弹窗确认之前置位，杜绝弹窗期间对同一订单重复发起
+  if (actingId.value !== null) return
+  actingId.value = order.id
   try {
     await ElMessageBox.confirm(`确认已收到「${order.itemTitle}」？确认后钱款将打给卖家，不可撤销。`, '确认收货', { confirmButtonText: '确认收货', cancelButtonText: '取消', type: 'warning' })
   } catch {
+    actingId.value = null
     return // 用户取消
   }
 
-  actingId.value = order.id
   try {
-    await confirmReceipt(order.id)
+    // 未决操作复用原幂等键；只有明确结束（成功/CLEAR）才清键
+    const pending = getOrCreatePending('ORDER_CONFIRM', order.id, { orderId: order.id })
+    await confirmReceipt(order.id, pending.idempotencyKey)
+    clearPending('ORDER_CONFIRM', order.id)
     ElMessage.success('收货确认成功！')
-    fetchOrders()
-  } catch {
+  } catch (e) {
+    // 明确业务拒绝（CLEAR 白名单）才清键；超时/网络错误等结果不明场景保留原键，下次复用
+    if (e instanceof ApiError && e.idempotencyDisposition === 'CLEAR') {
+      clearPending('ORDER_CONFIRM', order.id)
+    }
     // 错误已在拦截器提示
   } finally {
     actingId.value = null
+    fetchOrders()
   }
 }
 
 // ---- 取消订单 ----
 async function handleCancel(order: Order) {
+  // 同步互斥：在 await 弹窗确认之前置位，杜绝弹窗期间对同一订单重复发起
+  if (actingId.value !== null) return
+  actingId.value = order.id
   try {
     await ElMessageBox.confirm(`确定取消「${order.itemTitle}」的订单？取消后钱款将退回你的钱包，商品将重新上架。`, '取消订单', {
       confirmButtonText: '确认取消',
@@ -195,18 +210,25 @@ async function handleCancel(order: Order) {
       type: 'warning'
     })
   } catch {
+    actingId.value = null
     return
   }
 
-  actingId.value = order.id
   try {
-    await cancelOrder(order.id)
+    // 未决操作复用原幂等键；只有明确结束（成功/CLEAR）才清键
+    const pending = getOrCreatePending('ORDER_CANCEL', order.id, { orderId: order.id })
+    await cancelOrder(order.id, pending.idempotencyKey)
+    clearPending('ORDER_CANCEL', order.id)
     ElMessage.success('订单已取消，退款已到账')
-    fetchOrders()
-  } catch {
+  } catch (e) {
+    // 明确业务拒绝（CLEAR 白名单）才清键；超时/网络错误等结果不明场景保留原键，下次复用
+    if (e instanceof ApiError && e.idempotencyDisposition === 'CLEAR') {
+      clearPending('ORDER_CANCEL', order.id)
+    }
     // 错误已在拦截器提示
   } finally {
     actingId.value = null
+    fetchOrders()
   }
 }
 

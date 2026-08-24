@@ -79,6 +79,18 @@
         <div class="right-col">
           <section class="card panel">
             <h3>编辑资料</h3>
+            <!-- M3 乐观并发冲突提示：保留用户输入，展示服务端最新资料并要求确认 -->
+            <div v-if="conflictProfile" class="conflict-banner" role="alert">
+              <p>
+                资料已被其他设备修改（最新昵称：{{ conflictProfile.nickname }}
+                <template v-if="conflictProfile.schoolName">，学校：{{ conflictProfile.schoolName }}</template>
+                ）。您当前的输入不会被覆盖。
+              </p>
+              <div class="conflict-actions">
+                <button type="button" class="btn btn--sm" @click="applyConflictProfile">载入最新资料</button>
+                <button type="button" class="btn btn--sm btn--ghost" @click="conflictProfile = null">保留我的输入</button>
+              </div>
+            </div>
             <form @submit.prevent="handleSave">
               <div class="field">
                 <label for="p-nick">昵称</label>
@@ -215,9 +227,11 @@ import UserAvatar from '@/components/common/UserAvatar.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import ReputationRadar from '@/components/common/ReputationRadar.vue'
 import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools } from '@/api/auth'
+import { ApiError } from '@/utils/request'
 import { useUserStore } from '@/stores/user'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatDate, formatDateTime } from '@/utils/format'
+import { usePagedList } from '@/composables/usePagedList'
 import type { ReputationVo } from '@/utils/reputation'
 import type { ExpLog, School, UserProfile } from '@/types/models'
 
@@ -252,6 +266,10 @@ const editForm = reactive<ProfileEditForm>({
   grade: '',
   dormitory: ''
 })
+/** 资料乐观并发版本（M3）：加载时保存，提交时携带；409 冲突时以服务端最新版本更新 */
+const profileVersion = ref<number | null>(null)
+/** 冲突时展示的服务端最新资料（用户确认合并用） */
+const conflictProfile = ref<UserProfile | null>(null)
 const schools = ref<School[]>([])
 const schoolOptions = computed(() => schools.value.map((school) => ({ label: school.name, value: school.id })))
 const selectedSchool = computed(() => schools.value.find((school) => school.id === editForm.schoolId) || null)
@@ -260,10 +278,8 @@ const schoolEmailPlaceholder = computed(() => (selectedSchool.value?.emailDomain
 // 信誉雷达（A6）
 const reputation = ref<ReputationVo | null>(null)
 
-const expLogs = ref<ExpLog[]>([])
-const expPage = ref(1)
-const expPageSize = 10
-const expTotal = ref(0)
+// 经验流水走统一分页状态机：翻页竞态中乱序返回的旧响应由代数守卫丢弃（F1）
+const { records: expLogs, currentPage: expPage, pageSize: expPageSize, total: expTotal, fetchList: fetchExpLogs } = usePagedList<ExpLog>(getExpLog)
 
 const progressPercent = computed(() => {
   const u = user.value
@@ -298,15 +314,31 @@ async function handleSave() {
   saving.value = true
   try {
     // 前置校验已保证 schoolId 有值；显式覆盖以让收窄后的类型通过展开
-    await updateProfile({ ...editForm, schoolId: editForm.schoolId })
+    await updateProfile({ ...editForm, schoolId: editForm.schoolId, profileVersion: profileVersion.value ?? 0 })
     ElMessage.success('保存成功')
+    conflictProfile.value = null
     const profile = await userStore.fetchProfile()
     fillEditForm(profile)
-  } catch {
-    // 提示由 request.js 统一处理
+  } catch (error) {
+    // 资料版本冲突（1010）：不覆盖用户输入，展示服务端最新资料并要求确认合并
+    if (error instanceof ApiError && error.code === 1010) {
+      const latest = (error.detail as UserProfile | null) || (await userStore.fetchProfile())
+      conflictProfile.value = latest
+      if (latest?.profileVersion !== undefined) profileVersion.value = latest.profileVersion
+      ElMessage.warning('资料已被其他设备修改，请核对最新资料后重新保存')
+    }
+    // 其他错误提示由 request.ts 统一处理
   } finally {
     saving.value = false
   }
+}
+
+/** 用户确认采用服务端最新资料：回填表单（本地未保存的输入由用户自行调整） */
+function applyConflictProfile() {
+  if (!conflictProfile.value) return
+  fillEditForm(conflictProfile.value)
+  conflictProfile.value = null
+  ElMessage.success('已载入最新资料，可修改后重新保存')
 }
 
 // —— 信誉雷达（A6）——
@@ -316,16 +348,6 @@ async function fetchReputation() {
   try {
     const res = await getUserReputation(uid)
     reputation.value = res.data
-  } catch {
-    // 忽略，页面其余部分可用
-  }
-}
-
-async function fetchExpLogs() {
-  try {
-    const res = await getExpLog({ page: expPage.value, size: expPageSize })
-    expLogs.value = res.data.records || []
-    expTotal.value = Number(res.data.total) || 0
   } catch {
     // 忽略，页面其余部分可用
   }
@@ -403,6 +425,7 @@ function fillEditForm(profile: UserProfile | null) {
     editForm.college = profile.college || ''
     editForm.grade = profile.grade || ''
     editForm.dormitory = profile.dormitory || ''
+    if (profile.profileVersion !== undefined) profileVersion.value = profile.profileVersion
   }
 }
 
@@ -424,6 +447,24 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.conflict-banner {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--yellow-deep, #d4a017);
+  border-radius: 8px;
+  background: var(--paper-deep);
+  font-size: 13px;
+}
+.conflict-banner p {
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+.conflict-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .profile-page {
   display: flex;
   flex-direction: column;

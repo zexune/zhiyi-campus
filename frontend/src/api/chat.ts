@@ -28,12 +28,17 @@ export function getConversations() {
   return request.get<Conversation[]>('/chat/conversations')
 }
 
-export function getChatMessages(params: ChatMessagesQuery) {
-  return request.get<ChatThread>('/chat/messages', { params })
+export function getChatMessages(params: ChatMessagesQuery, config?: AxiosRequestConfig) {
+  return request.get<ChatThread>('/chat/messages', { params, ...config })
 }
 
 export function sendChatMessage(data: SendChatPayload) {
   return request.post<ChatMessage>('/chat/send', data)
+}
+
+/** 显式已读确认：lastSeenMessageId 为当前视口最后一条可见的"接收"消息 ID */
+export function ackChatRead(conversationId: string, lastSeenMessageId: number) {
+  return request.post<void>('/chat/ack', null, { params: { conversationId, lastSeenMessageId } })
 }
 
 export function getUnreadCount(config?: AxiosRequestConfig) {

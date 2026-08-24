@@ -9,12 +9,12 @@ import com.zhiyi.module.admin.mapper.ViolationAppealMapper;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.entity.Item;
+import com.zhiyi.module.item.entity.ItemViewStat;
 import com.zhiyi.module.item.mapper.CategoryMapper;
+import com.zhiyi.module.item.mapper.ItemViewStatMapper;
 import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.social.entity.ItemFavorite;
 import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
-import com.zhiyi.module.trade.entity.ItemReservation;
-import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.LevelRule;
@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 
 /**
  * 商品卡片批量装配器。每批数据按表执行固定次数查询，避免逐行回表。
+ *
+ * RESERVED（交易中）由 item.status 派生（item_reservation 已淘汰）；
+ * 浏览量来自独立的 item_view_stat 统计表。
  */
 @Service
 @RequiredArgsConstructor
@@ -45,7 +48,7 @@ public class ItemCardAssembler {
     private final CategoryMapper categoryMapper;
     private final SysUserMapper userMapper;
     private final ItemFavoriteMapper favoriteMapper;
-    private final ItemReservationMapper reservationMapper;
+    private final ItemViewStatMapper statMapper;
     private final ViolationReportMapper violationReportMapper;
     private final ViolationAppealMapper appealMapper;
     private final ItemTagService itemTagService;
@@ -67,19 +70,17 @@ public class ItemCardAssembler {
         Map<Long, SysUser> users = selectUserMap(publisherIds);
         Map<Long, List<String>> tags = itemTagService.tagsByItemIds(itemIds);
         Map<Long, Long> favoriteCounts = favoriteCounts(itemIds);
+        Map<Long, Long> viewCounts = viewCounts(itemIds);
         Set<Long> myFavorites = currentUserId == null
                 ? Collections.emptySet()
                 : favoriteItemIds(currentUserId, itemIds);
         SysUser viewer = currentUserId == null ? null : userMapper.selectById(currentUserId);
-        Set<Long> reservedItemIds = reservationMapper.selectByIds(itemIds).stream()
-                .map(ItemReservation::getItemId)
-                .collect(Collectors.toSet());
         Map<Long, ViolationReport> latestViolations = latestConfirmedViolations(itemIds, currentUserId);
         Map<Long, ViolationAppeal> appealsByReport = appealsByReport(latestViolations.values());
         LocalDateTime now = LocalDateTime.now();
 
         return items.stream().map(item -> toCard(item, currentUserId, viewer, now,
-                categories, users, tags, favoriteCounts, myFavorites, reservedItemIds,
+                categories, users, tags, favoriteCounts, viewCounts, myFavorites,
                 latestViolations, appealsByReport)).toList();
     }
 
@@ -91,8 +92,8 @@ public class ItemCardAssembler {
                               Map<Long, SysUser> users,
                               Map<Long, List<String>> tags,
                               Map<Long, Long> favoriteCounts,
+                              Map<Long, Long> viewCounts,
                               Set<Long> myFavorites,
-                              Set<Long> reservedItemIds,
                               Map<Long, ViolationReport> latestViolations,
                               Map<Long, ViolationAppeal> appealsByReport) {
         Category category = categories.get(item.getCategoryId());
@@ -122,7 +123,8 @@ public class ItemCardAssembler {
         vo.setDeliveryLocation(item.getDeliveryLocation());
         vo.setStatus(item.getStatus().code());
         vo.setModerationStatus(item.getModerationStatus().code());
-        vo.setReserved(reservedItemIds.contains(item.getId()));
+        // RESERVED（交易中）由商品状态派生：item.status 是可交易性唯一权威来源
+        vo.setReserved(item.getStatus() == com.zhiyi.common.enums.ItemStatus.RESERVED);
 
         ViolationReport latestViolation = latestViolations.get(item.getId());
         ViolationAppeal appeal = latestViolation == null ? null : appealsByReport.get(latestViolation.getId());
@@ -132,7 +134,11 @@ public class ItemCardAssembler {
                 && !now.isAfter(latestViolation.getHandledAt().plusDays(Math.max(1, appealWindowDays)));
         vo.setAppealable(Objects.equals(currentUserId, item.getPublisherId())
                 && latestViolation != null && appeal == null && withinWindow);
-        vo.setViewCount(item.getViewCount());
+        // 浏览量来自独立统计表（item 业务行不再承载浏览计数）
+        Long statCount = viewCounts.get(item.getId());
+        vo.setViewCount(item.getViewCount() != null
+                ? item.getViewCount() + (statCount == null ? 0 : statCount)
+                : (statCount == null ? 0 : statCount));
         vo.setFavoriteCount(favoriteCounts.getOrDefault(item.getId(), 0L));
         vo.setFavoriteByCurrentUser(myFavorites.contains(item.getId()));
         vo.setCreatedAt(item.getCreatedAt());
@@ -185,6 +191,12 @@ public class ItemCardAssembler {
             result.put(toLong(row.get("item_id")), toLong(row.get("favorite_count")));
         }
         return result;
+    }
+
+    private Map<Long, Long> viewCounts(Set<Long> itemIds) {
+        if (itemIds.isEmpty()) return Map.of();
+        return statMapper.selectByIds(itemIds).stream()
+                .collect(Collectors.toMap(ItemViewStat::getItemId, ItemViewStat::getViewCount));
     }
 
     private Set<Long> favoriteItemIds(Long userId, Set<Long> itemIds) {

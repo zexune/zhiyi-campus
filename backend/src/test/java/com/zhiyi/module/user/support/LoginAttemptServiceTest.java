@@ -1,72 +1,77 @@
 package com.zhiyi.module.user.support;
 
-import com.github.benmanes.caffeine.cache.Ticker;
+import com.zhiyi.module.user.mapper.LoginAttemptMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicLong;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：失败限流从本地 Caffeine 改为数据库固定窗口状态机，
+ * LoginAttemptService 仅作为 REQUIRES_NEW 协调器委托 LoginAttemptMapper。
+ */
+@ExtendWith(MockitoExtension.class)
 class LoginAttemptServiceTest {
 
-    private MutableTicker ticker;
+    private static final int FAIL_LIMIT = 5;
+    private static final int WINDOW_SECONDS = 900;
+    private static final int LOCK_SECONDS = 300;
+    private static final int RETENTION_SECONDS = 86400;
+
+    @Mock
+    private LoginAttemptMapper attemptMapper;
+
     private LoginAttemptService service;
 
     @BeforeEach
     void setUp() {
-        ticker = new MutableTicker();
-        service = new LoginAttemptService(5, 300, ticker);
+        service = new LoginAttemptService(attemptMapper, FAIL_LIMIT,
+                WINDOW_SECONDS, LOCK_SECONDS, RETENTION_SECONDS);
     }
 
     @Test
-    void equivalentSpellingsShareOneCounter() {
-        service.recordFailure("Admin");
-        service.recordFailure(" admin ");
-        service.recordFailure("ADMIN");
-        service.recordFailure("AdMiN");
-        service.recordFailure("admin");
+    void isLockedDelegatesToDatabaseState() {
+        when(attemptMapper.isLocked("1:admin")).thenReturn(true);
 
-        assertTrue(service.isLocked(" ADMIN "));
+        assertTrue(service.isLocked("1:admin"));
+        assertFalse(service.isLocked("2:other"));
     }
 
     @Test
-    void lastFailureRefreshesTheFullWindow() {
-        service.recordFailure("admin");
-        ticker.advance(Duration.ofSeconds(299));
-        for (int i = 0; i < 4; i++) {
-            service.recordFailure("admin");
-        }
+    void recordFailurePassesPolicyParametersToStateMachine() {
+        when(attemptMapper.isLocked("1:admin")).thenReturn(true);
 
-        ticker.advance(Duration.ofSeconds(2));
-        assertTrue(service.isLocked("admin"));
-        ticker.advance(Duration.ofSeconds(299));
-        assertFalse(service.isLocked("admin"));
+        boolean locked = service.recordFailure("1:admin");
+
+        assertTrue(locked);
+        verify(attemptMapper).recordFailure("1:admin", WINDOW_SECONDS, FAIL_LIMIT, LOCK_SECONDS);
     }
 
     @Test
-    void resetClearsEquivalentSpellings() {
-        for (int i = 0; i < 5; i++) {
-            service.recordFailure("ADMIN");
-        }
+    void recordFailureReturnsFalseBelowThreshold() {
+        when(attemptMapper.isLocked("1:admin")).thenReturn(false);
 
-        service.reset(" admin ");
-
-        assertFalse(service.isLocked("Admin"));
+        assertFalse(service.recordFailure("1:admin"));
     }
 
-    private static final class MutableTicker implements Ticker {
-        private final AtomicLong nanos = new AtomicLong();
+    @Test
+    void resetClearsCounterRow() {
+        service.reset("1:admin");
 
-        @Override
-        public long read() {
-            return nanos.get();
-        }
+        verify(attemptMapper).reset("1:admin");
+    }
 
-        void advance(Duration duration) {
-            nanos.addAndGet(duration.toNanos());
-        }
+    @Test
+    void purgeStaleDelegatesWithRetentionPolicy() {
+        when(attemptMapper.purgeStale(RETENTION_SECONDS)).thenReturn(3);
+
+        assertEquals(3, service.purgeStale(RETENTION_SECONDS));
     }
 }

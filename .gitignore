@@ -2,6 +2,8 @@
 .claude/
 .codex/
 .zcode/
+
+# 代码安全工具
 .mimosa/
 
 # 依赖

@@ -55,17 +55,7 @@
               充值金额
               <span class="req">*</span>
             </label>
-            <input
-              v-model="rechargeForm.amount"
-              type="number"
-              class="input"
-              placeholder="请输入充值金额（0.01 ~ 10,000.00）"
-              min="0.01"
-              max="10000"
-              step="0.01"
-              @keydown="blockInvalidKeys"
-              @keyup.enter="handleRecharge"
-            />
+            <input v-model="rechargeForm.amount" type="number" class="input" placeholder="请输入充值金额（0.01 ~ 10,000.00）" min="0.01" max="10000" step="0.01" @keydown="blockInvalidKeys" />
             <div class="hint">单次充值范围：¥0.01 ~ ¥10,000.00</div>
           </el-form-item>
           <div v-if="rechargeAmountValue > 0" class="recharge-preview">
@@ -134,13 +124,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getWalletBalance, rechargeWallet, getWalletLogs } from '@/api/wallet'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, formatPrice } from '@/utils/format'
 import { validateForm } from '@/utils/formValidate'
 import { ROUTE_PATH } from '@/constants/routes'
+import { getPending, getOrCreatePending, clearPending } from '@/utils/idempotency'
+import { ApiError } from '@/utils/request'
 
 // ---- 余额 ----
 const balance = ref(0)
@@ -161,11 +153,23 @@ async function fetchBalance() {
   }
 }
 
-// ---- 充值（声明式校验：0.01 ~ 10000） ----
+// ---- 充值（声明式校验：0.01 ~ 10000；幂等键闭环防重复入账） ----
 const showRecharge = ref(false)
 const rechargeFormRef = ref(null)
 const rechargeForm = reactive({ amount: '' })
 const recharging = ref(false)
+/**
+ * 充值客户端操作 ID（幂等槽位）：未决期间保持不变以复用原幂等键；
+ * 明确成功或明确拒绝（CLEAR 白名单）后换新 UUID，下一次充值视为全新意图。
+ */
+const rechargeOpId = ref(crypto.randomUUID())
+
+// 打开充值面板时检测未决充值（上次结果不明：超时/断网），提示用户将复用原单据重试
+watch(showRecharge, (open) => {
+  if (open && getPending('RECHARGE', rechargeOpId.value)) {
+    ElMessage.info('存在未完成的充值，已为您恢复，提交时将沿用原单据')
+  }
+})
 
 const rechargeAmountValue = computed(() => parseFloat(rechargeForm.amount) || 0)
 const canRecharge = computed(() => {
@@ -195,21 +199,32 @@ function blockInvalidKeys(e: KeyboardEvent) {
 }
 
 async function handleRecharge() {
-  if (!(await validateForm(rechargeFormRef)) || !canRecharge.value) return
+  // 同步互斥：在 await validateForm 之前置位，杜绝校验窗口内的重复提交
+  if (recharging.value) return
   recharging.value = true
   try {
+    if (!(await validateForm(rechargeFormRef)) || !canRecharge.value) return
     const amount = parseFloat(rechargeForm.amount)
-    const res = await rechargeWallet(amount)
+    // 未决充值复用原幂等键；只有明确结束（成功/CLEAR）才清键
+    const pending = getOrCreatePending('RECHARGE', rechargeOpId.value, { amount })
+    const res = await rechargeWallet(amount, pending.idempotencyKey)
     balance.value = Number(res.data.balance) || 0
     balanceError.value = false
+    clearPending('RECHARGE', rechargeOpId.value)
+    rechargeOpId.value = crypto.randomUUID()
     ElMessage.success(`充值成功！当前余额 ¥${balanceText.value}`)
     showRecharge.value = false
     rechargeForm.amount = ''
     // 重置到第一页拉取最新流水
     goToFirstPage()
     fetchLogs()
-  } catch {
-    // 错误已在拦截器提示
+  } catch (e) {
+    // 明确业务拒绝（CLEAR 白名单）：清键换新；超时/网络错误等结果不明场景保留原键，下次复用
+    if (e instanceof ApiError && e.idempotencyDisposition === 'CLEAR') {
+      clearPending('RECHARGE', rechargeOpId.value)
+      rechargeOpId.value = crypto.randomUUID()
+    }
+    // 其余错误已在拦截器提示
   } finally {
     recharging.value = false
   }

@@ -2,9 +2,8 @@ package com.zhiyi.interceptor;
 
 import com.zhiyi.common.AuthTokenCookieWriter;
 import com.zhiyi.common.WebResponseUtil;
-import com.zhiyi.common.enums.UserStatus;
-import com.zhiyi.module.user.support.UserAuthState;
-import com.zhiyi.module.user.support.UserStateCache;
+import com.zhiyi.module.user.entity.SysUser;
+import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.utils.JwtUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -21,10 +19,12 @@ import java.util.regex.Pattern;
  *
  * 凭证来源（按优先级）：Authorization: Bearer 头（Swagger / 编程客户端）→ httpOnly 会话 Cookie（浏览器）。
  *
- * 高并发设计：
- * - Token 只解析一次（一次签名验证拿到全部 Claims）；
- * - 封禁状态 / Token 版本走 Caffeine 本地缓存（UserStateCache），不逐请求查库；
- * - 重置密码、改密、封禁或注销后推进版本，旧 Token 立刻作废（需求 1.3/1.6）。
+ * 鉴权状态主库直读（B7/M5/M6 根因修复）：
+ * - UserStateCache 本地缓存已删除——封禁/解封/改密提交后立刻对新请求生效，
+ *   不存在 60s 窗口内旧缓存放行已封禁账号的问题，多实例部署也不再有各持一份状态的问题；
+ * - 每请求一条按主键的轻量 SELECT（selectAuthState），命中主键索引，成本固定；
+ * - 只允许 ACTIVE：任何 BANNED_TEMP 一律拒绝且不在请求路径比较时间；
+ *   到期恢复只能由登录事务以数据库时间完成并签发新 Token。
  */
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
@@ -34,13 +34,13 @@ public class JwtInterceptor implements HandlerInterceptor {
     private static final int MAX_TOKEN_LENGTH = 4096;
 
     private final JwtUtils jwtUtils;
-    private final UserStateCache userStateCache;
+    private final SysUserMapper userMapper;
     private final AuthTokenCookieWriter cookieWriter;
 
-    public JwtInterceptor(JwtUtils jwtUtils, UserStateCache userStateCache,
+    public JwtInterceptor(JwtUtils jwtUtils, SysUserMapper userMapper,
                           AuthTokenCookieWriter cookieWriter) {
         this.jwtUtils = jwtUtils;
-        this.userStateCache = userStateCache;
+        this.userMapper = userMapper;
         this.cookieWriter = cookieWriter;
     }
 
@@ -79,44 +79,47 @@ public class JwtInterceptor implements HandlerInterceptor {
             WebResponseUtil.writeJson(response, 401, 401, "Token 格式无效");
             return false;
         }
-        UserAuthState state = userStateCache.get(userId);
+
+        Integer claimVersion = jwtUtils.getTokenVersion(claims);
+        if (claimVersion == null) {
+            WebResponseUtil.writeJson(response, 401, 401, "登录状态已失效，请重新登录");
+            return false;
+        }
+
+        // 主库直读鉴权状态（普通读取不加锁；封禁/解封/注销才用锁与条件状态迁移）
+        SysUser state = userMapper.selectAuthState(userId);
         if (state == null) {
             WebResponseUtil.writeJson(response, 401, 401, "用户不存在");
             return false;
         }
 
-        Integer claimVersion = jwtUtils.getTokenVersion(claims);
-        int issuedVersion = claimVersion == null ? 0 : claimVersion;
-        if (claimVersion == null) {
-            WebResponseUtil.writeJson(response, 401, 401, "登录状态已失效，请重新登录");
-            return false;
-        }
-        int currentVersion = state.tokenVersion() == null ? 0 : state.tokenVersion();
+        int currentVersion = state.getTokenVersion() == null ? 0 : state.getTokenVersion();
         String issuedRole = claims.get(JwtUtils.ROLE_CLAIM, String.class);
-        if (issuedVersion != currentVersion || !Objects.equals(issuedRole, state.role().code())) {
+        if (claimVersion != currentVersion || !Objects.equals(issuedRole, state.getRole().code())) {
             WebResponseUtil.writeJson(response, 401, 401, "登录状态已失效，请重新登录");
             return false;
         }
 
-        // 封禁/注销校验：永久封禁与已注销直接拒绝；临时封禁未到期拒绝（到期由登录流程恢复 ACTIVE）
-        if (state.status() == UserStatus.CANCELLED) {
-            WebResponseUtil.writeJson(response, 401, 1008, "该账户已注销");
-            return false;
-        }
-        if (state.status() == UserStatus.BANNED_PERM) {
-            WebResponseUtil.writeJson(response, 403, 1003, "该账户已被永久封禁");
-            return false;
-        }
-        if (state.status() == UserStatus.BANNED_TEMP
-                && state.banUntilTime() != null
-                && state.banUntilTime().isAfter(LocalDateTime.now())) {
-            WebResponseUtil.writeJson(response, 403, 1003, "账户已被封禁");
-            return false;
+        // 只允许 ACTIVE：封禁（含临时封禁到期未恢复）一律拒绝，到期恢复由登录事务完成
+        switch (state.getStatus()) {
+            case CANCELLED -> {
+                WebResponseUtil.writeJson(response, 401, 1008, "该账户已注销");
+                return false;
+            }
+            case BANNED_PERM -> {
+                WebResponseUtil.writeJson(response, 403, 1003, "该账户已被永久封禁");
+                return false;
+            }
+            case BANNED_TEMP -> {
+                WebResponseUtil.writeJson(response, 403, 1003, "账户已被封禁，到期后请重新登录");
+                return false;
+            }
+            case ACTIVE -> { /* 放行 */ }
         }
 
         // 把 userId 和 role 放入 request attribute，Controller 里直接取
         request.setAttribute("userId", userId);
-        request.setAttribute("role", state.role().code());
+        request.setAttribute("role", state.getRole().code());
         return true;
     }
 

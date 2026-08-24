@@ -14,6 +14,7 @@ import com.zhiyi.module.social.dto.ChatStartDTO;
 import com.zhiyi.module.social.dto.ConversationAggregate;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
+import com.zhiyi.module.social.mapper.ChatResponseSampleMapper;
 import com.zhiyi.module.social.vo.ChatItemSummaryVO;
 import com.zhiyi.module.social.vo.ChatMessageVO;
 import com.zhiyi.module.social.vo.ChatStartVO;
@@ -22,13 +23,15 @@ import com.zhiyi.module.social.vo.ChatUserVO;
 import com.zhiyi.module.social.vo.ConversationVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
+import com.zhiyi.module.user.mapper.UserReputationMetricMapper;
 import com.zhiyi.module.user.support.LevelRule;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -46,6 +49,7 @@ import java.util.stream.Collectors;
  * - 会话消息历史：按 id 倒序 keyset 分页（默认最近 MESSAGE_PAGE_SIZE 条，beforeId 向前翻页）；
  * - 未读明细：单会话查询天然有界；跨会话兜底 LIMIT UNREAD_LIMIT。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -56,6 +60,8 @@ public class ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final ItemMapper itemMapper;
     private final SysUserMapper userMapper;
+    private final ChatResponseSampleMapper responseSampleMapper;
+    private final UserReputationMetricMapper reputationMetricMapper;
 
     public ChatStartVO startItemConversation(Long userId, ChatStartDTO dto) {
         Item item = itemMapper.selectById(dto.getItemId());
@@ -122,7 +128,43 @@ public class ChatService {
         message.setRelatedItemId(relatedItemId);
         message.setIsRead(false);
         chatMessageMapper.insert(message);
+        recordResponseSample(message, relatedItem, senderId);
         return toMessageVO(message, senderId);
+    }
+
+    /**
+     * 响应速度唯一贡献样本（B10）：本次发送若是"对上一条来自对方、且关联自己发布商品"
+     * 的消息的首个回复，则以 (conversationId, 触发消息ID) 唯一键记录间隔并增量汇总。
+     * 固定两次点查 + 一次幂等插入；重复事件依靠唯一贡献键只累计一次。
+     */
+    private void recordResponseSample(ChatMessage message, Item relatedItem, Long senderId) {
+        try {
+            ChatMessage trigger = chatMessageMapper.selectOne(new LambdaQueryWrapper<ChatMessage>()
+                    .eq(ChatMessage::getConversationId, message.getConversationId())
+                    .lt(ChatMessage::getId, message.getId())
+                    .orderByDesc(ChatMessage::getId)
+                    .last("LIMIT 1"));
+            if (trigger == null || !trigger.getReceiverId().equals(senderId)
+                    || trigger.getRelatedItemId() == null
+                    || message.getCreatedAt() == null || trigger.getCreatedAt() == null) {
+                return;
+            }
+            // 只统计卖家在自己商品会话中的响应；触发消息的商品必须由回复者发布
+            if (relatedItem == null || !relatedItem.getPublisherId().equals(senderId)) {
+                return;
+            }
+            long gapSeconds = Duration.between(trigger.getCreatedAt(), message.getCreatedAt()).getSeconds();
+            if (gapSeconds < 0) {
+                return;
+            }
+            String sampleKey = message.getConversationId() + ":" + trigger.getId();
+            if (responseSampleMapper.insertIgnore(sampleKey, senderId, gapSeconds) == 1) {
+                reputationMetricMapper.accumulate(senderId, gapSeconds);
+            }
+        } catch (Exception sampleFailure) {
+            // 派生统计失败不阻断消息发送主流程（非权威指标，允许受控延迟）
+            log.warn("响应速度样本记录失败 conversation={}", message.getConversationId(), sampleFailure);
+        }
     }
 
     @Transactional
@@ -156,6 +198,7 @@ public class ChatService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "会话ID不能为空");
         }
         // keyset 分页：按 id 倒序取一页（多取 1 条探测 hasMore），再反转为时间正序返回。
+        // GET 只读（M1/B10）：读取不再隐式标记已读，已读由前端在消息可见后显式 ackRead。
         List<ChatMessage> page = chatMessageMapper.selectList(new LambdaQueryWrapper<ChatMessage>()
                 .eq(ChatMessage::getConversationId, conversationId)
                 .lt(beforeId != null, ChatMessage::getId, beforeId)
@@ -209,7 +252,6 @@ public class ChatService {
         }
 
         validateConversationScope(userId, actualPeerId, actualItemId, adminScope);
-        markConversationRead(userId, conversationId);
 
         ChatThreadVO vo = new ChatThreadVO();
         vo.setConversationId(conversationId);
@@ -246,10 +288,34 @@ public class ChatService {
     public Long unreadCount(Long userId) {
         SysUser currentUser = requireUser(userId);
         SchoolScopeGuard.requireAssigned(currentUser.getSchoolId());
+        // 全局未读 COUNT：单条 idx_chat_receiver_unread 覆盖索引查询，固定成本
+        return chatMessageMapper.countUnreadByReceiver(userId);
+    }
 
-        return loadAccessibleSnapshots(userId, currentUser).stream()
-                .mapToLong(snapshot -> snapshot.aggregate().getUnreadCount())
-                .sum();
+    /**
+     * 显式已读确认（M1/B10）：前端在消息实际渲染且可见后调用。
+     * lastSeenMessageId 必须属于该会话且接收者是当前用户；仅标记
+     * id <= lastSeenMessageId 的未读消息（间隙新消息保持未读），
+     * ACK 永不越过最后可见的接收消息。
+     */
+    @Transactional
+    public void ackRead(Long userId, String conversationId, Long lastSeenMessageId) {
+        if (!StringUtils.hasText(conversationId) || lastSeenMessageId == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "会话ID与消息ID不能为空");
+        }
+        boolean valid = chatMessageMapper.exists(new LambdaQueryWrapper<ChatMessage>()
+                .eq(ChatMessage::getId, lastSeenMessageId)
+                .eq(ChatMessage::getConversationId, conversationId)
+                .eq(ChatMessage::getReceiverId, userId));
+        if (!valid) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "消息 ID 与会话不匹配");
+        }
+        chatMessageMapper.update(null, new LambdaUpdateWrapper<ChatMessage>()
+                .eq(ChatMessage::getConversationId, conversationId)
+                .eq(ChatMessage::getReceiverId, userId)
+                .eq(ChatMessage::getIsRead, false)
+                .le(ChatMessage::getId, lastSeenMessageId)
+                .set(ChatMessage::getIsRead, true));
     }
 
     /** 会话快照：聚合行 + 批量回填的最近消息 / 对端用户 / 关联商品，并已套用普通入口的可见性过滤。 */
@@ -335,20 +401,9 @@ public class ChatService {
         return chatMessageMapper.selectList(wrapper.last("LIMIT " + UNREAD_LIMIT));
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendSystemMessage(Long receiverId, String content) {
-        SysUser admin = findAdmin();
-        if (Objects.equals(admin.getId(), receiverId)) {
-            return;
-        }
-        ChatMessage message = new ChatMessage();
-        message.setConversationId(conversationId(receiverId, admin.getId()));
-        message.setSenderId(admin.getId());
-        message.setReceiverId(receiverId);
-        message.setContent(content);
-        message.setIsRead(false);
-        chatMessageMapper.insert(message);
-    }
+    // 系统消息改由事务 Outbox 投递（OutboxProcessor 以唯一 SYSTEM 主体直接插入
+    // chat_message，source_event_id 唯一索引保证幂等），此处不再提供
+    // AFTER_COMMIT + REQUIRES_NEW 的 sendSystemMessage 路径。
 
     private ChatStartVO buildStartVO(Long userId, SysUser seller, Item item) {
         ChatStartVO vo = new ChatStartVO();
@@ -466,14 +521,6 @@ public class ChatService {
         }
     }
 
-    private void markConversationRead(Long userId, String conversationId) {
-        chatMessageMapper.update(null, new LambdaUpdateWrapper<ChatMessage>()
-                .eq(ChatMessage::getConversationId, conversationId)
-                .eq(ChatMessage::getReceiverId, userId)
-                .eq(ChatMessage::getIsRead, false)
-                .set(ChatMessage::getIsRead, true));
-    }
-
     private String normalizeConversationId(String provided, Long a, Long b) {
         String expected = conversationId(a, b);
         if (!StringUtils.hasText(provided)) {
@@ -500,13 +547,17 @@ public class ChatService {
     }
 
     private SysUser findAdmin() {
-        SysUser admin = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getRole, UserRole.ADMIN)
-                .eq(SysUser::getStatus, UserStatus.ACTIVE)
-                .orderByAsc(SysUser::getId)
-                .last("LIMIT 1"));
-        if (admin == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "未找到客服账号");
+        // 单人工管理员产品约束（M8/I16）：显式校验恰好一个 role=ADMIN 且非 SYSTEM 的账户，
+        // 禁止 ORDER BY id LIMIT 1 静默选择；非 ACTIVE 时明确"客服暂不可用"并告警。
+        List<SysUser> admins = userMapper.selectHumanAdmins();
+        if (admins.size() != 1) {
+            log.error("人工管理员配置异常：期望恰好 1 个，实际 {}", admins.size());
+            throw new BusinessException(ResultCode.SERVER_ERROR, "客服账号配置异常，请联系平台管理员");
+        }
+        SysUser admin = admins.getFirst();
+        if (admin.getStatus() != UserStatus.ACTIVE) {
+            log.warn("人工管理员当前不可用 adminId={} status={}", admin.getId(), admin.getStatus());
+            throw new BusinessException(ResultCode.FORBIDDEN, "人工客服暂不可用，请稍后再试");
         }
         return admin;
     }

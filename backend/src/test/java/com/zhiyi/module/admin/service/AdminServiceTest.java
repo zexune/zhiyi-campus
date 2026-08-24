@@ -7,20 +7,21 @@ import com.zhiyi.module.admin.entity.ViolationReport;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.admin.vo.ViolationVO;
-import com.zhiyi.module.item.entity.Item;
-import com.zhiyi.module.item.mapper.ItemMapper;
-import com.zhiyi.module.item.mapper.CategoryMapper;
-import com.zhiyi.module.item.service.LocalContentAnalyzer;
-import com.zhiyi.module.item.service.TagQueryService;
 import com.zhiyi.common.enums.ItemStatus;
-import com.zhiyi.common.enums.ModerationStatus;
+import com.zhiyi.common.enums.OrderCancelReason;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.ViolationSource;
 import com.zhiyi.common.enums.ViolationStatus;
+import com.zhiyi.module.item.entity.Item;
+import com.zhiyi.module.item.mapper.CategoryMapper;
+import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.service.LocalContentAnalyzer;
+import com.zhiyi.module.trade.entity.TradeOrder;
+import com.zhiyi.module.trade.mapper.TradeOrderMapper;
+import com.zhiyi.module.trade.service.ForceCancelService;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
-import com.zhiyi.module.user.support.UserStateCache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
@@ -39,11 +40,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：AdminManageService 去掉 UserStateCache（主库直读鉴权）；
+ * AdminViolationService 依赖 ForceCancelService + ModerationProjectionService，
+ * 确认违规先强制撤单再抢占审核记录并重新投影商品状态。
+ */
 @ExtendWith(MockitoExtension.class)
 class AdminServiceTest {
 
@@ -56,14 +63,13 @@ class AdminServiceTest {
     class ResetPassword {
         @Mock private SysUserMapper userMapper;
         @Mock private PasswordEncoder passwordEncoder;
-        @Mock private UserStateCache userStateCache;
         @Mock private CategoryMapper categoryMapper;
         @Mock private LocalContentAnalyzer contentAnalyzer;
         private AdminManageService service;
 
         @BeforeEach
         void setUp() {
-            service = new AdminManageService(userMapper, passwordEncoder, userStateCache,
+            service = new AdminManageService(userMapper, passwordEncoder,
                     categoryMapper, contentAnalyzer);
         }
 
@@ -73,6 +79,17 @@ class AdminServiceTest {
             admin.setId(1L);
             admin.setRole(UserRole.ADMIN);
             when(userMapper.selectById(1L)).thenReturn(admin);
+
+            assertThrows(BusinessException.class, () -> service.resetPassword(1L, 99L));
+        }
+
+        @Test
+        void rejectsSystemAccountPasswordReset() {
+            SysUser system = new SysUser();
+            system.setId(1L);
+            system.setRole(UserRole.ADMIN);
+            system.setIsSystem(true);
+            when(userMapper.selectById(1L)).thenReturn(system);
 
             assertThrows(BusinessException.class, () -> service.resetPassword(1L, 99L));
         }
@@ -89,7 +106,7 @@ class AdminServiceTest {
 
             assertDoesNotThrow(() -> service.resetPassword(2L, 99L));
 
-            verify(userStateCache).invalidateAfterCommit(2L);
+            verify(userMapper).bumpTokenVersion(2L);
         }
     }
 
@@ -98,15 +115,18 @@ class AdminServiceTest {
         @Mock private ViolationReportMapper reportMapper;
         @Mock private SysUserMapper userMapper;
         @Mock private ItemMapper itemMapper;
+        @Mock private TradeOrderMapper orderMapper;
         @Mock private ViolationLogMapper violationLogMapper;
         @Mock private ReputationPenaltyService penaltyService;
-        @Mock private TagQueryService tagQueryService;
+        @Mock private ForceCancelService forceCancelService;
+        @Mock private ModerationProjectionService projectionService;
         private AdminViolationService service;
 
         @BeforeEach
         void setUp() {
             service = new AdminViolationService(reportMapper, userMapper, itemMapper,
-                    violationLogMapper, penaltyService, tagQueryService);
+                    orderMapper, violationLogMapper, penaltyService,
+                    forceCancelService, projectionService);
         }
 
         @Test
@@ -145,43 +165,78 @@ class AdminServiceTest {
         }
 
         @Test
-        void dismissesLocalRuleReviewAndRelistsItem() {
+        void dismissesLocalRuleReviewAndProjectsModerationState() {
             ViolationReport report = pendingReport("LOCAL_RULE");
-            Item item = new Item();
-            item.setId(100L);
-            item.setStatus(ItemStatus.ON_SALE);
-            item.setModerationStatus(ModerationStatus.PENDING);
             when(reportMapper.selectById(1L)).thenReturn(report);
             when(reportMapper.update(isNull(), any())).thenReturn(1);
-            when(itemMapper.selectById(100L)).thenReturn(item);
 
             service.dismissViolation(1L, 99L);
 
-            assertEquals(ModerationStatus.PASSED, item.getModerationStatus());
-            assertEquals(ItemStatus.ON_SALE, item.getStatus());
-            verify(itemMapper).updateById(item);
-            verifyNoInteractions(penaltyService);
+            // 商品审核状态由投影服务重新计算，审核工作台不再直接改商品行
+            verify(itemMapper).selectByIdForUpdate(100L);
+            verify(projectionService).projectItemModerationStatus(100L);
+            verifyNoInteractions(penaltyService, forceCancelService);
         }
 
         @Test
-        void confirmingContentViolationDownshelvesAndRecordsFixedWarning() {
+        void confirmingContentViolationForceCancelsActiveOrderFirst() {
             ViolationReport report = pendingReport("LOCAL_RULE");
-            Item item = new Item();
-            item.setId(100L);
-            item.setStatus(ItemStatus.ON_SALE);
-            item.setModerationStatus(ModerationStatus.PENDING);
+            TradeOrder active = new TradeOrder();
+            active.setId(5L);
+            active.setItemId(100L);
+            active.setBuyerId(1L);
+            active.setSellerId(10L);
             when(reportMapper.selectById(1L)).thenReturn(report);
+            when(orderMapper.selectActiveByItemId(100L)).thenReturn(active);
             when(reportMapper.update(isNull(), any())).thenReturn(1);
-            when(itemMapper.selectById(100L)).thenReturn(item);
+
+            service.confirmViolation(1L, confirmDto(), 99L);
+
+            // 有挂单时：先锁买家用户行与商品行，再强制撤单（ADMIN_FORCE）
+            verify(userMapper).selectByIdForUpdate(1L);
+            verify(itemMapper).selectByIdForUpdate(100L);
+            verify(forceCancelService).cancelActiveOrderOfItem(eq(100L),
+                    eq(OrderCancelReason.ADMIN_FORCE), any(), any());
+            verify(projectionService).projectItemModerationStatus(100L);
+            verify(penaltyService).recordContentWarning(1L, 10L, 99L, "人工确认存在违规内容");
+        }
+
+        @Test
+        void confirmingContentViolationWithoutActiveOrderSkipsForceCancel() {
+            ViolationReport report = pendingReport("LOCAL_RULE");
+            when(reportMapper.selectById(1L)).thenReturn(report);
+            when(orderMapper.selectActiveByItemId(100L)).thenReturn(null);
+            when(reportMapper.update(isNull(), any())).thenReturn(1);
+            // 无锁预读无挂单：子例程仍被调用（持锁重查防 RR 快照漏单），内部返回 false 无单可撤
+            when(forceCancelService.cancelActiveOrderOfItem(eq(100L),
+                    eq(OrderCancelReason.ADMIN_FORCE), any(), any())).thenReturn(false);
+
+            service.confirmViolation(1L, confirmDto(), 99L);
+
+            verify(itemMapper).selectByIdForUpdate(100L);
+            verify(forceCancelService).cancelActiveOrderOfItem(eq(100L),
+                    eq(OrderCancelReason.ADMIN_FORCE), any(), any());
+            verify(projectionService).projectItemModerationStatus(100L);
+            verify(penaltyService).recordContentWarning(1L, 10L, 99L, "人工确认存在违规内容");
+        }
+
+        @Test
+        void confirmFailsWhenReportAlreadyHandledByAnotherAdmin() {
+            ViolationReport report = pendingReport("LOCAL_RULE");
+            when(reportMapper.selectById(1L)).thenReturn(report);
+            when(orderMapper.selectActiveByItemId(100L)).thenReturn(null);
+            when(reportMapper.update(isNull(), any())).thenReturn(0); // 抢占失败
+
+            assertThrows(BusinessException.class,
+                    () -> service.confirmViolation(1L, confirmDto(), 99L));
+            verifyNoInteractions(penaltyService);
+        }
+
+        private ConfirmViolationDTO confirmDto() {
             ConfirmViolationDTO dto = new ConfirmViolationDTO();
             dto.setReason("人工确认存在违规内容");
             dto.setHandleNote("复核完成");
-
-            service.confirmViolation(1L, dto, 99L);
-
-            assertEquals(ModerationStatus.REJECTED, item.getModerationStatus());
-            assertEquals(ItemStatus.OFF_SHELF, item.getStatus());
-            verify(penaltyService).recordContentWarning(1L, 10L, 99L, "人工确认存在违规内容");
+            return dto;
         }
 
         private ViolationReport pendingReport(String source) {

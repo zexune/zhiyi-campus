@@ -24,12 +24,10 @@ public interface ItemTagMapper extends BaseMapper<ItemTag> {
               JOIN item_tag it ON it.item_id = i.id
               JOIN tag t ON t.id = it.tag_id
               JOIN category c ON c.id = i.category_id
-              LEFT JOIN item_reservation r ON r.item_id = i.id
              WHERE i.school_id = #{schoolId}
                AND i.status = #{itemStatus}
                AND i.moderation_status = #{moderationStatus}
                AND i.is_deleted = 0
-               AND r.item_id IS NULL
              GROUP BY i.category_id, c.name, c.sort_order, t.id, t.name
              ORDER BY c.sort_order ASC, itemCount DESC, t.name ASC
             """)

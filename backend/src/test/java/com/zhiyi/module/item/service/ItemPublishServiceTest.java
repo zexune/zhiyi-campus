@@ -13,9 +13,9 @@ import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.mapper.ItemViewStatMapper;
 import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
-import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +34,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,6 +45,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：ItemReservationMapper 依赖已移除；发布会初始化独立浏览统计行
+ * （ItemViewStatMapper）并分配 listing_revision（feed_sequence 序列）。
+ */
 @ExtendWith(MockitoExtension.class)
 class ItemPublishServiceTest {
 
@@ -57,9 +62,9 @@ class ItemPublishServiceTest {
     @Mock private ViolationReportMapper violationReportMapper;
     @Mock private MarketplaceService marketplaceService;
     @Mock private SysUserMapper userMapper;
-    @Mock private ItemReservationMapper reservationMapper;
     @Mock private LocalContentAnalyzer contentAnalyzer;
     @Mock private ItemTagService itemTagService;
+    @Mock private ItemViewStatMapper viewStatMapper;
 
     @TempDir Path uploadDirectory;
 
@@ -68,7 +73,7 @@ class ItemPublishServiceTest {
     @BeforeEach
     void setUp() {
         service = new ItemPublishService(itemMapper, categoryMapper, violationReportMapper,
-                marketplaceService, userMapper, reservationMapper, contentAnalyzer, itemTagService);
+                marketplaceService, userMapper, contentAnalyzer, itemTagService, viewStatMapper);
         ReflectionTestUtils.setField(service, "uploadPath", uploadDirectory.toString());
     }
 
@@ -139,6 +144,7 @@ class ItemPublishServiceTest {
     @Test
     void publishesCleanContentWithPassedModerationAndLocalTags() {
         arrangePublisherAndCategory();
+        arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
                 false, "", List.of(), "2026.1", List.of("生活日用", "台灯", "出售")));
         when(itemMapper.insert(any(Item.class))).thenAnswer(invocation -> {
@@ -156,6 +162,9 @@ class ItemPublishServiceTest {
         assertEquals(2L, inserted.getSchoolId());
         assertEquals(ItemStatus.ON_SALE, inserted.getStatus());
         assertEquals(ModerationStatus.PASSED, inserted.getModerationStatus());
+        // 发布分配 listing_revision 并初始化独立浏览统计行
+        assertEquals(41L, inserted.getListingRevision());
+        verify(viewStatMapper).insert(any(com.zhiyi.module.item.entity.ItemViewStat.class));
         verify(itemTagService).replaceTags(91L, 2L, List.of("生活日用", "台灯", "出售"));
         verify(violationReportMapper, never()).insert(any(ViolationReport.class));
     }
@@ -163,6 +172,7 @@ class ItemPublishServiceTest {
     @Test
     void riskyContentIsPersistedAsReviewingAndCreatesReviewRecord() {
         arrangePublisherAndCategory();
+        arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
                 true, "本地规则命中", List.of("ACADEMIC_MISCONDUCT"), "2026.1", List.of("生活日用")));
         when(itemMapper.insert(any(Item.class))).thenAnswer(invocation -> {
@@ -204,20 +214,220 @@ class ItemPublishServiceTest {
         category.setId(3L);
         category.setName("Daily goods");
         when(itemMapper.selectById(100L)).thenReturn(item);
+        when(userMapper.selectById(7L)).thenReturn(publisher());
         when(categoryMapper.selectById(3L)).thenReturn(category);
+        arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
                 false, "", List.of(), "2026.1", List.of("Daily goods", "For sale")));
         // toReviewDTO 会带上商品现有标签（视为用户提供的 tags），需为清洗调用打桩
+        when(itemTagService.tagsByItemIds(any())).thenReturn(Map.of());
         when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
                 List.of("Daily goods", "For sale"), false, "", List.of()));
+        when(itemMapper.update(any(Item.class), any())).thenReturn(1);
         when(marketplaceService.getSnapshot(100L, 7L)).thenReturn(new ItemCardVO());
 
         service.relist(7L, 100L);
 
-        assertEquals(ItemStatus.ON_SALE, item.getStatus());
-        assertEquals(ModerationStatus.PASSED, item.getModerationStatus());
-        verify(itemMapper).updateById(item);
+        // 重上架走 patch 实体 + 条件 UPDATE（WHERE status='OFF_SHELF'），不做整实体写回
+        ArgumentCaptor<Item> patchCaptor = ArgumentCaptor.forClass(Item.class);
+        verify(itemMapper).update(patchCaptor.capture(), any());
+        Item patch = patchCaptor.getValue();
+        assertEquals(ItemStatus.ON_SALE, patch.getStatus());
+        assertEquals(ModerationStatus.PASSED, patch.getModerationStatus());
+        // 重新上架分配新 listing_revision + 刷新发布者层级键，使商品退出旧游标快照
+        assertEquals(41L, patch.getListingRevision());
+        assertEquals("宝山校区", patch.getPublisherCampusKey());
+        verify(itemMapper, never()).updateById(any(Item.class));
         verify(violationReportMapper, never()).selectCount(any());
+    }
+
+    @Test
+    void relistFailsWhenStatusLeftOffShelfConcurrently() {
+        Item item = new Item();
+        item.setId(100L);
+        item.setPublisherId(7L);
+        item.setSchoolId(2L);
+        item.setCategoryId(3L);
+        item.setType(ItemType.SELL);
+        item.setTitle("Dormitory lamp");
+        item.setDescription("Works normally");
+        item.setPrice(new BigDecimal("20.00"));
+        item.setImages(List.of("/uploads/items/test.jpg"));
+        item.setStatus(ItemStatus.OFF_SHELF);
+        item.setModerationStatus(ModerationStatus.PASSED);
+        when(itemMapper.selectById(100L)).thenReturn(item);
+        when(userMapper.selectById(7L)).thenReturn(publisher());
+        when(categoryMapper.selectById(3L)).thenReturn(new Category());
+        arrangeListingRevision();
+        when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
+                false, "", List.of(), "2026.1", List.of()));
+        when(itemTagService.tagsByItemIds(any())).thenReturn(Map.of());
+        when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
+                List.of(), false, "", List.of()));
+        // 竞态窗口：无锁读为 OFF_SHELF 后，并发事务（下单/审核迁移）使状态离开 OFF_SHELF
+        when(itemMapper.update(any(Item.class), any())).thenReturn(0);
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.relist(7L, 100L));
+
+        assertEquals(409, error.getCode());
+        verify(itemTagService, never()).replaceTags(any(), any(), any());
+    }
+
+    @Test
+    void updateWritesOnlyEditedFieldsViaConditionalUpdate() {
+        Item item = new Item();
+        item.setId(100L);
+        item.setPublisherId(7L);
+        item.setSchoolId(2L);
+        item.setCategoryId(3L);
+        item.setType(ItemType.SELL);
+        item.setTitle("旧标题");
+        item.setDescription("旧描述");
+        item.setPrice(new BigDecimal("20.00"));
+        item.setImages(List.of("/uploads/items/test.jpg"));
+        item.setStatus(ItemStatus.ON_SALE);
+        item.setModerationStatus(ModerationStatus.PASSED);
+        when(itemMapper.selectById(100L)).thenReturn(item);
+        when(categoryMapper.selectById(3L)).thenReturn(new Category());
+        arrangeListingRevision();
+        when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
+                false, "", List.of(), "2026.1", List.of()));
+        when(itemMapper.update(any(Item.class), any())).thenReturn(1);
+        when(marketplaceService.getSnapshot(100L, 7L)).thenReturn(new ItemCardVO());
+
+        service.update(7L, 100L, publishRequest());
+
+        ArgumentCaptor<Item> patchCaptor = ArgumentCaptor.forClass(Item.class);
+        verify(itemMapper).update(patchCaptor.capture(), any());
+        Item patch = patchCaptor.getValue();
+        // B4 根因验证：patch 只携带编辑字段；正常分支不写回 status（null 字段不进 SET）
+        assertEquals("宿舍台灯", patch.getTitle());
+        assertEquals(new BigDecimal("20.00"), patch.getPrice());
+        assertEquals(41L, patch.getListingRevision());
+        assertEquals(ModerationStatus.PASSED, patch.getModerationStatus());
+        org.junit.jupiter.api.Assertions.assertNull(patch.getStatus());
+        // 整实体写回路径必须绝迹
+        verify(itemMapper, never()).updateById(any(Item.class));
+    }
+
+    @Test
+    void updateFailsWhenItemMigratedConcurrently() {
+        // §7.1 "下单 vs 编辑" 交错的单元级决胜点：
+        // 编辑者无锁读到 ON_SALE/PASSED → 并发下单把商品置 RESERVED →
+        // 条件 UPDATE（WHERE status IN (ON_SALE, OFF_SHELF)）不匹配（0 行）→ CONFLICT，
+        // 读取时的 status/moderation_status 不被写回（I1/I2 保持）。
+        Item item = new Item();
+        item.setId(100L);
+        item.setPublisherId(7L);
+        item.setSchoolId(2L);
+        item.setCategoryId(3L);
+        item.setType(ItemType.SELL);
+        item.setTitle("旧标题");
+        item.setDescription("旧描述");
+        item.setPrice(new BigDecimal("20.00"));
+        item.setImages(List.of("/uploads/items/test.jpg"));
+        item.setStatus(ItemStatus.ON_SALE);
+        item.setModerationStatus(ModerationStatus.PASSED);
+        when(itemMapper.selectById(100L)).thenReturn(item);
+        when(categoryMapper.selectById(3L)).thenReturn(new Category());
+        arrangeListingRevision();
+        when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
+                false, "", List.of(), "2026.1", List.of()));
+        when(itemMapper.update(any(Item.class), any())).thenReturn(0); // 并发下单抢先迁移
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.update(7L, 100L, publishRequest()));
+
+        assertEquals(409, error.getCode());
+        verify(itemMapper, never()).updateById(any(Item.class));
+        verify(itemTagService, never()).replaceTags(any(), any(), any());
+    }
+
+    @Test
+    void updateFailsWhenModerationFlippedToRejectedConcurrently() {
+        // §7.1 "违规确认 vs 编辑" 交错的单元级决胜点：
+        // 编辑者无锁读到 ON_SALE/PASSED → 并发违规确认把商品压到 OFF_SHELF+REJECTED
+        // （OFF_SHELF 仍在条件 IN 列表内，只有 moderation 重检能拒绝）→
+        // 0 行 → CONFLICT，PASSED 不被写回吞掉 REJECTED（I24）。
+        Item item = new Item();
+        item.setId(100L);
+        item.setPublisherId(7L);
+        item.setSchoolId(2L);
+        item.setCategoryId(3L);
+        item.setType(ItemType.SELL);
+        item.setTitle("旧标题");
+        item.setDescription("旧描述");
+        item.setPrice(new BigDecimal("20.00"));
+        item.setImages(List.of("/uploads/items/test.jpg"));
+        item.setStatus(ItemStatus.ON_SALE);
+        item.setModerationStatus(ModerationStatus.PASSED);
+        when(itemMapper.selectById(100L)).thenReturn(item);
+        when(categoryMapper.selectById(3L)).thenReturn(new Category());
+        arrangeListingRevision();
+        when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
+                false, "", List.of(), "2026.1", List.of()));
+        when(itemMapper.update(any(Item.class), any())).thenReturn(0); // 并发违规确认抢先投影 REJECTED
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.update(7L, 100L, publishRequest()));
+
+        assertEquals(409, error.getCode());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Item>> wrapperCaptor =
+                ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(itemMapper).update(any(Item.class), wrapperCaptor.capture());
+        String sqlSegment = wrapperCaptor.getValue().getSqlSegment();
+        assertTrue(sqlSegment.contains("moderation_status"),
+                () -> "条件 UPDATE 必须重检 moderation_status，实际 WHERE: " + sqlSegment);
+        assertTrue(wrapperCaptor.getValue().getParamNameValuePairs().containsValue(ModerationStatus.PASSED),
+                "moderation 重检必须以读取时的值为准");
+        verify(itemTagService, never()).replaceTags(any(), any(), any());
+    }
+
+    @Test
+    void relistFailsWhenModerationFlippedToRejectedConcurrently() {
+        // §7.1 "放行 vs 新违规确认" 交错的单元级决胜点（relist 侧）：
+        // 读取 OFF_SHELF/PASSED → 并发违规确认投影 REJECTED（status 仍 OFF_SHELF）→
+        // moderation 重检 0 行 → CONFLICT，不允许 REJECTED 商品经 relist 回到 ON_SALE+PASSED。
+        Item item = new Item();
+        item.setId(100L);
+        item.setPublisherId(7L);
+        item.setSchoolId(2L);
+        item.setCategoryId(3L);
+        item.setType(ItemType.SELL);
+        item.setTitle("Dormitory lamp");
+        item.setDescription("Works normally");
+        item.setPrice(new BigDecimal("20.00"));
+        item.setImages(List.of("/uploads/items/test.jpg"));
+        item.setStatus(ItemStatus.OFF_SHELF);
+        item.setModerationStatus(ModerationStatus.PASSED);
+        when(itemMapper.selectById(100L)).thenReturn(item);
+        when(userMapper.selectById(7L)).thenReturn(publisher());
+        when(categoryMapper.selectById(3L)).thenReturn(new Category());
+        arrangeListingRevision();
+        when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
+                false, "", List.of(), "2026.1", List.of()));
+        when(itemTagService.tagsByItemIds(any())).thenReturn(Map.of());
+        when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
+                List.of(), false, "", List.of()));
+        when(itemMapper.update(any(Item.class), any())).thenReturn(0); // 并发违规确认抢先投影 REJECTED
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.relist(7L, 100L));
+
+        assertEquals(409, error.getCode());
+        verify(itemTagService, never()).replaceTags(any(), any(), any());
+    }
+
+    @Test
+    void reservedItemCannotBeModified() {
+        Item item = new Item();
+        item.setId(100L);
+        item.setPublisherId(7L);
+        item.setStatus(ItemStatus.RESERVED); // 交易中
+        when(itemMapper.selectById(100L)).thenReturn(item);
+
+        assertThrows(BusinessException.class, () -> service.relist(7L, 100L));
+        verify(itemMapper, never()).updateById(any(Item.class));
     }
 
     @Test
@@ -232,11 +442,22 @@ class ItemPublishServiceTest {
         assertEquals("请先设置所属学校", error.getMessage());
     }
 
-    private void arrangePublisherAndCategory() {
+    private void arrangeListingRevision() {
+        when(itemMapper.bumpListingRevision()).thenReturn(1);
+        when(itemMapper.currentListingRevision()).thenReturn(41L);
+    }
+
+    private SysUser publisher() {
         SysUser publisher = new SysUser();
         publisher.setId(7L);
         publisher.setSchoolId(2L);
-        when(userMapper.selectById(7L)).thenReturn(publisher);
+        publisher.setCampus("宝山校区");
+        publisher.setDormitory("南 8");
+        return publisher;
+    }
+
+    private void arrangePublisherAndCategory() {
+        when(userMapper.selectById(7L)).thenReturn(publisher());
         Category category = new Category();
         category.setId(3L);
         category.setName("生活日用");

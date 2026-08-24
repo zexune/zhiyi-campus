@@ -17,6 +17,8 @@ export const ITEM_TYPE = Object.freeze({
 export const ITEM_STATUS = Object.freeze({
   ON_SALE: 'ON_SALE',
   REVIEWING: 'REVIEWING',
+  /** 交易中：存在进行中的订单（item.status 是可交易性唯一权威来源） */
+  RESERVED: 'RESERVED',
   SOLD: 'SOLD',
   OFF_SHELF: 'OFF_SHELF'
 } as const)
@@ -99,6 +101,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = Object.freeze({
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = Object.freeze({
   [ITEM_STATUS.ON_SALE]: '在售中',
   [ITEM_STATUS.REVIEWING]: '审核中',
+  [ITEM_STATUS.RESERVED]: '交易中',
   [ITEM_STATUS.SOLD]: '已售出',
   [ITEM_STATUS.OFF_SHELF]: '已下架'
 })
@@ -106,6 +109,7 @@ export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = Object.freeze({
 export const ITEM_STATUS_BADGES: Record<ItemStatus, string> = Object.freeze({
   [ITEM_STATUS.ON_SALE]: 'badge--ok',
   [ITEM_STATUS.REVIEWING]: 'badge--warn',
+  [ITEM_STATUS.RESERVED]: 'badge--warn',
   [ITEM_STATUS.SOLD]: 'badge--muted',
   [ITEM_STATUS.OFF_SHELF]: 'badge--muted'
 })
@@ -160,6 +164,7 @@ export const ITEM_TYPE_OPTIONS: readonly SelectOption[] = Object.freeze([
 export const ITEM_STATUS_OPTIONS: readonly SelectOption[] = Object.freeze([
   { label: '在售中', value: ITEM_STATUS.ON_SALE },
   { label: '审核中', value: ITEM_STATUS.REVIEWING },
+  { label: '交易中', value: ITEM_STATUS.RESERVED },
   { label: '已售出', value: ITEM_STATUS.SOLD },
   { label: '已下架', value: ITEM_STATUS.OFF_SHELF }
 ])

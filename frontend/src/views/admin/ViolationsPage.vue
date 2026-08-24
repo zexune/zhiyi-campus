@@ -184,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { approveAppeal, confirmViolation, dismissViolation, getAppeals, getViolations, rejectAppeal } from '@/api/admin'
 import { APPEAL_STATUS, VIOLATION_STATUS } from '@/constants/domain'
@@ -192,6 +192,7 @@ import type { AppealStatus, ViolationStatus } from '@/constants/domain'
 import type { ViolationAppeal, ViolationReview } from '@/types/models'
 import { itemStatusLabel } from '@/utils/trade'
 import { formatDate, formatDateTime } from '@/utils/format'
+import { usePagedList } from '@/composables/usePagedList'
 
 const REVIEW_STATUS_TABS = [
   { label: '待审核', value: VIOLATION_STATUS.PENDING },
@@ -207,18 +208,39 @@ const APPEAL_STATUS_TABS = [
 
 const pageSize = 10
 const workspace = ref('reviews')
-const loading = ref(false)
 const acting = ref(false)
-const reviews = ref<ViolationReview[]>([])
-const reviewPage = ref(1)
-const reviewTotal = ref(0)
 const reviewStatus = ref<ViolationStatus>(VIOLATION_STATUS.PENDING)
-const appeals = ref<ViolationAppeal[]>([])
-const appealPage = ref(1)
-const appealTotal = ref(0)
 const appealStatus = ref<AppealStatus>(APPEAL_STATUS.PENDING)
 const pendingReviewCount = ref(0)
 const pendingAppealCount = ref(0)
+
+// 审核与申诉各自一份独立分页状态机：records / loading / 翻页互不串扰，
+// 快速切筛选或切工作区时由 usePagedList 的代数守卫丢弃乱序返回的旧响应（F1）
+const {
+  records: reviews,
+  currentPage: reviewPage,
+  total: reviewTotal,
+  loading: reviewLoading,
+  fetchList: fetchReviews,
+  goToFirstPage: resetReviewPage
+} = usePagedList<ViolationReview, { status: ViolationStatus }>(getViolations, {
+  size: pageSize,
+  params: () => ({ status: reviewStatus.value })
+})
+const {
+  records: appeals,
+  currentPage: appealPage,
+  total: appealTotal,
+  loading: appealLoading,
+  fetchList: fetchAppeals,
+  goToFirstPage: resetAppealPage
+} = usePagedList<ViolationAppeal, { status: AppealStatus }>(getAppeals, {
+  size: pageSize,
+  params: () => ({ status: appealStatus.value })
+})
+
+// 骨架屏与刷新按钮始终取当前工作区实例的 loading，两路在途请求互不复位
+const loading = computed(() => (workspace.value === 'reviews' ? reviewLoading.value : appealLoading.value))
 const confirmForm = reactive({ visible: false, review: null as ViolationReview | null, reason: '', handleNote: '', submitting: false })
 const appealHandle = reactive({ visible: false, appeal: null as ViolationAppeal | null, action: 'approve', handleNote: '', submitting: false })
 
@@ -269,43 +291,26 @@ async function fetchCounts() {
   pendingAppealCount.value = appealResult.status === 'fulfilled' ? Number(appealResult.value.data?.total || 0) : 0
 }
 
-async function fetchReviews() {
-  loading.value = true
-  try {
-    const res = await getViolations({ page: reviewPage.value, size: pageSize, status: reviewStatus.value })
-    reviews.value = res.data?.records || []
-    reviewTotal.value = Number(res.data?.total || 0)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchAppeals() {
-  loading.value = true
-  try {
-    const res = await getAppeals({ page: appealPage.value, size: pageSize, status: appealStatus.value })
-    appeals.value = res.data?.records || []
-    appealTotal.value = Number(res.data?.total || 0)
-  } finally {
-    loading.value = false
-  }
-}
+/** 已加载过的工作区：首次打开才拉取，之后切换沿用已有数据（刷新按钮手动更新） */
+const loadedWorkspaces = new Set(['reviews'])
 
 function switchWorkspace(next: string) {
   if (workspace.value === next) return
   workspace.value = next
-  if (next === 'reviews') fetchReviews()
-  else fetchAppeals()
+  if (loadedWorkspaces.has(next)) return
+  loadedWorkspaces.add(next)
+  void (next === 'reviews' ? fetchReviews() : fetchAppeals())
 }
 function changeReviewStatus(status: ViolationStatus) {
   reviewStatus.value = status
-  reviewPage.value = 1
-  fetchReviews()
+  // params 是函数，fetchList 时取到的永远是最新筛选；回第一页并作废在途旧响应
+  resetReviewPage()
+  void fetchReviews()
 }
 function changeAppealStatus(status: AppealStatus) {
   appealStatus.value = status
-  appealPage.value = 1
-  fetchAppeals()
+  resetAppealPage()
+  void fetchAppeals()
 }
 function refreshCurrent() {
   fetchCounts()

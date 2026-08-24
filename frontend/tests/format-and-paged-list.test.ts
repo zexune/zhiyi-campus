@@ -160,3 +160,51 @@ test('usePagedList 对 params 返回空值与缺失 total 的载荷兜底', asyn
   assert.deepEqual(list.records.value, [{ id: 3 }])
   assert.equal(list.total.value, 0)
 })
+
+test('usePagedList 对缺 records 的分页载荷兜底为空列表', async () => {
+  const loader = vi.fn().mockResolvedValue({ data: {} })
+  const list = withSetup(() => usePagedList(loader))
+  await list.fetchList()
+  assert.deepEqual(list.records.value, [])
+  assert.equal(list.total.value, 0)
+})
+
+test('usePagedList 乱序返回的旧代成功响应被丢弃，不覆盖新结果', async () => {
+  let resolveStale!: (value: { data: { records: unknown[]; total: number } }) => void
+  const loader = vi
+    .fn()
+    .mockImplementationOnce(() => new Promise((resolve) => (resolveStale = resolve)))
+    .mockResolvedValueOnce({ data: { records: [{ id: 2 }], total: 2 } })
+
+  const list = withSetup(() => usePagedList(loader))
+  const staleCall = list.fetchList()
+  await list.fetchList()
+  assert.deepEqual(list.records.value, [{ id: 2 }])
+  assert.equal(list.loading.value, false)
+
+  resolveStale({ data: { records: [{ id: 1 }], total: 1 } })
+  await staleCall
+  assert.deepEqual(list.records.value, [{ id: 2 }])
+  assert.equal(list.total.value, 2)
+  assert.equal(list.loading.value, false)
+  assert.equal(list.loadError.value, false)
+})
+
+test('usePagedList 乱序返回的旧代失败不置 loadError', async () => {
+  let rejectStale!: (reason: unknown) => void
+  const loader = vi
+    .fn()
+    .mockImplementationOnce(() => new Promise((_, reject) => (rejectStale = reject)))
+    .mockResolvedValueOnce({ data: { records: [{ id: 2 }], total: 2 } })
+
+  const list = withSetup(() => usePagedList(loader))
+  const staleCall = list.fetchList()
+  await list.fetchList()
+  assert.deepEqual(list.records.value, [{ id: 2 }])
+  assert.equal(list.loadError.value, false)
+
+  rejectStale(new Error('stale timeout'))
+  await staleCall
+  assert.equal(list.loadError.value, false)
+  assert.deepEqual(list.records.value, [{ id: 2 }])
+})

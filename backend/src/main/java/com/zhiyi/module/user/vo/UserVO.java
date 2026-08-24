@@ -19,6 +19,8 @@ public class UserVO {
     private String role;
     private String status;
     private LocalDateTime banUntilTime;
+    /** 资料乐观并发版本：编辑资料请求必须携带并匹配当前版本 */
+    private Long profileVersion;
     private Integer level;
     private String levelTitle;
     private Integer exp;
@@ -52,6 +54,7 @@ public class UserVO {
         vo.setRole(u.getRole().code());
         vo.setStatus(u.getStatus().code());
         vo.setBanUntilTime(u.getBanUntilTime());
+        vo.setProfileVersion(u.getProfileVersion());
         vo.setLevel(u.getLevel());
         vo.setLevelTitle(LevelRule.titleOf(u.getLevel()));
         vo.setExp(u.getExp());

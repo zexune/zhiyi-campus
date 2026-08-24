@@ -12,8 +12,8 @@ import com.zhiyi.module.admin.service.AdminAuthService;
 import com.zhiyi.module.admin.vo.AdminLoginVO;
 import com.zhiyi.module.trade.controller.OrderController;
 import com.zhiyi.module.trade.service.OrderQueryService;
-import com.zhiyi.module.trade.service.OrderService;
 import com.zhiyi.module.trade.service.ReviewService;
+import com.zhiyi.module.trade.service.TradingEntryService;
 import com.zhiyi.module.trade.vo.OrderVO;
 import com.zhiyi.module.user.controller.AuthController;
 import com.zhiyi.module.user.service.AccountSecurityService;
@@ -38,6 +38,7 @@ import java.math.BigDecimal;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -73,7 +74,7 @@ class ApiControllerContractTest {
     private MockMvc mockMvc;
 
     @MockitoBean private AuthService authService;
-    @MockitoBean private OrderService orderService;
+    @MockitoBean private TradingEntryService tradingEntryService;
     @MockitoBean private OrderQueryService orderQueryService;
     @MockitoBean private ReviewService reviewService;
     @MockitoBean private AdminAuthService adminAuthService;
@@ -194,10 +195,11 @@ class ApiControllerContractTest {
         order.setSellerId(8L);
         order.setPrice(new BigDecimal("19.90"));
         order.setStatus("WAITING_MEET");
-        when(orderService.createOrder(eq(7L), any())).thenReturn(order);
+        when(tradingEntryService.createOrder(eq(7L), any(), anyString())).thenReturn(order);
 
         mockMvc.perform(post("/api/order/create")
                         .requestAttr("userId", 7L)
+                        .header("X-Idempotency-Key", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"itemId\":9}"))
                 .andExpect(status().isOk())
@@ -211,17 +213,39 @@ class ApiControllerContractTest {
     @Test
     @DisplayName("业务异常不会退化成 500 或丢失业务错误码")
     void businessFailurePreservesDomainCode() throws Exception {
-        when(orderService.createOrder(eq(7L), any()))
+        when(tradingEntryService.createOrder(eq(7L), any(), anyString()))
                 .thenThrow(new BusinessException(ResultCode.BALANCE_NOT_ENOUGH));
 
         mockMvc.perform(post("/api/order/create")
                         .requestAttr("userId", 7L)
+                        .header("X-Idempotency-Key", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"itemId\":9}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(3001))
                 .andExpect(jsonPath("$.message").value("余额不足"))
                 .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("资金操作缺少或携带非法幂等键被统一拒绝")
+    void malformedIdempotencyKeyIsRejected() throws Exception {
+        mockMvc.perform(post("/api/order/create")
+                        .requestAttr("userId", 7L)
+                        .header("X-Idempotency-Key", "not-an-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"itemId\":9}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(3007))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        mockMvc.perform(post("/api/order/create")
+                        .requestAttr("userId", 7L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"itemId\":9}"))
+                .andExpect(jsonPath("$.code").value(400));
+
+        verify(tradingEntryService, never()).createOrder(anyLong(), any(), any());
     }
 
     @Test

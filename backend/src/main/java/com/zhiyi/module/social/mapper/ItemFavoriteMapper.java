@@ -18,12 +18,10 @@ public interface ItemFavoriteMapper extends BaseMapper<ItemFavorite> {
             SELECT f.item_id AS itemId, COUNT(*) AS favoriteCount
               FROM item_favorite f
               JOIN item i ON i.id = f.item_id
-              LEFT JOIN item_reservation r ON r.item_id = i.id
              WHERE i.school_id = #{schoolId}
                AND i.status = #{itemStatus}
                AND i.moderation_status = #{moderationStatus}
                AND i.is_deleted = 0
-               AND r.item_id IS NULL
              GROUP BY f.item_id
              ORDER BY favoriteCount DESC, f.item_id DESC
              LIMIT #{limit}

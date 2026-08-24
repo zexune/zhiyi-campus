@@ -26,8 +26,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public Result<?> handleBusinessException(BusinessException e) {
-        log.warn("业务异常：{}", e.getMessage());
-        return Result.fail(e.getCode(), e.getMessage());
+        log.warn("业务异常：code={} {}", e.getCode(), e.getMessage());
+        return e.getConflictDetail() == null
+                ? Result.fail(e.getCode(), e.getMessage())
+                : Result.fail(e.getCode(), e.getMessage(), e.getConflictDetail());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -49,6 +51,13 @@ public class GlobalExceptionHandler {
     public Result<?> handleMissingParameter(MissingServletRequestParameterException e) {
         log.warn("缺少请求参数：{}", e.getParameterName());
         return Result.fail(ResultCode.BAD_REQUEST, "缺少必填参数: " + e.getParameterName());
+    }
+
+    /** 缺少必填请求头（如资金操作幂等键）→ 400，引导客户端补齐后重试。 */
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public Result<?> handleMissingHeader(org.springframework.web.bind.MissingRequestHeaderException e) {
+        log.warn("缺少请求头：{}", e.getHeaderName());
+        return Result.fail(ResultCode.BAD_REQUEST, "缺少必填请求头: " + e.getHeaderName());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

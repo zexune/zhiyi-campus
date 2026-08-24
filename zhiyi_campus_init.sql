@@ -3,10 +3,23 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 🎓 智易校园 - 数据库初始化脚本
--- 版本：v3.1
--- 日期：2026-08-14
+-- 版本：v3.1（并发/时序问题根本修复版）
+-- 日期：2026-08-23
 -- 数据库：MySQL 9.7 LTS
 -- 字符集：utf8mb4（完整支持中文 + Emoji）
+--
+-- 本版核心约束：
+-- - item.status 增加 RESERVED（交易中）；trade_order 生成列唯一索引
+--   uk_order_active_item 保证"一个商品最多一笔进行中订单"（item_reservation 淘汰）
+-- - wallet_log 增加 (order_id, user_id, type) 唯一键防止重复资金流水
+-- - idempotency_record：资金操作幂等唯一来源（owner_token 协议）
+-- - outbox_event + chat_message.source_event_id：事务性系统消息
+-- - login_attempt：登录/密保失败限流数据库化（替代本地 Caffeine）
+-- - sys_user：profile_version 乐观并发；BANNED_TEMP 必须有到期时间（CHECK）；
+--   is_system 单例约束（SYSTEM 技术主体与人工管理员分离）
+-- - item_view_stat / view_flush：浏览量脱离 item 业务行（flush_id 幂等）
+-- - chat_response_sample / user_reputation_metric：响应速度固定成本派生指标
+-- - listing_revision + 发布时固化的层级键：Feed 游标快照基础
 -- ============================================================
 
 -- -----------------------------------------------------------
@@ -60,8 +73,11 @@ CREATE TABLE sys_user (
     dormitory_key   VARCHAR(50) GENERATED ALWAYS AS (LOWER(REPLACE(TRIM(dormitory), ' ', ''))) STORED COMMENT '宿舍楼规范化索引键',
     role            VARCHAR(20)     NOT NULL DEFAULT 'USER'  COMMENT '角色：USER/ADMIN',
     status          VARCHAR(20)     NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/BANNED_TEMP/BANNED_PERM/CANCELLED（已注销）',
-    ban_until_time  DATETIME        DEFAULT NULL             COMMENT '封禁截止时间（临时封禁）',
+    ban_until_time  DATETIME(6)     DEFAULT NULL             COMMENT '封禁截止时间（数据库时间；BANNED_TEMP 必填，其他状态必须为 NULL）',
     token_version   INT             NOT NULL DEFAULT 0       COMMENT 'Token版本：改密、重置、封禁和注销时原子递增',
+    profile_version BIGINT          NOT NULL DEFAULT 0       COMMENT '资料乐观并发版本：仅资料修改推进，与钱包/状态/Token 写入无关',
+    is_system       TINYINT(1)      NOT NULL DEFAULT 0       COMMENT '是否 SYSTEM 技术主体（不可登录、不可交易；全库恰好一个）',
+    system_singleton TINYINT        GENERATED ALWAYS AS (CASE WHEN is_system = 1 THEN 1 ELSE NULL END) STORED COMMENT 'SYSTEM 单例约束列',
     level           INT             NOT NULL DEFAULT 1       COMMENT '用户等级',
     exp             INT             NOT NULL DEFAULT 0       COMMENT '累计经验值',
     wallet_balance  DECIMAL(10,2)   NOT NULL DEFAULT 0.00    COMMENT '钱包余额',
@@ -72,13 +88,20 @@ CREATE TABLE sys_user (
 
     PRIMARY KEY (id),
     UNIQUE KEY  uk_school_student (school_id, student_id),
+    UNIQUE KEY  uk_system_singleton (system_singleton),
     INDEX       idx_user_role_status (role, status, id),
     INDEX       idx_user_status_ban (status, ban_until_time, id),
     INDEX       idx_user_school_campus (school_id, campus_key, id),
     INDEX       idx_user_school_dormitory (school_id, dormitory_key, id),
+    INDEX       idx_user_system (is_system),
     CONSTRAINT  fk_user_school FOREIGN KEY (school_id) REFERENCES school(id),
     CONSTRAINT  chk_user_role CHECK (role IN ('USER', 'ADMIN')),
-    CONSTRAINT  chk_user_status CHECK (status IN ('ACTIVE', 'BANNED_TEMP', 'BANNED_PERM', 'CANCELLED'))
+    CONSTRAINT  chk_user_status CHECK (status IN ('ACTIVE', 'BANNED_TEMP', 'BANNED_PERM', 'CANCELLED')),
+    CONSTRAINT  chk_user_ban_time CHECK (
+        (status = 'BANNED_TEMP' AND ban_until_time IS NOT NULL)
+        OR (status <> 'BANNED_TEMP' AND ban_until_time IS NULL)
+    ),
+    CONSTRAINT  chk_is_system CHECK (is_system IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 
@@ -99,6 +122,12 @@ CREATE TABLE category (
 
 -- -----------------------------------------------------------
 -- 2.3 item — 商品/需求表
+--     status 增加 RESERVED：订单生命周期事实在 trade_order，
+--     item.status 是可交易性的唯一权威来源（RESERVED 恰好对应一笔 WAITING_MEET 订单）。
+--     浏览量迁移到 item_view_stat；listing_revision 由 feed_sequence 全局分配，
+--     任何影响 Feed 资格/筛选/排序的编辑都会推进 revision，使商品退出旧游标快照。
+--     publisher_campus_key / publisher_dormitory_key 在发布/编辑时从发布者资料固化，
+--     分层推荐不再回查 sys_user，用户改资料不会移动进行中的 Feed 链。
 -- -----------------------------------------------------------
 CREATE TABLE item (
     id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '商品ID',
@@ -114,9 +143,11 @@ CREATE TABLE item (
     trade_location  VARCHAR(255)    DEFAULT NULL             COMMENT '交易地点',
     pickup_location VARCHAR(255)    DEFAULT NULL             COMMENT '跑腿取件地点',
     delivery_location VARCHAR(255)  DEFAULT NULL             COMMENT '跑腿送达地点',
-    status          VARCHAR(20)     NOT NULL DEFAULT 'ON_SALE' COMMENT '商品状态：ON_SALE/SOLD/OFF_SHELF；订单状态独立存储',
-    feed_key        BIGINT UNSIGNED NOT NULL                 COMMENT '稳定随机推荐序键，发布时生成',
-    view_count      INT             NOT NULL DEFAULT 0       COMMENT '浏览次数',
+    status          VARCHAR(20)     NOT NULL DEFAULT 'ON_SALE' COMMENT '商品状态：ON_SALE/RESERVED交易中/SOLD/OFF_SHELF',
+    feed_key        BIGINT UNSIGNED NOT NULL                 COMMENT '稳定随机推荐序键，发布时生成，同一 listing revision 内不可变',
+    listing_revision BIGINT         NOT NULL DEFAULT 0       COMMENT 'Feed 全局单调版本：影响 Feed 资格/排序的编辑与重新上架分配新值',
+    publisher_campus_key   VARCHAR(50) DEFAULT NULL          COMMENT '发布时固化的校区层级键（小写去空格）',
+    publisher_dormitory_key VARCHAR(50) DEFAULT NULL         COMMENT '发布时固化的宿舍楼层级键（小写去空格）',
     is_deleted      TINYINT(1)      NOT NULL DEFAULT 0       COMMENT '软删除标记：0正常/1已删除',
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
     updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -124,7 +155,7 @@ CREATE TABLE item (
     PRIMARY KEY (id),
     INDEX idx_item_market_latest (school_id, status, moderation_status, is_deleted, created_at DESC, id DESC),
     INDEX idx_item_market_feed (school_id, status, moderation_status, is_deleted, feed_key, id),
-    INDEX idx_item_market_price (school_id, status, moderation_status, is_deleted, price, created_at DESC, id DESC),
+    INDEX idx_item_market_price (school_id, status, moderation_status, is_deleted, price, id),
     INDEX idx_item_category_latest (school_id, category_id, status, moderation_status, is_deleted, created_at DESC, id DESC),
     INDEX idx_item_type_latest (school_id, type, status, moderation_status, is_deleted, created_at DESC, id DESC),
     INDEX idx_item_publisher_created (publisher_id, created_at DESC, id DESC),
@@ -132,7 +163,7 @@ CREATE TABLE item (
     CONSTRAINT fk_item_school     FOREIGN KEY (school_id)    REFERENCES school(id),
     CONSTRAINT fk_item_category   FOREIGN KEY (category_id)  REFERENCES category(id),
     CONSTRAINT chk_item_type CHECK (type IN ('SELL', 'BUY', 'SWAP', 'ERRAND')),
-    CONSTRAINT chk_item_status CHECK (status IN ('ON_SALE', 'SOLD', 'OFF_SHELF')),
+    CONSTRAINT chk_item_status CHECK (status IN ('ON_SALE', 'RESERVED', 'SOLD', 'OFF_SHELF')),
     CONSTRAINT chk_item_moderation CHECK (moderation_status IN ('PASSED', 'PENDING', 'REJECTED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品/需求表';
 
@@ -175,6 +206,17 @@ CREATE TABLE event_topic (
     CONSTRAINT chk_topic_filter_type CHECK (filter_type IS NULL OR filter_type IN ('SELL', 'BUY', 'SWAP', 'ERRAND'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='大事件专题配置';
 
+-- -----------------------------------------------------------
+-- 2.3b feed_sequence — listing_revision 全局单调序列分配器
+--     通过 UPDATE ... LAST_INSERT_ID(atomic increment) 分配，无回退。
+-- -----------------------------------------------------------
+CREATE TABLE feed_sequence (
+    id            TINYINT      NOT NULL DEFAULT 0,
+    current_value BIGINT       NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Feed listing revision 全局序列';
+
+INSERT INTO feed_sequence (id, current_value) VALUES (0, 0);
 
 -- -----------------------------------------------------------
 -- 2.4 item_favorite — 商品收藏关联表
@@ -195,6 +237,8 @@ CREATE TABLE item_favorite (
 
 -- -----------------------------------------------------------
 -- 2.5 trade_order — 交易订单表
+--     active_item_id 生成列 + 唯一索引：一个商品最多一笔 WAITING_MEET 订单（数据库最后防线）。
+--     cancel_reason 显式化：所有 CANCELLED 订单必须有原因，审计语义不依赖 NULL。
 -- -----------------------------------------------------------
 CREATE TABLE trade_order (
     id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '订单ID',
@@ -203,11 +247,16 @@ CREATE TABLE trade_order (
     seller_id       BIGINT          NOT NULL                 COMMENT '卖家ID',
     price           DECIMAL(10,2)   NOT NULL                 COMMENT '成交价格',
     status          VARCHAR(20)     NOT NULL DEFAULT 'WAITING_MEET' COMMENT '状态：WAITING_MEET/COMPLETED/CANCELLED',
+    active_item_id  BIGINT          GENERATED ALWAYS AS (
+                        CASE WHEN status = 'WAITING_MEET' THEN item_id ELSE NULL END) STORED
+                                                            COMMENT '进行中订单的商品独占键（生成列）',
+    cancel_reason   VARCHAR(32)     DEFAULT NULL             COMMENT '取消原因：USER_CANCEL/AUTO_CANCEL/ADMIN_FORCE；非取消状态必须为 NULL',
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
-    completed_at    DATETIME        DEFAULT NULL             COMMENT '完成时间（确认收货）',
-    cancelled_at    DATETIME        DEFAULT NULL             COMMENT '取消时间',
+    completed_at    DATETIME(6)     DEFAULT NULL             COMMENT '完成时间（数据库时间）',
+    cancelled_at    DATETIME(6)     DEFAULT NULL             COMMENT '取消时间（数据库时间）',
 
     PRIMARY KEY (id),
+    UNIQUE KEY uk_order_active_item (active_item_id),
     INDEX idx_order_buyer_created (buyer_id, created_at DESC, id DESC),
     INDEX idx_order_buyer_status_created (buyer_id, status, created_at DESC, id DESC),
     INDEX idx_order_seller_created (seller_id, created_at DESC, id DESC),
@@ -217,30 +266,18 @@ CREATE TABLE trade_order (
     CONSTRAINT fk_order_item   FOREIGN KEY (item_id)   REFERENCES item(id),
     CONSTRAINT fk_order_buyer  FOREIGN KEY (buyer_id)  REFERENCES sys_user(id),
     CONSTRAINT fk_order_seller FOREIGN KEY (seller_id) REFERENCES sys_user(id),
-    CONSTRAINT chk_order_status CHECK (status IN ('WAITING_MEET', 'COMPLETED', 'CANCELLED'))
+    CONSTRAINT chk_order_status CHECK (status IN ('WAITING_MEET', 'COMPLETED', 'CANCELLED')),
+    CONSTRAINT chk_order_cancel_reason CHECK (
+        (status = 'CANCELLED' AND cancel_reason IN ('USER_CANCEL', 'AUTO_CANCEL', 'ADMIN_FORCE'))
+        OR (status <> 'CANCELLED' AND cancel_reason IS NULL)
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='交易订单表';
 
 
 -- -----------------------------------------------------------
--- 2.6 item_reservation — 商品订单独占预留表
--- -----------------------------------------------------------
-CREATE TABLE item_reservation (
-    item_id         BIGINT      NOT NULL                 COMMENT '商品ID（主键保证同一商品仅一个进行中订单）',
-    buyer_id        BIGINT      NOT NULL                 COMMENT '占用商品的买家ID',
-    order_id        BIGINT      DEFAULT NULL             COMMENT '创建完成后的订单ID',
-    created_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '预留时间',
-
-    PRIMARY KEY (item_id),
-    UNIQUE KEY uk_reservation_order (order_id),
-    INDEX idx_reservation_buyer (buyer_id),
-    CONSTRAINT fk_reservation_item  FOREIGN KEY (item_id)  REFERENCES item(id),
-    CONSTRAINT fk_reservation_buyer FOREIGN KEY (buyer_id) REFERENCES sys_user(id),
-    CONSTRAINT fk_reservation_order FOREIGN KEY (order_id) REFERENCES trade_order(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='进行中订单的商品独占预留表';
-
-
--- -----------------------------------------------------------
 -- 2.6 wallet_log — 钱包资金变动流水表
+--     uk_wallet_order_type：同一订单+用户+类型最多一条流水，重复资金操作被数据库拒绝。
+--     RECHARGE 流水 order_id 为 NULL，MySQL 唯一索引允许多个 NULL，互不冲突。
 -- -----------------------------------------------------------
 CREATE TABLE wallet_log (
     id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '流水ID',
@@ -253,8 +290,8 @@ CREATE TABLE wallet_log (
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '变动时间',
 
     PRIMARY KEY (id),
+    UNIQUE KEY uk_wallet_order_type (order_id, user_id, type),
     INDEX idx_wallet_user_created (user_id, created_at DESC, id DESC),
-    INDEX idx_order (order_id),
     INDEX idx_wallet_type_created (type, created_at DESC, id DESC),
     CONSTRAINT fk_wallet_user  FOREIGN KEY (user_id)  REFERENCES sys_user(id),
     CONSTRAINT fk_wallet_order FOREIGN KEY (order_id) REFERENCES trade_order(id),
@@ -263,21 +300,54 @@ CREATE TABLE wallet_log (
 
 
 -- -----------------------------------------------------------
--- 2.7 chat_message — 聊天消息记录表
+-- 2.7 idempotency_record — 资金操作幂等记录
+--     owner_token 协议：插入时不依赖 affected rows；插入后 FOR UPDATE 重读，
+--     token 一致者获得执行权。业务失败整体回滚（含本记录），无 FAILED 状态。
+--     唯一键骨架永久保留，归档只能迁移 result_snapshot，不得删除唯一键。
+-- -----------------------------------------------------------
+CREATE TABLE idempotency_record (
+    id              BIGINT      NOT NULL AUTO_INCREMENT,
+    user_id         BIGINT      NOT NULL,
+    operation       VARCHAR(32) NOT NULL COMMENT 'RECHARGE/ORDER_CREATE/ORDER_CONFIRM/ORDER_CANCEL',
+    idempotency_key VARCHAR(64) NOT NULL,
+    request_hash    CHAR(64)    NOT NULL COMMENT '规范化完整请求参数的 SHA-256',
+    owner_token     CHAR(36)    NOT NULL COMMENT '本次事务随机所有权令牌，不由客户端提供',
+    status          VARCHAR(20) NOT NULL DEFAULT 'PROCESSING',
+    result_snapshot TEXT        NULL COMMENT '成功响应快照（JSON），含 result_version',
+    result_version  INT         NOT NULL DEFAULT 1,
+    created_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_idempotency (user_id, operation, idempotency_key),
+    INDEX idx_idem_created (created_at),
+    CONSTRAINT fk_idem_user FOREIGN KEY (user_id) REFERENCES sys_user(id),
+    CONSTRAINT chk_idem_status CHECK (status IN ('PROCESSING', 'SUCCESS')),
+    CONSTRAINT chk_idem_operation CHECK (operation IN ('RECHARGE', 'ORDER_CREATE', 'ORDER_CONFIRM', 'ORDER_CANCEL')),
+    CONSTRAINT chk_idem_key_format CHECK (idempotency_key REGEXP '^[0-9a-fA-F-]{36}$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='资金操作幂等记录';
+
+
+-- -----------------------------------------------------------
+-- 2.8 chat_message — 聊天消息记录表
+--     source_event_id 唯一索引：Outbox 事件的至少一次投递在数据库层幂等。
 -- -----------------------------------------------------------
 CREATE TABLE chat_message (
     id                BIGINT        NOT NULL AUTO_INCREMENT  COMMENT '消息ID',
-    conversation_id   VARCHAR(50)   NOT NULL                 COMMENT '会话ID（格式：小ID_大ID 或 userID_admin）',
-    sender_id         BIGINT        NOT NULL                 COMMENT '发送者ID',
+    conversation_id   VARCHAR(50)   NOT NULL                 COMMENT '会话ID（格式：小ID_大ID）',
+    sender_id         BIGINT        NOT NULL                 COMMENT '发送者ID（系统消息为唯一 SYSTEM 用户）',
     receiver_id       BIGINT        NOT NULL                 COMMENT '接收者ID',
     content           TEXT          NOT NULL                 COMMENT '消息内容',
     related_item_id   BIGINT        DEFAULT NULL             COMMENT '关联商品ID',
     is_read           TINYINT(1)    NOT NULL DEFAULT 0       COMMENT '是否已读：0未读/1已读',
+    source_event_id   VARCHAR(64)   DEFAULT NULL             COMMENT '产生本消息的 Outbox 事件ID',
     created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
 
     PRIMARY KEY (id),
-    INDEX idx_conversation (conversation_id, created_at),
-    INDEX idx_receiver_unread (receiver_id, is_read, created_at DESC, id DESC),
+    UNIQUE KEY uk_chat_source_event (source_event_id),
+    INDEX idx_conversation (conversation_id, id),
+    INDEX idx_chat_receiver_read_conv (receiver_id, conversation_id, is_read, id),
+    INDEX idx_chat_receiver_unread (receiver_id, is_read, id),
     INDEX idx_sender_created (sender_id, created_at DESC, id DESC),
     CONSTRAINT fk_chat_sender   FOREIGN KEY (sender_id)       REFERENCES sys_user(id),
     CONSTRAINT fk_chat_receiver FOREIGN KEY (receiver_id)     REFERENCES sys_user(id),
@@ -286,7 +356,93 @@ CREATE TABLE chat_message (
 
 
 -- -----------------------------------------------------------
--- 2.9 violation_report — 内容审核记录表
+-- 2.9 outbox_event — 事务性系统消息 Outbox
+--     业务数据与事件同事务写入；消费者单事件事务（SKIP LOCKED 领取 → 插消息 → 置 SENT）。
+-- -----------------------------------------------------------
+CREATE TABLE outbox_event (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    event_id        VARCHAR(64)  NOT NULL,
+    aggregate_type  VARCHAR(32)  NOT NULL COMMENT 'USER/ORDER/ITEM',
+    aggregate_id    BIGINT       NOT NULL,
+    event_type      VARCHAR(64)  NOT NULL COMMENT 'USER_PUNISHED/USER_LEVEL_UP/ORDER_SYSTEM_NOTICE/...',
+    payload         JSON         NOT NULL,
+    status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    attempts        INT          NOT NULL DEFAULT 0,
+    next_retry_at   DATETIME(6)  DEFAULT NULL,
+    created_at      DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    sent_at         DATETIME(6)  DEFAULT NULL,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_outbox_event_id (event_id),
+    INDEX idx_outbox_poll (status, next_retry_at, id),
+    CONSTRAINT chk_outbox_status CHECK (status IN ('PENDING', 'SENT', 'FAILED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事务 Outbox 事件表';
+
+
+-- -----------------------------------------------------------
+-- 2.10 login_attempt — 登录/密保失败限流（数据库状态机，替代本地 Caffeine）
+-- -----------------------------------------------------------
+CREATE TABLE login_attempt (
+    attempt_key       VARCHAR(128) NOT NULL COMMENT '带场景前缀的规范化主体摘要：login/reset/admin/chpw',
+    window_started_at DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '当前失败计数窗口起点',
+    fail_count        INT          NOT NULL DEFAULT 0,
+    locked_until      DATETIME(6)  DEFAULT NULL COMMENT '数据库时间；NULL 表示未锁定',
+    updated_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+
+    PRIMARY KEY (attempt_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='登录/密保失败限流';
+
+
+-- -----------------------------------------------------------
+-- 2.11 item_view_stat / view_flush — 浏览量派生统计
+--     详情读取只写进程内有界缓冲；刷新快照带唯一 flush_id 与累加同事务提交，
+--     结果不明时以同一 flush_id 重试，已持久化计数只增不减。
+-- -----------------------------------------------------------
+CREATE TABLE item_view_stat (
+    item_id     BIGINT      NOT NULL,
+    view_count  BIGINT      NOT NULL DEFAULT 0,
+    updated_at  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id),
+    INDEX idx_view_stat_count (view_count, item_id),
+    CONSTRAINT fk_view_stat_item FOREIGN KEY (item_id) REFERENCES item(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品浏览量统计（独立于 item 业务行）';
+
+CREATE TABLE view_flush (
+    flush_id    CHAR(36)    NOT NULL,
+    item_count  INT         NOT NULL DEFAULT 0,
+    flushed_at  DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (flush_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='浏览量刷新批次凭据（flush_id 幂等）';
+
+
+-- -----------------------------------------------------------
+-- 2.12 chat_response_sample / user_reputation_metric — 响应速度派生指标
+--     唯一贡献键防止重复累计；公开信誉接口只读固定大小指标行，不回退全量扫描。
+-- -----------------------------------------------------------
+CREATE TABLE chat_response_sample (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    sample_key  VARCHAR(80)  NOT NULL COMMENT '唯一贡献键：conversationId:messageId',
+    user_id     BIGINT       NOT NULL COMMENT '被统计的回复者（卖家）',
+    gap_seconds BIGINT       NOT NULL COMMENT '首次回复间隔秒数',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_response_sample (sample_key),
+    INDEX idx_response_sample_user (user_id, id),
+    CONSTRAINT fk_sample_user FOREIGN KEY (user_id) REFERENCES sys_user(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='响应速度唯一贡献样本';
+
+CREATE TABLE user_reputation_metric (
+    user_id           BIGINT   NOT NULL,
+    sample_count      INT      NOT NULL DEFAULT 0,
+    total_gap_seconds BIGINT   NOT NULL DEFAULT 0,
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_metric_user FOREIGN KEY (user_id) REFERENCES sys_user(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='响应速度固定大小汇总指标';
+
+
+-- -----------------------------------------------------------
+-- 2.13 violation_report — 内容审核记录表
 -- -----------------------------------------------------------
 CREATE TABLE violation_report (
     id                      BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
@@ -304,7 +460,7 @@ CREATE TABLE violation_report (
     handle_note             VARCHAR(500)    DEFAULT NULL             COMMENT '处理备注',
     item_id                 BIGINT          NOT NULL                 COMMENT '关联商品ID',
     created_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上报时间',
-    handled_at              DATETIME        DEFAULT NULL             COMMENT '处理时间',
+    handled_at              DATETIME(6)     DEFAULT NULL             COMMENT '处理时间',
 
     PRIMARY KEY (id),
     INDEX idx_violation_status_created (status, created_at DESC, id DESC),
@@ -322,7 +478,7 @@ CREATE TABLE violation_report (
 
 
 -- -----------------------------------------------------------
--- 2.9 violation_log — 违规处罚日志表
+-- 2.14 violation_log — 违规处罚日志表
 -- -----------------------------------------------------------
 CREATE TABLE violation_log (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
@@ -343,7 +499,7 @@ CREATE TABLE violation_log (
 
 
 -- -----------------------------------------------------------
--- 2.10 reputation_penalty — 独立信誉处罚记录表
+-- 2.15 reputation_penalty — 独立信誉处罚记录表
 -- -----------------------------------------------------------
 CREATE TABLE reputation_penalty (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
@@ -369,7 +525,7 @@ CREATE TABLE reputation_penalty (
 
 
 -- -----------------------------------------------------------
--- 2.11 violation_appeal — 内容违规申诉表
+-- 2.16 violation_appeal — 内容违规申诉表
 -- -----------------------------------------------------------
 CREATE TABLE violation_appeal (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '申诉ID',
@@ -381,7 +537,7 @@ CREATE TABLE violation_appeal (
     handler_id  BIGINT          DEFAULT NULL             COMMENT '复核管理员ID',
     handle_note VARCHAR(500)    DEFAULT NULL             COMMENT '复核说明',
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申诉时间',
-    handled_at  DATETIME        DEFAULT NULL             COMMENT '复核时间',
+    handled_at  DATETIME(6)     DEFAULT NULL             COMMENT '复核时间',
 
     PRIMARY KEY (id),
     UNIQUE KEY uk_appeal_report (report_id),
@@ -396,7 +552,7 @@ CREATE TABLE violation_appeal (
 
 
 -- -----------------------------------------------------------
--- 2.12 exp_log — 经验值变动记录表（模块一成长体系）
+-- 2.17 exp_log — 经验值变动记录表（模块一成长体系）
 -- -----------------------------------------------------------
 CREATE TABLE exp_log (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
@@ -414,7 +570,7 @@ CREATE TABLE exp_log (
 
 
 -- -----------------------------------------------------------
--- 2.13 trade_review — 交易评价表（模块一创新功能：信誉体系）
+-- 2.18 trade_review — 交易评价表（模块一创新功能：信誉体系）
 -- -----------------------------------------------------------
 CREATE TABLE trade_review (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '评价ID',
@@ -442,15 +598,40 @@ CREATE TABLE trade_review (
 
 -- -----------------------------------------------------------
 -- 3.0 学校种子数据（贯穿实例：上海大学 / 东华大学）
+--     另建一个 DISABLED 的系统学校，仅承载 SYSTEM 技术主体，
+--     学校停用使其所有登录入口（普通登录按启用学校校验）天然不可达。
 -- -----------------------------------------------------------
-INSERT INTO school (name, code, email_domain) VALUES
-('上海大学', 'SHU', '@shu.edu.cn'),
-('东华大学', 'DHU', '@dhu.edu.cn');
+INSERT INTO school (name, code, email_domain, status) VALUES
+('上海大学', 'SHU', '@shu.edu.cn', 'ACTIVE'),
+('东华大学', 'DHU', '@dhu.edu.cn', 'ACTIVE'),
+('智易平台系统', 'SYSTEM', NULL, 'DISABLED');
 
 -- -----------------------------------------------------------
--- 3.1 系统管理员（仅通过 /admin/login 进入后台，不具备普通用户功能；初始化后请立即改密）
+-- 3.1 SYSTEM 技术主体（系统消息发送者）
+--     不可登录、不可交易；密码为已销毁随机明文的 BCrypt 哈希，
+--     且登录被 DISABLED 学校前置拦截。全库恰好一个 is_system=1。
 -- -----------------------------------------------------------
-INSERT INTO sys_user (student_id, password, nickname, school_id, role, status, level, exp, wallet_balance, security_question, security_answer)
+INSERT INTO sys_user (student_id, password, nickname, school_id, role, status, level, exp, wallet_balance, security_question, security_answer, is_system)
+VALUES (
+    '__system__',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '系统通知',
+    (SELECT id FROM school WHERE code = 'SYSTEM'),
+    'USER',
+    'ACTIVE',
+    1,
+    0,
+    0.00,
+    '系统预设问题',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    1
+);
+
+-- -----------------------------------------------------------
+-- 3.2 唯一人工管理员（仅通过 /admin/login 进入后台；初始化后请立即改密）
+--     显式 is_system=0，与 SYSTEM 技术主体彻底分离。
+-- -----------------------------------------------------------
+INSERT INTO sys_user (student_id, password, nickname, school_id, role, status, level, exp, wallet_balance, security_question, security_answer, is_system)
 VALUES (
     'admin',
     '$2a$10$or0s3jeC85J07b8HcY9wfOJDE0gegLcyYkjFLn0yr.BE8koej.A1K',  -- 密码 123456
@@ -462,11 +643,12 @@ VALUES (
     0,
     0.00,
     '系统预设问题',
-    '$2a$10$or0s3jeC85J07b8HcY9wfOJDE0gegLcyYkjFLn0yr.BE8koej.A1K'  -- 密码 123456
+    '$2a$10$or0s3jeC85J07b8HcY9wfOJDE0gegLcyYkjFLn0yr.BE8koej.A1K',  -- 密码 123456
+    0
 );
 
 -- -----------------------------------------------------------
--- 3.2 预设商品大类（8个）
+-- 3.3 预设商品大类（8个）
 -- -----------------------------------------------------------
 INSERT INTO category (name, icon, sort_order) VALUES
 ('数码电子', '📱', 1),

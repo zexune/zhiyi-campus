@@ -208,6 +208,7 @@ import { getDashboard, getSchools, getTradeHeatmap } from '@/api/admin'
 import type { DashboardStats, School, TradeHeatEntry } from '@/types/models'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatDateTime } from '@/utils/format'
+import { useLatestWins } from '@/composables/useLatestWins'
 
 // ---- 学校选择（D2：多校大盘） ----
 const schools = ref<School[]>([])
@@ -255,9 +256,18 @@ const hoveredIndex = ref<number | null>(null)
 const heatmapData = ref<TradeHeatEntry[]>([])
 const heatmapMax = computed(() => Math.max(1, ...heatmapData.value.map((h) => h.count)))
 
+/**
+ * 学校切换 latest-wins 守卫：fetchDashboard 入口推进代数，作废上一学校
+ * 仍在途的大盘/热力图两路响应，防止快速切换时旧学校数据覆盖新学校。
+ */
+const schoolGuard = useLatestWins()
+
 async function fetchHeatmap() {
+  // 快照当前代数（不推进）：与 fetchDashboard 同批发起的请求共享同一代
+  const gen = schoolGuard.generation.value
   try {
     const res = await getTradeHeatmap(selectedSchoolId.value)
+    if (!schoolGuard.isCurrent(gen)) return
     heatmapData.value = res.data || []
   } catch {
     /* ignore */
@@ -280,15 +290,19 @@ function switchSchool(schoolId: number | null) {
 }
 
 async function fetchDashboard() {
+  // 入口推进学校代数：切换学校/重试后，上一轮在途响应（含热力图）一律作废
+  const gen = schoolGuard.begin()
   loading.value = true
   loadError.value = false
   try {
     const res = await getDashboard(selectedSchoolId.value)
+    if (!schoolGuard.isCurrent(gen)) return
     data.value = { ...EMPTY_DASHBOARD, ...res.data }
   } catch {
-    loadError.value = true
+    if (schoolGuard.isCurrent(gen)) loadError.value = true
   } finally {
-    loading.value = false
+    // 只有最新一代允许复位 loading，避免旧代 finally 提前结束新一轮的加载态
+    if (schoolGuard.isCurrent(gen)) loading.value = false
   }
 }
 

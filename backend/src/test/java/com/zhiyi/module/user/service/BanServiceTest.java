@@ -4,18 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.OrderCancelReason;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
+import com.zhiyi.module.social.service.OutboxService;
+import com.zhiyi.module.trade.service.ForceCancelService;
 import com.zhiyi.module.user.dto.AdminUserSearchQuery;
 import com.zhiyi.module.user.dto.BanUserDTO;
 import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.entity.SysUser;
-import com.zhiyi.module.user.event.UserPunishedEvent;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
-import com.zhiyi.module.user.support.RecordingUserStateCache;
 import com.zhiyi.module.user.vo.UserVO;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,21 +27,25 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：punish 改为"锁定用户行 + 条件状态迁移（setSql 推进 token_version）
+ * + ForceCancelService 自动撤单 + Outbox 通知"；UserPunishedEvent/UserStateCache 已删除。
+ */
 @ExtendWith(MockitoExtension.class)
 class BanServiceTest {
 
@@ -56,11 +61,11 @@ class BanServiceTest {
     private SchoolMapper schoolMapper;
     @Mock
     private ViolationLogMapper violationLogMapper;
-    private RecordingUserStateCache userStateCache;
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private ForceCancelService forceCancelService;
+    @Mock
+    private OutboxService outboxService;
 
-    // 泛型 Captor 用注解创建，避免 forClass(Class) 的非受检调用
     @Captor
     private ArgumentCaptor<Page<SysUser>> pageCaptor;
     @Captor
@@ -70,85 +75,117 @@ class BanServiceTest {
 
     @BeforeEach
     void setUp() {
-        userStateCache = new RecordingUserStateCache(userMapper);
         service = new BanService(
-                userMapper, schoolMapper, violationLogMapper, userStateCache, eventPublisher);
+                userMapper, schoolMapper, violationLogMapper, forceCancelService, outboxService);
     }
 
     @Test
-    void temporaryBanEventContainsDeadline() {
-        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
-        when(userMapper.bumpTokenVersion(2L)).thenReturn(1);
+    void temporaryBanMigratesStateForceCancelsBuyerOrdersAndNotifies() {
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(activeUser(2L));
+        when(userMapper.update(any(), any())).thenReturn(1);
 
         service.punish(punishment("BAN_TEMP", 7), 99L);
 
-        ArgumentCaptor<UserPunishedEvent> event =
-                ArgumentCaptor.forClass(UserPunishedEvent.class);
-        verify(eventPublisher).publishEvent(event.capture());
-        assertEquals(7, event.getValue().banDays());
-        assertNotNull(event.getValue().banUntilTime());
-        verify(userMapper).bumpTokenVersion(2L);
+        // 条件状态迁移（同 SQL 推进 token_version，不再单独调 bumpTokenVersion）
+        verify(userMapper).update(any(), any());
+        verify(userMapper, never()).bumpTokenVersion(any());
+        // 同一事务内自动取消其作为买家的进行中订单
+        verify(forceCancelService).cancelActiveOrdersOfBuyer(eq(2L),
+                eq(OrderCancelReason.AUTO_CANCEL), any(), any());
+        // 处罚日志 + 封禁通知（Outbox，与业务同事务）
+        verify(violationLogMapper).insert(any(ViolationLog.class));
+        verify(outboxService).appendNotice(eq("USER:2:BANNED:null"),
+                eq(OutboxService.AGGREGATE_USER), eq(2L),
+                eq(OutboxService.EVENT_USER_PUNISHED), eq(2L), contains("BAN_TEMP"));
     }
 
     @Test
-    void permanentBanBumpsTokenVersion() {
-        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
-        when(userMapper.bumpTokenVersion(2L)).thenReturn(1);
+    void permanentBanMigratesStateAndNotifies() {
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(activeUser(2L));
+        when(userMapper.update(any(), any())).thenReturn(1);
 
         service.punish(punishment("BAN_PERM", null), 99L);
 
-        verify(userMapper).bumpTokenVersion(2L);
+        verify(userMapper).update(any(), any());
+        verify(forceCancelService).cancelActiveOrdersOfBuyer(eq(2L),
+                eq(OrderCancelReason.AUTO_CANCEL), any(), any());
+        verify(outboxService).appendNotice(any(), eq(OutboxService.AGGREGATE_USER), eq(2L),
+                eq(OutboxService.EVENT_USER_PUNISHED), eq(2L), contains("BAN_PERM"));
     }
 
     @Test
-    void invalidPunishmentDoesNotPersistOrPublish() {
-        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
-
+    void invalidPunishmentDoesNotPersistOrNotify() {
         assertThrows(BusinessException.class,
                 () -> service.punish(punishment("UNKNOWN", null), 99L));
 
+        verify(userMapper, never()).update(any(), any());
         verify(violationLogMapper, never()).insert(any(ViolationLog.class));
-        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verifyNoNotice();
     }
 
     @Test
     void invalidTemporaryBanDaysHaveNoSideEffects() {
-        when(userMapper.selectById(2L)).thenReturn(activeUser(2L));
-
         assertThrows(BusinessException.class,
                 () -> service.punish(punishment("BAN_TEMP", 0), 99L));
 
-        verify(userMapper, never()).updateById(any(SysUser.class));
-        verify(userMapper, never()).bumpTokenVersion(any());
+        verify(userMapper, never()).selectByIdForUpdate(any());
+        verify(userMapper, never()).update(any(), any());
         verify(violationLogMapper, never()).insert(any(ViolationLog.class));
-        verify(eventPublisher, never()).publishEvent(any(Object.class));
-        assertTrue(userStateCache.afterCommitInvalidations().isEmpty());
+        verifyNoNotice();
     }
 
     @Test
     void administratorCannotBePunished() {
         SysUser admin = activeUser(2L);
         admin.setRole(UserRole.ADMIN);
-        when(userMapper.selectById(2L)).thenReturn(admin);
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(admin);
 
         assertThrows(BusinessException.class,
                 () -> service.punish(punishment("BAN_PERM", null), 99L));
 
+        verify(userMapper, never()).update(any(), any());
         verify(violationLogMapper, never()).insert(any(ViolationLog.class));
-        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verifyNoNotice();
     }
 
     @Test
-    void unbanInvalidatesStateAfterCommit() {
+    void stateTransitionFailureBlocksEverything() {
+        // 已注销或已被并发处罚：条件 UPDATE 影响 0 行，整个事务拒绝
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(activeUser(2L));
+        when(userMapper.update(any(), any())).thenReturn(0);
+
+        assertThrows(BusinessException.class,
+                () -> service.punish(punishment("BAN_PERM", null), 99L));
+
+        verify(forceCancelService, never()).cancelActiveOrdersOfBuyer(any(), any(), any(), any());
+        verify(violationLogMapper, never()).insert(any(ViolationLog.class));
+        verifyNoNotice();
+    }
+
+    @Test
+    void unbanMigratesOnlyBannedStatesAndNotifies() {
         SysUser user = activeUser(2L);
         user.setStatus(UserStatus.BANNED_PERM);
-        when(userMapper.selectById(2L)).thenReturn(user);
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(user);
+        when(userMapper.update(any(), any())).thenReturn(1);
 
         service.unban(2L, 99L);
 
-        assertEquals(List.of(2L), userStateCache.afterCommitInvalidations());
-        assertTrue(userStateCache.immediateInvalidations().isEmpty());
+        verify(userMapper).update(any(), any());
         verify(userMapper, never()).bumpTokenVersion(any());
+        verify(outboxService).appendNotice(contains("USER:2:UNBANNED"),
+                eq(OutboxService.AGGREGATE_USER), eq(2L),
+                eq(OutboxService.EVENT_USER_PUNISHED), eq(2L), contains("解封"));
+    }
+
+    @Test
+    void unbanRejectsActiveUser() {
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(activeUser(2L));
+
+        assertThrows(BusinessException.class, () -> service.unban(2L, 99L));
+
+        verify(userMapper, never()).update(any(), any());
+        verifyNoNotice();
     }
 
     @Test
@@ -179,12 +216,7 @@ class BanServiceTest {
 
     @Test
     void searchUsersWithoutSchoolRowsSkipsSchoolLookup() {
-        when(userMapper.selectPage(any(), any())).thenAnswer(invocation -> {
-            Page<SysUser> page = invocation.getArgument(0);
-            page.setRecords(List.of());
-            page.setTotal(0);
-            return page;
-        });
+        when(userMapper.selectPage(any(), any())).thenAnswer(this::emptyPage);
 
         IPage<UserVO> result = service.searchUsers(AdminUserSearchQuery.EMPTY, 1, 10);
 
@@ -208,10 +240,14 @@ class BanServiceTest {
 
         service.searchUsers(AdminUserSearchQuery.EMPTY, 1, 10);
 
-        // 查询固定限定 role=USER：管理员账号不进入可检索/可处罚名单
+        // 查询固定限定 role=USER 且排除 SYSTEM：管理员/技术主体不进入可检索名单
         verify(userMapper).selectPage(any(), wrapperCaptor.capture());
         assertTrue(wrapperCaptor.getValue().getSqlSegment().contains("role"));
         assertTrue(wrapperCaptor.getValue().getParamNameValuePairs().containsValue(UserRole.USER));
+    }
+
+    private void verifyNoNotice() {
+        verify(outboxService, never()).appendNotice(any(), any(), any(), any(), any(), any());
     }
 
     private Page<SysUser> emptyPage(InvocationOnMock invocation) {
@@ -249,6 +285,7 @@ class BanServiceTest {
         user.setId(id);
         user.setRole(UserRole.USER);
         user.setStatus(UserStatus.ACTIVE);
+        user.setIsSystem(false);
         return user;
     }
 }

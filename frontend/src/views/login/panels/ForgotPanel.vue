@@ -144,10 +144,12 @@ function stepClass(n: number) {
 }
 
 async function handleFetchQuestion() {
-  const valid = await validateForm(step1FormRef)
-  if (!valid) return
+  // 入口同步互斥：await validateForm 存在异步窗口，重复提交可能在 loading 置位前穿透
+  if (loading.value) return
   loading.value = true
   try {
+    const valid = await validateForm(step1FormRef)
+    if (!valid) return
     // 步骤1 rules 已强制选择学校；此处仅类型收窄，异常空值仍按原样提交由后端校验兜底
     const res = await getSecurityQuestion(form.schoolId as number, form.studentId)
     securityQuestion.value = res.data.question
@@ -160,10 +162,11 @@ async function handleFetchQuestion() {
 }
 
 async function handleReset() {
-  const valid = await validateForm(step3FormRef)
-  if (!valid) return
+  if (loading.value) return
   loading.value = true
   try {
+    const valid = await validateForm(step3FormRef)
+    if (!valid) return
     await resetPassword({ ...form, schoolId: form.schoolId as number })
     const { schoolId, studentId } = form
     rememberSchoolId(schoolId)

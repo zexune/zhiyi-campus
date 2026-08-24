@@ -1,4 +1,4 @@
-package com.zhiyi.module.trade.entity;
+package com.zhiyi.module.social.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -9,16 +9,15 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * 订单对商品的独占预留。item_id 为主键，从数据库层阻止并发重复下单。
- */
+/** 响应速度唯一贡献样本：同一"会话+触发消息"只累计一次。 */
 @Data
-@TableName("item_reservation")
-public class ItemReservation {
-    @TableId(type = IdType.INPUT)
-    private Long itemId;
-    private Long buyerId;
-    private Long orderId;
+@TableName("chat_response_sample")
+public class ChatResponseSample {
+    @TableId(type = IdType.AUTO)
+    private Long id;
+    private String sampleKey;
+    private Long userId;
+    private Long gapSeconds;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

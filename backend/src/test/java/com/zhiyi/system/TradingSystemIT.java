@@ -130,6 +130,7 @@ class TradingSystemIT {
 
         mockMvc.perform(post("/api/wallet/recharge")
                         .header(HttpHeaders.AUTHORIZATION, bearer(buyer.token()))
+                        .header("X-Idempotency-Key", java.util.UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":100.00}"))
                 .andExpect(status().isOk())
@@ -137,6 +138,7 @@ class TradingSystemIT {
 
         JsonNode created = body(mockMvc.perform(post("/api/order/create")
                         .header(HttpHeaders.AUTHORIZATION, bearer(buyer.token()))
+                        .header("X-Idempotency-Key", java.util.UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"itemId\":" + itemId + "}"))
                 .andExpect(status().isOk())
@@ -146,7 +148,8 @@ class TradingSystemIT {
         long orderId = created.get("data").get("id").asLong();
 
         mockMvc.perform(put("/api/order/{id}/confirm", orderId)
-                        .header(HttpHeaders.AUTHORIZATION, bearer(buyer.token())))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(buyer.token()))
+                        .header("X-Idempotency-Key", java.util.UUID.randomUUID().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
@@ -161,7 +164,7 @@ class TradingSystemIT {
         assertEquals(new BigDecimal("19.90"), balanceOf(seller.id()));
         assertEquals("COMPLETED", scalar("SELECT status FROM trade_order WHERE id = ?", String.class, orderId));
         assertEquals("SOLD", scalar("SELECT status FROM item WHERE id = ?", String.class, itemId));
-        assertEquals(0L, count("SELECT COUNT(*) FROM item_reservation WHERE item_id = ?", itemId));
+        assertEquals(0L, count("SELECT COUNT(*) FROM trade_order WHERE item_id = ? AND status = 'WAITING_MEET'", itemId));
         assertEquals(1L, count("SELECT COUNT(*) FROM trade_review WHERE order_id = ?", orderId));
         assertEquals(2L, count("SELECT COUNT(*) FROM wallet_log WHERE user_id = ?", buyer.id()));
         assertEquals(1L, count("SELECT COUNT(*) FROM wallet_log WHERE user_id = ?", seller.id()));
@@ -256,15 +259,13 @@ class TradingSystemIT {
             CreateOrderDTO request = new CreateOrderDTO();
             request.setItemId(itemId);
 
-            assertThrows(RuntimeException.class, () -> orderService.createOrder(buyerId, request));
+            assertThrows(RuntimeException.class, () -> orderService.createOrder(buyerId, request, java.util.UUID.randomUUID().toString()));
 
             assertEquals(new BigDecimal("50.00"), balanceOf(buyerId));
             assertEquals(0L, count("SELECT COUNT(*) FROM trade_order WHERE item_id = ?", itemId));
-            assertEquals(0L, count("SELECT COUNT(*) FROM item_reservation WHERE item_id = ?", itemId));
         } finally {
             jdbc.execute("ALTER TABLE wallet_log DROP CHECK system_test_reject_payment");
             jdbc.update("DELETE FROM wallet_log WHERE user_id IN (?, ?)", buyerId, sellerId);
-            jdbc.update("DELETE FROM item_reservation WHERE item_id = ?", itemId);
             jdbc.update("DELETE FROM trade_order WHERE item_id = ?", itemId);
             jdbc.update("DELETE FROM item WHERE id = ?", itemId);
             jdbc.update("DELETE FROM sys_user WHERE id IN (?, ?)", buyerId, sellerId);

@@ -65,11 +65,27 @@ zhiyi:
     warning-points: ${CONTENT_WARNING_POINTS:5}
     appeal-window-days: ${APPEAL_WINDOW_DAYS:7}
   marketplace:
-    tag-cache-ttl: ${TAG_CACHE_TTL:60s}
+    # 浏览量有界缓冲与批量刷新（详情路径零数据库写）
+    view-flush-interval-ms: ${VIEW_FLUSH_INTERVAL_MS:5000}
+    view-buffer-max-keys: ${VIEW_BUFFER_MAX_KEYS:50000}
   auth:
-    login-fail-limit: 5
-    login-fail-lock-seconds: 300
-    user-state-cache-seconds: 60
+    # 登录/密保失败限流（数据库固定窗口状态机）
+    login-fail-limit: ${LOGIN_FAIL_LIMIT:5}
+    login-fail-window-seconds: ${LOGIN_FAIL_WINDOW_SECONDS:900}
+    login-fail-lock-seconds: ${LOGIN_FAIL_LOCK_SECONDS:300}
+    login-attempt-purge-retention-seconds: ${LOGIN_ATTEMPT_PURGE_RETENTION_SECONDS:86400}
     cookie-name: ${AUTH_COOKIE_NAME:zhiyi_token}
     # 生产（HTTPS）部署时置 true，Cookie 仅经加密通道传输
     cookie-secure: ${AUTH_COOKIE_SECURE:false}
+  trade:
+    # 交易事务外有界准入：全局并发上限（须小于连接池并预留非交易请求空间）与等待预算
+    admission-global-slots: ${TRADE_ADMISSION_GLOBAL_SLOTS:30}
+    admission-wait-millis: ${TRADE_ADMISSION_WAIT_MILLIS:200}
+  outbox:
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
+    batch-size: ${OUTBOX_BATCH_SIZE:20}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:8}
+  feed:
+    # 签名游标有效期与签名密钥（默认复用 JWT 密钥属性；解析顺序：环境 FEED_CURSOR_SECRET → zhiyi.jwt.secret）
+    cursor-ttl-seconds: ${FEED_CURSOR_TTL_SECONDS:900}
+    cursor-secret: ${FEED_CURSOR_SECRET:${zhiyi.jwt.secret}}

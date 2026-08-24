@@ -29,8 +29,8 @@ public class ItemTagService {
 
     private final TagMapper tagMapper;
     private final ItemTagMapper itemTagMapper;
-    private final TagQueryService tagQueryService;
 
+    /** 标签统计主库直读（TagQueryService 无缓存），无需失效调用。 */
     @Transactional
     public void replaceTags(Long itemId, Long schoolId, List<String> names) {
         itemTagMapper.delete(new LambdaUpdateWrapper<ItemTag>().eq(ItemTag::getItemId, itemId));
@@ -41,13 +41,11 @@ public class ItemTagService {
             relation.setTagId(tag.getId());
             itemTagMapper.insert(relation);
         }
-        tagQueryService.invalidate(schoolId);
     }
 
     @Transactional
     public void deleteTags(Long itemId, Long schoolId) {
         itemTagMapper.delete(new LambdaUpdateWrapper<ItemTag>().eq(ItemTag::getItemId, itemId));
-        tagQueryService.invalidate(schoolId);
     }
 
     public Map<Long, List<String>> tagsByItemIds(Set<Long> itemIds) {

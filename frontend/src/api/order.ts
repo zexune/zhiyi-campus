@@ -13,16 +13,20 @@ export interface ReviewPayload {
   comment: string
 }
 
-export function createOrder(itemId: number) {
-  return request.post<Order>('/order/create', { itemId })
+/** 资金操作幂等键请求头（后端 OrderController.IDEMPOTENCY_HEADER） */
+export const IDEMPOTENCY_HEADER = 'X-Idempotency-Key'
+
+/** 下单：idempotencyKey 由调用方持久化管理（结果不明时复用原键重试） */
+export function createOrder(itemId: number, idempotencyKey: string) {
+  return request.post<Order>('/order/create', { itemId }, { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } })
 }
 
-export function confirmReceipt(orderId: number) {
-  return request.put<Order>(`/order/${orderId}/confirm`)
+export function confirmReceipt(orderId: number, idempotencyKey: string) {
+  return request.put<Order>(`/order/${orderId}/confirm`, undefined, { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } })
 }
 
-export function cancelOrder(orderId: number) {
-  return request.put<Order>(`/order/${orderId}/cancel`)
+export function cancelOrder(orderId: number, idempotencyKey: string) {
+  return request.put<Order>(`/order/${orderId}/cancel`, undefined, { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } })
 }
 
 export function getBoughtOrders(params: OrderListQuery) {

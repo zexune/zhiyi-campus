@@ -45,14 +45,22 @@ public class UserService {
     }
 
     /**
-     * 更新学校、学校邮箱、昵称/手机号与校区等信任资料。
+     * 更新学校、学校邮箱、昵称/手机号与校区等信任资料（乐观并发 M3）。
      * 学校允许因转学、升学等情况修改；学校邮箱无需验证码，但必须匹配目标学校后缀。
+     *
+     * 条件 UPDATE 携带 profileVersion：版本不匹配时返回 0 行 → 抛 PROFILE_CONFLICT
+     * 并携带最新资料，禁止静默"最后写入者覆盖"。profile_version 只由资料修改推进，
+     * 钱包、封禁或 Token 写入不制造无关冲突。
      */
     @Transactional(rollbackFor = Exception.class)
     public UserVO updateProfile(Long userId, UpdateProfileDTO dto) {
         SysUser current = userMapper.selectById(userId);
         if (current == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        if (dto.getProfileVersion() == null
+                || !dto.getProfileVersion().equals(current.getProfileVersion())) {
+            throw profileConflict(userId);
         }
 
         boolean schoolProvided = dto.getSchoolId() != null;
@@ -105,8 +113,11 @@ public class UserService {
             patch.setDormitory(targetDormitory);
         }
 
-        // MyBatis-Plus 默认忽略实体中的 null；显式 SET 才能真正清空可选资料。
-        var update = Wrappers.<SysUser>lambdaUpdate().eq(SysUser::getId, userId);
+        // 条件 UPDATE：版本匹配才生效，同 SQL 推进 profile_version（仅资料修改推进）
+        var update = Wrappers.<SysUser>lambdaUpdate()
+                .eq(SysUser::getId, userId)
+                .eq(SysUser::getProfileVersion, dto.getProfileVersion())
+                .setSql("profile_version = profile_version + 1");
         if (emailProvided && targetEmail == null) {
             update.set(SysUser::getSchoolEmail, null);
         }
@@ -124,9 +135,16 @@ public class UserService {
         }
         int affected = userMapper.update(patch, update);
         if (affected == 0) {
-            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+            // 并发修改：另一提交已推进版本——显式冲突并返回最新资料
+            throw profileConflict(userId);
         }
         return getProfile(userId);
+    }
+
+    /** 资料版本冲突：409 语义 + 返回服务端最新资料（前端展示并要求确认合并）。 */
+    private BusinessException profileConflict(Long userId) {
+        return new BusinessException(ResultCode.PROFILE_CONFLICT, "资料已被其他设备修改，请核对最新资料后重试")
+                .withConflictDetail(getProfile(userId));
     }
 
     /**

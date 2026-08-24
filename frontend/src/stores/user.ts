@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
 import { getProfile, logout as logoutApi } from '@/api/auth'
-import { isLoggedIn as isAuthed, setLoginUser, getStoredUser, clearAuth } from '@/utils/auth'
+import { isLoggedIn as isAuthed, setLoginUser, getStoredUser, clearAuth, getAuthContext, isAuthContextCurrent } from '@/utils/auth'
 import type { UserProfile, UserSummary } from '@/types/models'
 
 /**
@@ -25,10 +25,19 @@ export const useUserStore = defineStore('user', () => {
     user.value = u
   }
 
-  /** 拉取并刷新当前用户资料（封禁/角色变化在下次调用后生效） */
+  /**
+   * 拉取并刷新当前用户资料。
+   * F6 根因修复：请求前捕获鉴权上下文（epoch + userId），响应落地前校验四元组
+   * （仍登录 + epoch 一致 + userId 一致 + 响应归属当前用户），
+   * 登出/换号后的迟到响应不写 store、不复活登录态。
+   */
   async function fetchProfile(): Promise<UserProfile | null> {
     if (!isAuthed()) return null
+    const context = getAuthContext()
+    if (context.userId === null) return null
     const res = await getProfile()
+    if (!isAuthed() || !isAuthContextCurrent(context)) return null
+    if (res.data?.id !== context.userId) return null
     user.value = res.data
     setLoginUser(res.data)
     return res.data

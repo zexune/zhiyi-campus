@@ -13,7 +13,6 @@ import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.support.LoginAttemptService;
 import com.zhiyi.module.user.support.StudentIdNormalizer;
-import com.zhiyi.module.user.support.UserStateCache;
 import com.zhiyi.module.user.vo.LoginVO;
 import com.zhiyi.module.user.vo.UserVO;
 import com.zhiyi.utils.JwtUtils;
@@ -25,12 +24,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
  * 模块一：注册 / 登录 / 密保找回（需求 1.1 / 1.2 / 1.3）
+ *
+ * 时间权威统一：临时封禁到期判断以数据库 CURRENT_TIMESTAMP(6) 为准；
+ * 到期恢复是"条件 UPDATE（status=BANNED_TEMP AND ban_until_time<=now）+ 同 SQL
+ * 推进 token_version + FOR UPDATE 重读"的原子迁移，并发登录时恰好完成一次。
+ * 请求路径（JwtInterceptor）不比较时间、只认 ACTIVE；到期后必须重新登录。
+ *
+ * 防枚举：账号不存在时执行同成本等级的 dummy BCrypt 比对，响应文案不区分两种失败。
  */
 @Slf4j
 @Service
@@ -47,12 +52,13 @@ public class AuthService {
     );
 
     private static final DateTimeFormatter BAN_TIME_FMT = DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm");
+    /** 防枚举 dummy 哈希：与真实 BCrypt 同成本等级，明文随机已销毁 */
+    private static final String DUMMY_BCRYPT = "$2a$10$or0s3jeC85J07b8HcY9wfOJDE0gegLcyYkjFLn0yr.BE8koej.A1K";
 
     private final SysUserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final LoginAttemptService loginAttemptService;
-    private final UserStateCache userStateCache;
     private final SchoolService schoolService;
 
     /**
@@ -66,7 +72,8 @@ public class AuthService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "两次输入的密码不一致");
         }
         String studentId = StudentIdNormalizer.normalize(dto.getStudentId());
-        // 学校必填且必须启用（创新功能 A2：注册即归属学校）
+        // 学校必填且必须启用（创新功能 A2：注册即归属学校）；SYSTEM 学校为 DISABLED，
+        // 技术主体不存在任何注册/登录入口。
         School school = requireActiveSchool(dto.getSchoolId());
         // 学校邮箱可选：无需验证码，填入时只校验邮箱后缀与学校是否匹配。
         String schoolEmail = schoolService.normalizeAndValidateEmail(dto.getSchoolEmail(), school);
@@ -96,6 +103,8 @@ public class AuthService {
         user.setLevel(1);
         user.setExp(0);
         user.setTokenVersion(0);
+        user.setProfileVersion(0L);
+        user.setIsSystem(false);
         user.setWalletBalance(BigDecimal.ZERO);
         user.setSecurityQuestion(dto.getSecurityQuestion());
         user.setSecurityAnswer(passwordEncoder.encode(normalizeAnswer(dto.getSecurityAnswer()))); // 密保答案同样加密
@@ -112,14 +121,14 @@ public class AuthService {
     }
 
     /**
-     * 登录（需求 1.2）—— 状态检查 + 临时封禁到期自动恢复 + 失败限流
+     * 登录（需求 1.2）—— 失败限流（数据库状态机）+ 临时封禁到期原子恢复（数据库时间）。
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginVO login(LoginDTO dto) {
         String studentId = StudentIdNormalizer.normalize(dto.getStudentId());
         School school = requireActiveSchool(dto.getSchoolId());
         String loginKey = accountKey(school.getId(), studentId);
-        // 失败限流：BCrypt 校验开销大，先挡住暴力尝试
+        // 失败限流（REQUIRES_NEW 独立事务）：BCrypt 校验开销大，先挡住暴力尝试
         if (loginAttemptService.isLocked(loginKey)) {
             throw new BusinessException(ResultCode.LOGIN_LOCKED);
         }
@@ -127,8 +136,15 @@ public class AuthService {
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getSchoolId, school.getId())
                 .eq(SysUser::getStudentId, studentId)
-                .eq(SysUser::getRole, UserRole.USER));
-        if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+                .eq(SysUser::getRole, UserRole.USER)
+                .eq(SysUser::getIsSystem, false));
+        if (user == null) {
+            // 同成本 dummy 比对：账号不存在与密码错误的响应时间和文案完全一致
+            passwordEncoder.matches(dto.getPassword(), DUMMY_BCRYPT);
+            loginAttemptService.recordFailure(loginKey);
+            throw new BusinessException(ResultCode.PASSWORD_ERROR, "学号或密码错误");
+        }
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             loginAttemptService.recordFailure(loginKey);
             // 不区分「用户不存在」与「密码错误」，防止学号枚举
             throw new BusinessException(ResultCode.PASSWORD_ERROR, "学号或密码错误");
@@ -142,21 +158,29 @@ public class AuthService {
             throw new BusinessException(ResultCode.USER_BANNED, "该账户已被永久封禁");
         }
         if (user.getStatus() == UserStatus.BANNED_TEMP) {
-            LocalDateTime until = user.getBanUntilTime();
-            if (until != null && until.isAfter(LocalDateTime.now())) {
-                throw new BusinessException(ResultCode.USER_BANNED,
-                        "您的账户已被封禁至 " + until.format(BAN_TIME_FMT));
-            }
-            // 到期自动恢复（需求 1.6）
-            SysUser patch = new SysUser();
-            patch.setId(user.getId());
-            patch.setStatus(UserStatus.ACTIVE);
-            userMapper.update(patch, Wrappers.<SysUser>lambdaUpdate()
+            // 原子到期恢复（数据库时间判定 + 同 SQL 推进 token_version）；
+            // 并发登录时条件 UPDATE 恰好一付认成功，其余重读后看到 ACTIVE。
+            userMapper.update(null, Wrappers.<SysUser>lambdaUpdate()
                     .eq(SysUser::getId, user.getId())
-                    .set(SysUser::getBanUntilTime, null));
-            user.setStatus(UserStatus.ACTIVE);
-            user.setBanUntilTime(null);
-            userStateCache.invalidateAfterCommit(user.getId());
+                    .eq(SysUser::getStatus, UserStatus.BANNED_TEMP)
+                    .apply("ban_until_time <= CURRENT_TIMESTAMP(6)")
+                    .set(SysUser::getStatus, UserStatus.ACTIVE)
+                    .set(SysUser::getBanUntilTime, null)
+                    .setSql("token_version = token_version + 1"));
+
+            // FOR UPDATE 重读最新状态（REPEATABLE READ 下普通 SELECT 可能读快照）；
+            // 本事务自身的修改对当前读可见，fresh 已含最新 status/token_version，无需再回读。
+            SysUser fresh = userMapper.selectByIdForUpdate(user.getId());
+            if (fresh == null) {
+                throw new BusinessException(ResultCode.USER_NOT_FOUND);
+            }
+            switch (fresh.getStatus()) {
+                case ACTIVE -> user = fresh;
+                case BANNED_TEMP -> throw new BusinessException(ResultCode.USER_BANNED,
+                        "您的账户已被封禁至 " + fresh.getBanUntilTime().format(BAN_TIME_FMT));
+                case BANNED_PERM -> throw new BusinessException(ResultCode.USER_BANNED, "该账户已被永久封禁");
+                case CANCELLED -> throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销");
+            }
         }
 
         loginAttemptService.reset(loginKey);
@@ -188,6 +212,7 @@ public class AuthService {
     /**
      * 验证密保并重置密码（需求 1.3）
      * 重置成功后推进 tokenVersion，使所有旧 Token 立即失效。
+     * 密保答案失败计数在业务异常抛出前由协调器独立事务提交。
      */
     @Transactional(rollbackFor = Exception.class)
     public void resetPassword(ResetPasswordDTO dto) {
@@ -207,7 +232,9 @@ public class AuthService {
                 .eq(SysUser::getStudentId, studentId)
                 .eq(SysUser::getRole, UserRole.USER));
         if (user == null) {
-            throw new BusinessException(ResultCode.USER_NOT_FOUND, "该学号尚未注册");
+            passwordEncoder.matches(dto.getSecurityAnswer(), DUMMY_BCRYPT);
+            loginAttemptService.recordFailure(lockKey);
+            throw new BusinessException(ResultCode.PASSWORD_ERROR, "学号或密保答案错误");
         }
         if (user.getStatus() == UserStatus.CANCELLED) {
             throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
@@ -233,7 +260,6 @@ public class AuthService {
         }
 
         loginAttemptService.reset(lockKey);
-        userStateCache.invalidateAfterCommit(user.getId());
         log.info("用户 {} 通过密保重置了密码", user.getStudentId());
     }
 

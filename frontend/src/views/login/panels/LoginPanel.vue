@@ -97,10 +97,12 @@ const rules = {
 }
 
 async function handleLogin() {
-  const valid = await validateForm(formRef)
-  if (!valid) return
+  // 入口同步互斥：await validateForm 存在异步窗口，Enter 连击可在 loading 置位前重复提交
+  if (loading.value) return
   loading.value = true
   try {
+    const valid = await validateForm(formRef)
+    if (!valid) return
     // rules 已强制选择学校；此处仅类型收窄，异常空值仍按原样提交由后端校验兜底
     const res = await login({ ...form, schoolId: form.schoolId as number })
     rememberSchoolId(form.schoolId)

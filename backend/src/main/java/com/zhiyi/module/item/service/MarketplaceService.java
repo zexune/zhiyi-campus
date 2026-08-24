@@ -15,13 +15,14 @@ import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
+import com.zhiyi.module.item.support.ViewCountBuffer;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.MarketplaceFeedVO;
 import com.zhiyi.module.item.vo.TagGroupVO;
 import com.zhiyi.module.item.vo.TagTrendVO;
 import com.zhiyi.module.social.entity.ItemFavorite;
 import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
-import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,6 +40,10 @@ import java.util.stream.Collectors;
 
 /**
  * 商品大厅门面：编排可见性、收藏和卖家操作，复杂查询与视图装配由独立服务负责。
+ *
+ * 并发边界：item_reservation 已淘汰——RESERVED 状态即"进行中订单"的唯一事实来源；
+ * 详情读取不再触碰 item 业务行（浏览量走独立统计表的有界缓冲），
+ * 卖家下架/删除使用条件状态迁移，与交易路径的商品行锁互斥。
  */
 @Service
 @RequiredArgsConstructor
@@ -51,12 +55,12 @@ public class MarketplaceService {
     private final CategoryMapper categoryMapper;
     private final ItemFavoriteMapper favoriteMapper;
     private final SysUserMapper userMapper;
-    private final ItemReservationMapper reservationMapper;
     private final MarketplaceFeedService feedService;
     private final ItemCardAssembler itemCardAssembler;
     private final ItemRankingService rankingService;
     private final TagQueryService tagQueryService;
     private final ItemTagService itemTagService;
+    private final ViewCountBuffer viewCountBuffer;
 
     public List<Category> listCategories() {
         return categoryMapper.selectList(new LambdaQueryWrapper<Category>()
@@ -68,25 +72,33 @@ public class MarketplaceService {
         return tagQueryService.allTags(requireUserSchoolId(currentUserId));
     }
 
-    public IPage<ItemCardVO> listOnSaleItems(String keyword,
-                                            Long categoryId,
-                                            BigDecimal minPrice,
-                                            BigDecimal maxPrice,
-                                            String sort,
-                                            String type,
-                                            List<String> tags,
-                                            int page,
-                                            int size,
-                                            Long currentUserId) {
+    /**
+     * 大厅 Feed（签名游标协议）：total 为首屏估算值；筛选/资料版本变化或游标过期
+     * 由 FeedService 抛 FEED_CURSOR_INVALID，客户端从首屏重启。
+     */
+    public MarketplaceFeedVO listFeed(String keyword,
+                                      Long categoryId,
+                                      BigDecimal minPrice,
+                                      BigDecimal maxPrice,
+                                      String sort,
+                                      String type,
+                                      List<String> tags,
+                                      String cursor,
+                                      int size,
+                                      Long currentUserId) {
         SysUser viewer = requireMarketplaceUser(currentUserId);
         MarketplaceFeedService.Criteria criteria = new MarketplaceFeedService.Criteria(
                 keyword, categoryId, minPrice, maxPrice, sort, type, tags);
-        IPage<Item> itemPage = feedService.list(criteria, viewer, page, size);
-        Page<ItemCardVO> result = new Page<>(itemPage.getCurrent(), itemPage.getSize(), itemPage.getTotal());
-        result.setRecords(itemCardAssembler.assemble(itemPage.getRecords(), currentUserId));
-        return result;
+        MarketplaceFeedService.FeedPage page = feedService.listByCursor(criteria, viewer, cursor, size);
+        return new MarketplaceFeedVO(
+                itemCardAssembler.assemble(page.records(), currentUserId),
+                page.nextCursor(), page.hasMore(), page.estimatedTotal());
     }
 
+    /**
+     * 商品详情（只读）：浏览行为不再同步写 item 行——updated_at 只表达商品业务资料变化，
+     * 浏览增量进入单实例有界缓冲，由后台任务批量持久化（崩溃最多损失一个刷新窗口）。
+     */
     public ItemCardVO getDetail(Long itemId, Long currentUserId) {
         Item item = requireItem(itemId);
         requireSameSchool(currentUserId, item, "只能查看本校商品");
@@ -94,12 +106,12 @@ public class MarketplaceService {
                 && item.getModerationStatus() != ModerationStatus.PASSED) {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品正在审核或已被下架");
         }
-        itemMapper.update(null, new LambdaUpdateWrapper<Item>()
-                .eq(Item::getId, itemId)
-                .setSql("view_count = view_count + 1")
-                .set(Item::getUpdatedAt, LocalDateTime.now()));
-        item.setViewCount((item.getViewCount() == null ? 0 : item.getViewCount()) + 1);
-        return itemCardAssembler.assemble(List.of(item), currentUserId).getFirst();
+        viewCountBuffer.record(itemId);
+        ItemCardVO vo = itemCardAssembler.assemble(List.of(item), currentUserId).getFirst();
+        vo.setViewCount(vo.getViewCount() == null
+                ? viewCountBuffer.pendingDelta(itemId)
+                : vo.getViewCount() + viewCountBuffer.pendingDelta(itemId));
+        return vo;
     }
 
     public ItemCardVO getSnapshot(Long itemId, Long currentUserId) {
@@ -150,9 +162,9 @@ public class MarketplaceService {
     public FavoriteToggleVO toggleFavorite(Long userId, Long itemId) {
         Item item = requireItem(itemId);
         requireSameSchool(userId, item, "只能收藏本校商品");
+        // RESERVED（交易中）不可收藏：状态派生，替代 item_reservation 查询
         if (item.getStatus() != ItemStatus.ON_SALE
-                || item.getModerationStatus() != ModerationStatus.PASSED
-                || reservationMapper.selectById(itemId) != null) {
+                || item.getModerationStatus() != ModerationStatus.PASSED) {
             throw new BusinessException(ResultCode.ITEM_NOT_ON_SALE);
         }
         if (Objects.equals(item.getPublisherId(), userId)) {
@@ -212,28 +224,52 @@ public class MarketplaceService {
         return result;
     }
 
+    /** 下架：条件状态迁移（仅 ON_SALE → OFF_SHELF）；RESERVED（交易中）冲突拒绝。 */
     @Transactional
     public void offShelf(Long userId, Long itemId) {
         Item item = requireOwnItem(userId, itemId);
-        if (item.getStatus() != ItemStatus.ON_SALE) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "只有在售商品可以下架");
-        }
         if (item.getModerationStatus() == ModerationStatus.PENDING) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "审核中的商品不能手动下架");
         }
-        requireNotReserved(itemId);
-        updateStatus(item, ItemStatus.OFF_SHELF);
+        if (item.getStatus() == ItemStatus.RESERVED) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能操作");
+        }
+        if (item.getStatus() != ItemStatus.ON_SALE) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "只有在售商品可以下架");
+        }
+        int updated = itemMapper.update(null, new LambdaUpdateWrapper<Item>()
+                .eq(Item::getId, itemId)
+                .eq(Item::getStatus, ItemStatus.ON_SALE)
+                .eq(Item::getPublisherId, userId)
+                .set(Item::getStatus, ItemStatus.OFF_SHELF));
+        if (updated == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品状态已变化，请刷新后重试");
+        }
     }
 
+    /**
+     * 删除（B5 根因修复）：无锁读只做快速校验；落库为条件软删除
+     * （仅 ON_SALE/OFF_SHELF 可删）。并发窗口内商品被下单置 RESERVED、
+     * 确认收货置 SOLD 或审核迁移时条件不匹配（0 行 → CONFLICT），
+     * 有进行中订单的商品不可能被删除。
+     */
     @Transactional
     public void deleteOwnItem(Long userId, Long itemId) {
         Item item = requireOwnItem(userId, itemId);
         if (item.getModerationStatus() == ModerationStatus.PENDING) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "审核中的商品不能删除");
         }
-        requireNotReserved(itemId);
+        if (item.getStatus() == ItemStatus.RESERVED) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能删除");
+        }
+        if (item.getStatus() == ItemStatus.SOLD) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "已售出的商品不能删除");
+        }
+        // 条件软删兜底竞态：快速校验之后状态被并发迁移即拒绝
+        if (itemMapper.softDeleteEditable(itemId, userId) == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品状态已变化，请刷新后重试");
+        }
         itemTagService.deleteTags(itemId, item.getSchoolId());
-        itemMapper.deleteById(itemId);
     }
 
     public List<ItemCardVO> ranking(int limit, Long currentUserId) {
@@ -246,12 +282,13 @@ public class MarketplaceService {
     }
 
     private LambdaQueryWrapper<Item> visibleItems(Long schoolId) {
+        // ON_SALE 等值过滤天然排除 RESERVED（交易中）与 SOLD/OFF_SHELF，
+        // 不再需要 item_reservation 反连接。
         return new LambdaQueryWrapper<Item>()
                 .eq(Item::getSchoolId, schoolId)
                 .eq(Item::getStatus, ItemStatus.ON_SALE)
                 .eq(Item::getModerationStatus, ModerationStatus.PASSED)
-                .eq(Item::getIsDeleted, false)
-                .notExists("SELECT 1 FROM item_reservation r WHERE r.item_id = item.id");
+                .eq(Item::getIsDeleted, false);
     }
 
     private void applyOwnItemStatus(LambdaQueryWrapper<Item> wrapper, String value) {
@@ -259,7 +296,7 @@ public class MarketplaceService {
             ItemListStatus status = ItemListStatus.from(value);
             switch (status) {
                 case REVIEWING -> wrapper.eq(Item::getModerationStatus, ModerationStatus.PENDING);
-                case ON_SALE, OFF_SHELF -> wrapper
+                case ON_SALE, OFF_SHELF, RESERVED -> wrapper
                         .eq(Item::getStatus, status.persistedStatus())
                         .ne(Item::getModerationStatus, ModerationStatus.PENDING);
                 case SOLD -> wrapper.eq(Item::getStatus, status.persistedStatus());
@@ -297,20 +334,6 @@ public class MarketplaceService {
             throw new BusinessException(ResultCode.FORBIDDEN, "只能操作自己发布的商品");
         }
         return item;
-    }
-
-    private void requireNotReserved(Long itemId) {
-        if (reservationMapper.selectById(itemId) != null) {
-            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能操作");
-        }
-    }
-
-    private void updateStatus(Item item, ItemStatus status) {
-        Item patch = new Item();
-        patch.setId(item.getId());
-        patch.setStatus(status);
-        itemMapper.updateById(patch);
-        tagQueryService.invalidate(item.getSchoolId());
     }
 
     private long favoriteCount(Long itemId) {

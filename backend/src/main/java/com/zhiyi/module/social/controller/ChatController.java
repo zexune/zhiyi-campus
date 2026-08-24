@@ -58,6 +58,18 @@ public class ChatController {
         return Result.ok(chatService.send(userId, dto));
     }
 
+    /**
+     * 显式已读确认（M1）：前端在消息实际渲染且可见后调用；
+     * lastSeenMessageId 为当前视口最后一条可见的"接收"消息 ID。
+     */
+    @PostMapping("/ack")
+    public Result<Void> ack(@RequestAttribute("userId") Long userId,
+                            @RequestParam String conversationId,
+                            @RequestParam Long lastSeenMessageId) {
+        chatService.ackRead(userId, conversationId, lastSeenMessageId);
+        return Result.ok(null);
+    }
+
     @GetMapping("/unread-count")
     public Result<Long> unreadCount(@RequestAttribute("userId") Long userId) {
         return Result.ok(chatService.unreadCount(userId));

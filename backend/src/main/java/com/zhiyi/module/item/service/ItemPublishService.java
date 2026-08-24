@@ -1,6 +1,7 @@
 package com.zhiyi.module.item.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.ItemStatus;
@@ -18,7 +19,6 @@ import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
-import com.zhiyi.module.trade.mapper.ItemReservationMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +45,11 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 商品发布、整改、重新上架、举报与本地内容检测。
+ *
+ * 并发边界：item_reservation 已淘汰。编辑/删除/下架对 RESERVED/SOLD 商品
+ * 通过商品状态条件迁移拒绝（进行中订单期间商品不可变更，与下单路径的商品行锁互斥）。
+ * 任何影响 Feed 资格/筛选/排序的编辑或重新上架都会分配新的 listing_revision，
+ * 使商品退出旧游标快照（可从旧链消失，不能以新位置再次出现）。
  */
 @Service
 @RequiredArgsConstructor
@@ -66,9 +71,9 @@ public class ItemPublishService {
     private final ViolationReportMapper violationReportMapper;
     private final MarketplaceService marketplaceService;
     private final SysUserMapper userMapper;
-    private final ItemReservationMapper reservationMapper;
     private final LocalContentAnalyzer contentAnalyzer;
     private final ItemTagService itemTagService;
+    private final com.zhiyi.module.item.mapper.ItemViewStatMapper viewStatMapper;
 
     @Value("${zhiyi.upload-path:./uploads}")
     private String uploadPath;
@@ -111,9 +116,16 @@ public class ItemPublishService {
 
         ContentCheck check = checkContent(dto, category);
         Item item = buildItem(publisherId, publisher.getSchoolId(), dto);
+        solidifyPublisherKeys(item, publisher);
         item.setStatus(ItemStatus.ON_SALE);
         item.setModerationStatus(check.risky() ? ModerationStatus.PENDING : ModerationStatus.PASSED);
+        item.setListingRevision(allocateListingRevision());
         itemMapper.insert(item);
+        // 初始化浏览统计行（独立统计表，保证浏览量排序 keyset 可用且计数单调）
+        com.zhiyi.module.item.entity.ItemViewStat stat = new com.zhiyi.module.item.entity.ItemViewStat();
+        stat.setItemId(item.getId());
+        stat.setViewCount(0L);
+        viewStatMapper.insert(stat);
         itemTagService.replaceTags(item.getId(), item.getSchoolId(), check.tags());
         if (check.risky()) {
             saveReview(publisherId, null, item.getId(), dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
@@ -122,12 +134,23 @@ public class ItemPublishService {
         return marketplaceService.getSnapshot(item.getId(), publisherId);
     }
 
+    /**
+     * 编辑商品（B4/B5 根因修复）：无锁读只用于归属与快速校验；
+     * 落库是"只含本次编辑字段的 patch 实体 + 条件 UPDATE"
+     * （WHERE status IN (ON_SALE, OFF_SHELF) 且 moderation_status 等于读取值）。
+     * 并发下单置 RESERVED 使状态条件不匹配；并发违规确认把商品压到
+     * OFF_SHELF+REJECTED（状态仍在 IN 列表内）由 moderation 重检拒绝，
+     * 否则非整改分支会把 PASSED 写回、吞掉 REJECTED（违反 I24）。
+     * 两种竞态均 0 行 → CONFLICT，读取时的 status/moderation_status 永不被写回。
+     */
     @Transactional
     public ItemCardVO update(Long publisherId, Long itemId, PublishItemDTO dto) {
         Item item = requireOwnedItem(publisherId, itemId);
-        assertNotReserved(itemId);
         if (item.getStatus() == ItemStatus.SOLD) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "已售出的商品不能编辑");
+        }
+        if (item.getStatus() == ItemStatus.RESERVED) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能修改");
         }
         if (item.getModerationStatus() == ModerationStatus.PENDING) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "商品正在审核中，暂不能重复修改");
@@ -137,34 +160,53 @@ public class ItemPublishService {
         validateImages(dto.getImages());
         boolean correction = item.getModerationStatus() == ModerationStatus.REJECTED;
         ContentCheck check = checkContent(dto, category);
-        applyContent(item, dto);
+
+        // patch 只携带本次编辑的资料字段 + 目标审核状态；status 除整改分支外不写
+        Item patch = new Item();
+        applyContent(patch, dto);
+        patch.setListingRevision(allocateListingRevision());
+        if (correction) {
+            patch.setStatus(ItemStatus.OFF_SHELF);
+            patch.setModerationStatus(ModerationStatus.PENDING);
+        } else {
+            patch.setModerationStatus(check.risky() ? ModerationStatus.PENDING : ModerationStatus.PASSED);
+        }
+
+        int updated = itemMapper.update(patch, new LambdaUpdateWrapper<Item>()
+                .eq(Item::getId, itemId)
+                .eq(Item::getPublisherId, publisherId)
+                .in(Item::getStatus, ItemStatus.ON_SALE, ItemStatus.OFF_SHELF)
+                // 违规确认投影只把 status 压到 OFF_SHELF（仍在 IN 列表内），
+                // 必须以读取时的 moderation 重检拒绝并发 REJECTED 迁移（I24）
+                .eq(Item::getModerationStatus, item.getModerationStatus()));
+        if (updated == 0) {
+            // 竞态窗口：无锁读之后商品被并发迁移到 RESERVED/SOLD/REJECTED 等不可编辑状态
+            throw new BusinessException(ResultCode.CONFLICT, "商品状态已变化，请刷新后重试");
+        }
 
         if (correction) {
-            item.setStatus(ItemStatus.OFF_SHELF);
-            item.setModerationStatus(ModerationStatus.PENDING);
-            itemMapper.updateById(item);
             String reason = check.risky()
                     ? check.reason()
                     : "卖家已提交整改内容，等待管理员复核";
             saveReview(publisherId, null, itemId, dto, ViolationSource.CORRECTION, "CORRECTION_REVIEW",
                     reason, check.matchedRules(), check.ruleVersion());
         } else if (check.risky()) {
-            item.setModerationStatus(ModerationStatus.PENDING);
-            itemMapper.updateById(item);
             saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     check.reason(), check.matchedRules(), check.ruleVersion());
-        } else {
-            item.setModerationStatus(ModerationStatus.PASSED);
-            itemMapper.updateById(item);
         }
         itemTagService.replaceTags(itemId, item.getSchoolId(), check.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 
+    /**
+     * 重新上架：同样以条件 UPDATE（WHERE status='OFF_SHELF' 且 moderation 等于
+     * 读取值——前置校验保证读取值为 PASSED）落库；刷新发布者层级键并分配新
+     * listing_revision。moderation 重检拒绝并发违规确认（REJECTED 投影不改
+     * OFF_SHELF 状态，靠 ne(PENDING) 挡不住 REJECTED→PASSED 写回）。
+     */
     @Transactional
     public ItemCardVO relist(Long publisherId, Long itemId) {
         Item item = requireOwnedItem(publisherId, itemId);
-        assertNotReserved(itemId);
         if (item.getStatus() != ItemStatus.OFF_SHELF) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "只有已下架商品可以重新上架");
         }
@@ -175,18 +217,35 @@ public class ItemPublishService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "该商品因内容违规下架，请先整改或申诉");
         }
 
+        SysUser publisher = requirePublisher(publisherId);
         Category category = requireCategory(item.getCategoryId());
         PublishItemDTO dto = toReviewDTO(item);
         ContentCheck check = checkContent(dto, category);
+
+        Item patch = new Item();
+        patch.setListingRevision(allocateListingRevision());
+        patch.setPublisherCampusKey(locationKey(publisher.getCampus()));
+        patch.setPublisherDormitoryKey(locationKey(publisher.getDormitory()));
         if (check.risky()) {
-            item.setModerationStatus(ModerationStatus.PENDING);
-            itemMapper.updateById(item);
+            // 命中规则：转入人工审核，保持 OFF_SHELF
+            patch.setModerationStatus(ModerationStatus.PENDING);
+        } else {
+            patch.setStatus(ItemStatus.ON_SALE);
+            patch.setModerationStatus(ModerationStatus.PASSED);
+        }
+
+        int updated = itemMapper.update(patch, new LambdaUpdateWrapper<Item>()
+                .eq(Item::getId, itemId)
+                .eq(Item::getPublisherId, publisherId)
+                .eq(Item::getStatus, ItemStatus.OFF_SHELF)
+                .eq(Item::getModerationStatus, item.getModerationStatus()));
+        if (updated == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "商品状态已变化，请刷新后重试");
+        }
+
+        if (check.risky()) {
             saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     check.reason(), check.matchedRules(), check.ruleVersion());
-        } else {
-            item.setStatus(ItemStatus.ON_SALE);
-            item.setModerationStatus(ModerationStatus.PASSED);
-            itemMapper.updateById(item);
         }
         itemTagService.replaceTags(itemId, item.getSchoolId(), check.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
@@ -270,7 +329,6 @@ public class ItemPublishService {
         item.setPublisherId(publisherId);
         item.setSchoolId(schoolId);
         applyContent(item, dto);
-        item.setViewCount(0);
         item.setIsDeleted(false);
         item.setFeedKey(ThreadLocalRandom.current().nextLong(Long.MAX_VALUE));
         return item;
@@ -286,6 +344,26 @@ public class ItemPublishService {
         item.setTradeLocation(trimToNull(dto.getTradeLocation()));
         item.setPickupLocation(trimToNull(dto.getPickupLocation()));
         item.setDeliveryLocation(trimToNull(dto.getDeliveryLocation()));
+    }
+
+    /** 发布时固化发布者层级键（与 sys_user 生成列同规则：TRIM + 去空格 + 小写）。 */
+    private void solidifyPublisherKeys(Item item, SysUser publisher) {
+        item.setPublisherCampusKey(locationKey(publisher.getCampus()));
+        item.setPublisherDormitoryKey(locationKey(publisher.getDormitory()));
+    }
+
+    private String locationKey(String value) {
+        return value == null || value.isBlank() ? null : value.trim().replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 分配全局单调 listing_revision（同一事务内 bump + 回读，行锁保证串行）。
+     * 返回新值由调用方写入 patch/新实体——内容编辑影响 Feed 资格/筛选/排序，
+     * 新 revision 使商品退出旧游标快照（可消失，不能换位置重现）。
+     */
+    private long allocateListingRevision() {
+        itemMapper.bumpListingRevision();
+        return itemMapper.currentListingRevision();
     }
 
     private SysUser requirePublisher(Long publisherId) {
@@ -316,12 +394,6 @@ public class ItemPublishService {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品分类不存在");
         }
         return category;
-    }
-
-    private void assertNotReserved(Long itemId) {
-        if (reservationMapper.selectById(itemId) != null) {
-            throw new BusinessException(ResultCode.CONFLICT, "商品存在进行中的订单，暂不能修改");
-        }
     }
 
     private void validateImages(List<String> images) {

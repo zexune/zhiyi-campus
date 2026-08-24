@@ -230,10 +230,12 @@ async function handleNext() {
 }
 
 async function handleRegister() {
-  const valid = await validateForm(step2FormRef)
-  if (!valid) return
+  // 入口同步互斥：await validateForm 存在异步窗口，重复提交可能在 loading 置位前穿透
+  if (loading.value) return
   loading.value = true
   try {
+    const valid = await validateForm(step2FormRef)
+    if (!valid) return
     const res = await register({
       studentId: form.studentId,
       password: form.password,

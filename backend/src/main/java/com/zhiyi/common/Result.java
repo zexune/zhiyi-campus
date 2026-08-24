@@ -28,4 +28,9 @@ public record Result<T>(int code, String message, T data) {
     public static <T> Result<T> fail(int code, String message) {
         return new Result<>(code, message, null);
     }
+
+    /** 失败响应携带冲突详情（如资料 409 时的服务端最新资料）。 */
+    public static <T> Result<T> fail(int code, String message, T detail) {
+        return new Result<>(code, message, detail);
+    }
 }

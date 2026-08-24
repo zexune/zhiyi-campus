@@ -8,6 +8,7 @@ import com.zhiyi.common.enums.PenaltyType;
 import com.zhiyi.module.user.mapper.ReputationPenaltyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,7 +26,7 @@ public class ReputationPenaltyService {
     @Value("${zhiyi.moderation.warning-points:5}")
     private int warningPoints = 5;
 
-    /** 同一违规审核记录只生成一条固定内容警告。 */
+    /** 同一违规审核记录只生成一条固定内容警告（先查后插竞争由唯一约束兜底，DuplicateKey 幂等复返）。 */
     public ReputationPenalty recordContentWarning(Long reportId, Long userId, Long adminId,
                                                     String reason) {
         ReputationPenalty existing = penaltyMapper.selectOne(
@@ -43,7 +44,14 @@ public class ReputationPenaltyService {
         penalty.setPoints(Math.max(1, warningPoints));
         penalty.setReason(reason);
         penalty.setStatus(PenaltyStatus.ACTIVE);
-        penaltyMapper.insert(penalty);
+        try {
+            penaltyMapper.insert(penalty);
+        } catch (DuplicateKeyException concurrentInsert) {
+            // 并发确认同一报告时 uk_reputation_penalty_report 竞争：复返已有记录，
+            // 不把数据库唯一约束竞争暴露成 500。
+            return penaltyMapper.selectOne(new LambdaQueryWrapper<ReputationPenalty>()
+                    .eq(ReputationPenalty::getReportId, reportId));
+        }
         return penalty;
     }
 

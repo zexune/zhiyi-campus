@@ -134,11 +134,12 @@ import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
-import { getChatMessages, getConversations, sendChatMessage, startCustomerService } from '@/api/chat'
+import { ackChatRead, getChatMessages, getConversations, sendChatMessage, startCustomerService } from '@/api/chat'
 import type { ChatMessagesQuery } from '@/api/chat'
 import type { ChatMessage, ChatThread, Conversation } from '@/types/models'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatChatTime, formatTimeShort, placeholderClass } from '@/utils/format'
+import { useContextGuard } from '@/composables/useContextGuard'
 
 /**
  * selectConversation 消费的最小会话形状：
@@ -150,6 +151,13 @@ interface ConversationLike {
   peer?: { id?: number | string | string[] | (string | null)[] | null | undefined }
   relatedItem?: { id?: number | string | string[] | (string | null)[] | null | undefined } | null
 }
+
+/** 轮询间隔：正常 2.5s；连续失败 ≥3 次降频到 10s，成功后恢复 */
+const POLL_INTERVAL_MS = 2500
+const POLL_INTERVAL_DEGRADED_MS = 10000
+const POLL_FAILURE_THRESHOLD = 3
+/** 距底部小于该值视为"贴近底部"，新消息到达时才自动滚底 */
+const NEAR_BOTTOM_PX = 40
 
 const route = useRoute()
 const router = useRouter()
@@ -166,8 +174,16 @@ const serviceLoading = ref(false)
 const messagePanel = ref<HTMLElement | null>(null)
 const hasEarlier = ref(false)
 const earlierLoading = ref(false)
+/** 是否已向前翻页（组件内状态，随会话切换代数作废——M11 修复） */
 let earlierLoaded = false
 let pollTimer: number | undefined
+let pollInFlight = false
+let pollFailures = 0
+/** 已确认读到的最后一条接收消息 ID（避免重复 ack） */
+let lastAckedMessageId: number | null = null
+
+// F2/M11 根因修复：会话切换守卫（contextId + generation + 同会话请求序号）
+const chatGuard = useContextGuard<string>()
 
 const selectedConversation = computed(() => conversations.value.find((item) => String(item.conversationId) === String(selectedConversationId.value)) || null)
 const activeRelatedItem = computed(() => thread.value?.relatedItem || selectedConversation.value?.relatedItem || null)
@@ -185,10 +201,18 @@ function threadParams(conversation: Conversation | null = selectedConversation.v
   if (relatedItemId) params.relatedItemId = Number(relatedItemId)
   return params
 }
+
+function isNearBottom(): boolean {
+  const panel = messagePanel.value
+  if (!panel) return true
+  return panel.scrollHeight - panel.scrollTop - panel.clientHeight < NEAR_BOTTOM_PX
+}
+
 async function scrollToBottom() {
   await nextTick()
   if (messagePanel.value) messagePanel.value.scrollTop = messagePanel.value.scrollHeight
 }
+
 async function fetchConversations() {
   loading.value = true
   try {
@@ -198,13 +222,29 @@ async function fetchConversations() {
     loading.value = false
   }
 }
+
+/** 消息落地后按需显式 ACK：只取最后一条"接收"消息作为边界（M1/B10） */
+function ackVisibleMessages(conversationId: string) {
+  const lastReceived = [...messages.value].filter((item) => !item.mine).pop()
+  if (!lastReceived || lastReceived.id === lastAckedMessageId) return
+  lastAckedMessageId = lastReceived.id
+  ackChatRead(conversationId, lastReceived.id).catch(() => {
+    // ACK 失败不影响会话使用；下次消息变化会以新的边界重试
+    lastAckedMessageId = null
+  })
+}
+
 async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
-  if (!selectedConversationId.value) return
-  const requestedId = selectedConversationId.value
+  const conversationId = selectedConversationId.value
+  if (!conversationId) return
+  // 轮询请求携带同会话序号：旧轮询响应不覆盖新轮询结果（F7）
+  const { gen, seq } = chatGuard.nextRequest()
   if (!silent) threadLoading.value = true
   try {
-    const res = await getChatMessages(threadParams())
-    if (requestedId !== selectedConversationId.value) return
+    const res = await getChatMessages(threadParams(), silent ? { skipAuthRedirect: true } : undefined)
+    if (!chatGuard.isCurrent(conversationId, gen, seq)) return
+    const previousLastMessage = messages.value[messages.value.length - 1]
+    const wasNearBottom = isNearBottom()
     thread.value = res.data
     const fresh = res.data?.messages || []
     if (!earlierLoaded) {
@@ -218,18 +258,32 @@ async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
       }
     }
     hasEarlier.value = !!res.data?.hasMore
+    // GET 已只读化：消息渲染后显式确认已读
+    ackVisibleMessages(conversationId)
     const conversation = selectedConversation.value
     if (conversation) conversation.unreadCount = 0
-    await scrollToBottom()
+    // 仅在贴近底部或刚发出自己的消息时自动滚底（F7：不打断向上翻阅）
+    const lastMessage = messages.value[messages.value.length - 1]
+    const ownMessageArrived = !!lastMessage?.mine && lastMessage?.id !== previousLastMessage?.id
+    if (ownMessageArrived || wasNearBottom || !silent) {
+      await scrollToBottom()
+    }
   } finally {
-    threadLoading.value = false
+    if (chatGuard.isCurrent(conversationId, gen)) {
+      threadLoading.value = false
+    }
   }
 }
+
 async function loadEarlier() {
-  if (!messages.value.length || earlierLoading.value) return
+  const conversationId = selectedConversationId.value
+  if (!conversationId || !messages.value.length || earlierLoading.value) return
+  // 历史分页顺序无关：只校验 gen + conversationId，不参与同会话序号（M11）
+  const { gen } = chatGuard.nextRequest()
   earlierLoading.value = true
   try {
     const res = await getChatMessages({ ...threadParams(), beforeId: messages.value[0].id })
+    if (!chatGuard.isCurrent(conversationId, gen)) return
     const older = res.data?.messages || []
     earlierLoaded = true
     hasEarlier.value = !!res.data?.hasMore
@@ -244,30 +298,42 @@ async function loadEarlier() {
     earlierLoading.value = false
   }
 }
+
 async function selectConversation(conversation: ConversationLike, updateUrl = true) {
+  // 切换会话：推进守卫代数，作废在途请求与 earlierLoaded（F2/M11）
+  chatGuard.switchContext(conversation.conversationId)
   selectedConversationId.value = conversation.conversationId
   thread.value = null
   messages.value = []
   draft.value = ''
   earlierLoaded = false
   hasEarlier.value = false
+  lastAckedMessageId = null
   if (updateUrl) await router.replace({ path: '/chat', query: { conversationId: conversation.conversationId, peerId: conversation.peer?.id, relatedItemId: conversation.relatedItem?.id } })
   await fetchThread()
 }
+
 async function handleSend() {
+  // F4 根因修复：入口同步互斥——Enter 连击在 sending 置位前无法穿透第二次
+  if (sending.value) return
   const peerId = thread.value?.peer?.id || selectedConversation.value?.peer?.id
   if (!draft.value.trim() || !peerId) return
+  const conversationId = selectedConversationId.value
   sending.value = true
   try {
-    await sendChatMessage({ conversationId: selectedConversationId.value, receiverId: peerId, relatedItemId: activeRelatedItem.value?.id, content: draft.value.trim() })
+    await sendChatMessage({ conversationId, receiverId: peerId, relatedItemId: activeRelatedItem.value?.id, content: draft.value.trim() })
     draft.value = ''
-    await fetchThread({ silent: true })
+    if (chatGuard.isCurrent(conversationId, chatGuard.generation.value)) {
+      await fetchThread({ silent: true })
+    }
     await fetchConversations()
   } finally {
     sending.value = false
   }
 }
+
 async function contactService() {
+  if (serviceLoading.value) return
   serviceLoading.value = true
   try {
     const res = await startCustomerService()
@@ -276,6 +342,33 @@ async function contactService() {
     await selectConversation(conversation)
   } finally {
     serviceLoading.value = false
+  }
+}
+
+/** F7 根因修复：递归 setTimeout 轮询——在途请求未完成则跳过本拍，绝不重叠 */
+function schedulePoll() {
+  const interval = pollFailures >= POLL_FAILURE_THRESHOLD ? POLL_INTERVAL_DEGRADED_MS : POLL_INTERVAL_MS
+  pollTimer = window.setTimeout(pollOnce, interval)
+}
+
+async function pollOnce() {
+  if (document.visibilityState === 'hidden' || !selectedConversationId.value) {
+    schedulePoll()
+    return
+  }
+  if (pollInFlight) {
+    schedulePoll()
+    return
+  }
+  pollInFlight = true
+  try {
+    await fetchThread({ silent: true })
+    pollFailures = 0
+  } catch {
+    pollFailures += 1
+  } finally {
+    pollInFlight = false
+    schedulePoll()
   }
 }
 
@@ -292,10 +385,11 @@ onMounted(async () => {
     const conversation = conversations.value.find((item) => String(item.conversationId) === String(queryId)) || fallback
     await selectConversation(conversation, false)
   }
-  pollTimer = window.setInterval(() => fetchThread({ silent: true }), 2500)
+  schedulePoll()
 })
 onUnmounted(() => {
-  if (pollTimer) window.clearInterval(pollTimer)
+  if (pollTimer) window.clearTimeout(pollTimer)
+  pollTimer = undefined
 })
 </script>
 

@@ -55,6 +55,15 @@ public class AdminChatController {
         return Result.ok(chatService.sendAsAdmin(adminId, dto));
     }
 
+    /** 管理端同模式显式已读确认（GET messages 只读）。 */
+    @PostMapping("/chat/ack")
+    public Result<Void> ack(@RequestAttribute("userId") Long adminId,
+                            @RequestParam String conversationId,
+                            @RequestParam Long lastSeenMessageId) {
+        chatService.ackRead(adminId, conversationId, lastSeenMessageId);
+        return Result.ok(null);
+    }
+
     @GetMapping("/chat/unread")
     public Result<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long adminId,
                                               @RequestParam(required = false) String conversationId) {

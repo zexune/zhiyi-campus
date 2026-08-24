@@ -1,6 +1,8 @@
 package com.zhiyi.module.admin.service;
 
 import com.zhiyi.common.BusinessException;
+import com.zhiyi.common.enums.AppealStatus;
+import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.admin.dto.HandleAppealDTO;
 import com.zhiyi.module.admin.dto.SubmitAppealDTO;
 import com.zhiyi.module.admin.entity.ViolationAppeal;
@@ -9,11 +11,6 @@ import com.zhiyi.module.admin.mapper.ViolationAppealMapper;
 import com.zhiyi.module.admin.mapper.ViolationReportMapper;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
-import com.zhiyi.module.item.service.TagQueryService;
-import com.zhiyi.common.enums.AppealStatus;
-import com.zhiyi.common.enums.ItemStatus;
-import com.zhiyi.common.enums.ModerationStatus;
-import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,6 +33,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 适配 v3.1 并发重构：TagQueryService 依赖已移除；approve 改为
+ * "锁定商品 → 抢占申诉 → 翻案原报告 → 撤销处罚 → ModerationProjectionService 统一投影"，
+ * 商品不再自动重新上架（恢复上架由卖家手动 relist）。
+ */
 @ExtendWith(MockitoExtension.class)
 class ViolationAppealServiceTest {
 
@@ -44,7 +46,7 @@ class ViolationAppealServiceTest {
     @Mock private ItemMapper itemMapper;
     @Mock private SysUserMapper userMapper;
     @Mock private ReputationPenaltyService penaltyService;
-    @Mock private TagQueryService tagQueryService;
+    @Mock private ModerationProjectionService projectionService;
     private ViolationAppealService service;
 
     @BeforeAll
@@ -56,7 +58,7 @@ class ViolationAppealServiceTest {
     @BeforeEach
     void setUp() {
         service = new ViolationAppealService(appealMapper, reportMapper, itemMapper,
-                userMapper, penaltyService, tagQueryService);
+                userMapper, penaltyService, projectionService);
     }
 
     @Test
@@ -101,58 +103,55 @@ class ViolationAppealServiceTest {
     }
 
     @Test
-    void approvalRevokesExactPenaltyAndRelistsWhenNoOtherConfirmedCaseExists() {
-        ViolationAppeal appeal = new ViolationAppeal();
-        appeal.setId(20L);
-        appeal.setReportId(8L);
-        appeal.setItemId(100L);
-        appeal.setUserId(2L);
-        appeal.setStatus(AppealStatus.PENDING);
-        ViolationReport report = confirmedReport(LocalDateTime.now().minusDays(1));
-        Item item = new Item();
-        item.setId(100L);
-        item.setStatus(ItemStatus.OFF_SHELF);
-        item.setModerationStatus(ModerationStatus.REJECTED);
-        when(appealMapper.selectById(20L)).thenReturn(appeal);
-        when(appealMapper.update(isNull(), any())).thenReturn(1);
-        when(reportMapper.selectById(8L)).thenReturn(report);
-        when(reportMapper.update(isNull(), any())).thenReturn(1);
-        when(reportMapper.selectCount(any())).thenReturn(0L);
-        when(itemMapper.selectById(100L)).thenReturn(item);
-
-        service.approve(20L, 99L, new HandleAppealDTO("复核后确认原判有误"));
-
-        verify(penaltyService).revokePenalty(8L);
-        assertEquals(ModerationStatus.PASSED, item.getModerationStatus());
-        assertEquals(ItemStatus.ON_SALE, item.getStatus());
-        verify(itemMapper).updateById(item);
-    }
-
-    @Test
-    void approvalDoesNotRelistWhenANewerConfirmedCaseExists() {
-        ViolationAppeal appeal = new ViolationAppeal();
-        appeal.setId(20L);
-        appeal.setReportId(8L);
-        appeal.setItemId(100L);
-        appeal.setUserId(2L);
-        appeal.setStatus(AppealStatus.PENDING);
-        Item item = new Item();
-        item.setId(100L);
-        item.setStatus(ItemStatus.OFF_SHELF);
-        item.setModerationStatus(ModerationStatus.REJECTED);
+    void approvalRevokesPenaltyAndProjectsModerationWithoutRelisting() {
+        ViolationAppeal appeal = pendingAppeal();
         when(appealMapper.selectById(20L)).thenReturn(appeal);
         when(appealMapper.update(isNull(), any())).thenReturn(1);
         when(reportMapper.selectById(8L)).thenReturn(confirmedReport(LocalDateTime.now().minusDays(1)));
         when(reportMapper.update(isNull(), any())).thenReturn(1);
-        when(reportMapper.selectCount(any())).thenReturn(1L);
-        when(itemMapper.selectById(100L)).thenReturn(item);
 
-        service.approve(20L, 99L, new HandleAppealDTO("The old decision is incorrect"));
+        service.approve(20L, 99L, new HandleAppealDTO("复核后确认原判有误"));
 
+        // 聚合串行点：先锁商品行，再抢占更新申诉与原报告
+        verify(itemMapper).selectByIdForUpdate(100L);
         verify(penaltyService).revokePenalty(8L);
-        assertEquals(ModerationStatus.REJECTED, item.getModerationStatus());
-        assertEquals(ItemStatus.OFF_SHELF, item.getStatus());
+        // 商品审核状态由投影服务统一计算，且不自动重新上架
+        verify(projectionService).projectItemModerationStatus(100L);
         verify(itemMapper, never()).updateById(any(Item.class));
+    }
+
+    @Test
+    void approvalFailsWhenAppealAlreadyHandled() {
+        when(appealMapper.selectById(20L)).thenReturn(pendingAppeal());
+        when(appealMapper.update(isNull(), any())).thenReturn(0); // 并发抢占失败
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.approve(20L, 99L, new HandleAppealDTO("复核后确认原判有误")));
+
+        assertEquals(409, error.getCode());
+        verify(penaltyService, never()).revokePenalty(any());
+        verify(projectionService, never()).projectItemModerationStatus(any());
+    }
+
+    @Test
+    void rejectMarksAppealHandledWithoutTouchingPenalty() {
+        when(appealMapper.selectById(20L)).thenReturn(pendingAppeal());
+        when(appealMapper.update(isNull(), any())).thenReturn(1);
+
+        service.reject(20L, 99L, new HandleAppealDTO("维持原判"));
+
+        verify(penaltyService, never()).revokePenalty(any());
+        verify(projectionService, never()).projectItemModerationStatus(any());
+    }
+
+    private ViolationAppeal pendingAppeal() {
+        ViolationAppeal appeal = new ViolationAppeal();
+        appeal.setId(20L);
+        appeal.setReportId(8L);
+        appeal.setItemId(100L);
+        appeal.setUserId(2L);
+        appeal.setStatus(AppealStatus.PENDING);
+        return appeal;
     }
 
     private ViolationReport confirmedReport(LocalDateTime handledAt) {

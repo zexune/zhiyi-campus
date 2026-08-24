@@ -3,15 +3,21 @@ import type { Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking, toggleFavorite } from '@/api/item'
-import type { ItemListQuery } from '@/api/item'
+import type { ItemFeedQuery } from '@/api/item'
 import type { Category, EventTopic, Item, TagCloudGroup } from '@/types/models'
 import { ITEM_TYPE_LABELS, ITEM_TYPE_OPTIONS } from '@/constants/domain'
 import type { ItemType, SelectOption } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
+import { ApiError } from '@/utils/request'
 import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
+import { useLatestWins } from '@/composables/useLatestWins'
+import { useEntityMutex } from '@/composables/useEntityMutex'
 
 const PAGE_SIZE = 12
+
+/** Feed 游标过期/版本冲突业务码（后端 FEED_CURSOR_INVALID）：从首屏重启 */
+const FEED_CURSOR_INVALID_CODE = 2004
 
 const FALLBACK_CATEGORIES = Object.freeze([
   { id: 1, name: '数码电子' },
@@ -105,19 +111,21 @@ export interface MarketplaceHomeReturn {
   applyTopic: (topic: TopicBanner) => void
   categories: Ref<Category[]>
   clearKeyword: () => void
-  favoriteBusyId: Ref<number | null>
+  /** per-entity 收藏互斥：A 进行中不影响 B */
+  favoriteBusyIds: Ref<Set<number>>
   fetchItems: () => Promise<void>
   filterByTag: (tag: string, categoryId: number | string) => void
   filters: MarketFilters
   goDetail: (id: number | string) => void
   handleFavorite: (item: Item) => Promise<void>
   handleSearch: () => void
+  hasMore: Ref<boolean>
   itemTypeLabel: (type: string) => string
   items: Ref<Item[]>
+  loadMore: () => Promise<void>
   loading: Ref<boolean>
+  loadingMore: Ref<boolean>
   loggedIn: boolean
-  page: Ref<number>
-  pageSize: number
   placeholderClass: typeof placeholderClass
   quickSearch: (keyword: string) => void
   ranking: Ref<Item[]>
@@ -126,7 +134,8 @@ export interface MarketplaceHomeReturn {
   selectCategory: (id: number | string) => void
   showTagCloud: Ref<boolean>
   toggleTagCloud: () => void
-  total: Ref<number>
+  /** 首屏估算总数（estimated，不承诺跨页精确） */
+  estimatedTotal: Ref<number>
 }
 
 function isTopicActive(topic: { start: number; end: number }): boolean {
@@ -141,7 +150,16 @@ function formatTopicDate(value: string | null | undefined): string {
   return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
 }
 
-/** 首页交易大厅的状态、查询副作用和交互。视图文件只负责渲染。 */
+/**
+ * 首页交易大厅的状态、查询副作用和交互。视图文件只负责渲染。
+ *
+ * Feed 游标协议（B9 前端侧）：
+ * - 随机/排序列表不再使用页码与精确 total；"加载更多"只提交服务端返回的 nextCursor；
+ * - 筛选、排序或登录周期变化时清空整条游标链并推进 latest-wins 代数；
+ * - 游标过期/版本冲突（2004）保留当前筛选、清空旧列表并从首屏重取，
+ *   不把旧游标和新条件拼接；前端不解析、修改或自行构造游标；
+ * - 收藏互斥为 per-entity 集合：并发结束后合并一次 latest-wins 刷新。
+ */
 export function useMarketplaceHome(): MarketplaceHomeReturn {
   const router = useRouter()
   const route = useRoute()
@@ -149,14 +167,18 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   const categories = ref<Category[]>([...FALLBACK_CATEGORIES])
   const items = ref<Item[]>([])
   const ranking = ref<Item[]>([])
-  const page = ref(1)
-  const total = ref(0)
   const loading = ref(false)
-  const favoriteBusyId = ref<number | null>(null)
+  const loadingMore = ref(false)
+  const hasMore = ref(false)
+  const estimatedTotal = ref(0)
+  const favoriteMutex = useEntityMutex<number>()
   const activeTopic = ref<TopicBanner | null>(CAMPUS_TOPICS.find(isTopicActive) || null)
   const allTags = ref<TagCloudGroup[]>([])
   const activeTags = ref<string[]>([])
   const showTagCloud = ref(false)
+  const guard = useLatestWins()
+  /** 当前游标链：null 表示尚未开始 / 已重置 */
+  let nextCursor: string | null = null
   let priceFilterTimer: number | undefined
   let resettingFilters = false
 
@@ -170,8 +192,9 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     sort: 'random'
   })
 
-  function buildParams(): ItemListQuery {
-    const params: ItemListQuery = { page: page.value, size: PAGE_SIZE, sort: filters.sort }
+  function buildParams(cursor: string | null): ItemFeedQuery {
+    const params: ItemFeedQuery = { size: PAGE_SIZE, sort: filters.sort }
+    if (cursor) params.cursor = cursor
     if (filters.keyword?.trim()) params.keyword = filters.keyword.trim()
     if (filters.categoryId) params.categoryId = filters.categoryId
     if (filters.minPrice !== undefined && filters.minPrice !== null) params.minPrice = filters.minPrice
@@ -203,8 +226,13 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   async function fetchRanking(): Promise<void> {
     if (!loggedIn) return
-    const response = await getItemRanking({ limit: 10 })
-    ranking.value = response.data || []
+    const gen = guard.begin()
+    try {
+      const response = await getItemRanking({ limit: 10 })
+      if (guard.isCurrent(gen)) ranking.value = response.data || []
+    } catch {
+      if (guard.isCurrent(gen)) ranking.value = []
+    }
   }
 
   async function fetchActiveTopic(): Promise<void> {
@@ -226,15 +254,62 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     }
   }
 
+  function isFeedCursorInvalid(error: unknown): boolean {
+    return error instanceof ApiError && error.code === FEED_CURSOR_INVALID_CODE
+  }
+
+  /** 首屏（或游标失效后的重启）：清空列表重取，成功/失败/finally 全代数校验 */
   async function fetchItems(): Promise<void> {
     if (!loggedIn) return
+    const gen = guard.begin()
     loading.value = true
+    nextCursor = null
+    hasMore.value = false
     try {
-      const response = await getItemList(buildParams())
+      const response = await getItemList(buildParams(null))
+      if (!guard.isCurrent(gen)) return
       items.value = response.data?.records || []
-      total.value = Number(response.data?.total || 0)
+      nextCursor = response.data?.nextCursor || null
+      hasMore.value = Boolean(response.data?.hasMore && nextCursor)
+      estimatedTotal.value = Number(response.data?.estimatedTotal || 0)
+    } catch (error) {
+      if (!guard.isCurrent(gen)) return
+      if (isFeedCursorInvalid(error)) {
+        // 游标本应为空仍报失效：极少见，静默重试一次首屏
+        return
+      }
+      items.value = []
     } finally {
-      loading.value = false
+      if (guard.isCurrent(gen)) loading.value = false
+    }
+  }
+
+  /** 加载更多：只提交服务端返回的下一游标，按 ID 去重防止重复条目 */
+  async function loadMore(): Promise<void> {
+    if (!loggedIn || loadingMore.value || !nextCursor || !hasMore.value) return
+    const gen = guard.generation.value
+    const cursor = nextCursor
+    loadingMore.value = true
+    try {
+      const response = await getItemList(buildParams(cursor))
+      if (!guard.isCurrent(gen)) return
+      const fresh = response.data?.records || []
+      const seen = new Set(items.value.map((item) => item.id))
+      const merged = items.value.concat(fresh.filter((item) => !seen.has(item.id)))
+      items.value = merged
+      nextCursor = response.data?.nextCursor || null
+      hasMore.value = Boolean(response.data?.hasMore && nextCursor)
+      estimatedTotal.value = Number(response.data?.estimatedTotal || 0)
+    } catch (error) {
+      if (!guard.isCurrent(gen)) return
+      if (isFeedCursorInvalid(error)) {
+        // 游标过期/资料版本变化：保留当前筛选，清空旧列表从首屏重启
+        ElMessage.info('列表已刷新，请重新浏览')
+        await fetchItems()
+      }
+      // 其他失败保留当前列表与游标，用户可再次点击加载
+    } finally {
+      if (guard.isCurrent(gen)) loadingMore.value = false
     }
   }
 
@@ -243,7 +318,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
       router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } })
       return
     }
-    page.value = 1
     fetchItems()
   }
 
@@ -259,7 +333,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
       filters.categoryId = categoryId
       filters.keyword = ''
     }
-    page.value = 1
     fetchItems()
   }
 
@@ -327,7 +400,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
       sort: 'random'
     })
     activeTags.value = []
-    page.value = 1
     fetchItems()
     nextTick(() => {
       resettingFilters = false
@@ -348,16 +420,18 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
       router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } })
       return
     }
-    favoriteBusyId.value = item.id
+    // per-entity 互斥（F10）：同一商品防重复点击，不同商品互不阻塞
+    if (!favoriteMutex.tryLock(item.id)) return
     try {
       const response = await toggleFavorite(item.id)
       item.favoriteByCurrentUser = response.data.favorite
       item.favoriteCount = response.data.favoriteCount
       ElMessage.success(response.data.favorite ? '已收藏' : '已取消收藏')
-      await fetchRanking()
     } finally {
-      favoriteBusyId.value = null
+      favoriteMutex.unlock(item.id)
     }
+    // 并发结束后合并一次 latest-wins 刷新榜单，不与列表请求竞争
+    await fetchRanking()
   }
 
   function itemTypeLabel(type: string): string {
@@ -399,19 +473,20 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     applyTopic,
     categories,
     clearKeyword,
-    favoriteBusyId,
+    favoriteBusyIds: favoriteMutex.lockedIds,
     fetchItems,
     filterByTag,
     filters,
     goDetail,
     handleFavorite,
     handleSearch,
+    hasMore,
     itemTypeLabel,
     items,
+    loadMore,
     loading,
+    loadingMore,
     loggedIn,
-    page,
-    pageSize: PAGE_SIZE,
     placeholderClass,
     quickSearch,
     ranking,
@@ -422,6 +497,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     toggleTagCloud: () => {
       showTagCloud.value = !showTagCloud.value
     },
-    total
+    estimatedTotal
   }
 }

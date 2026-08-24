@@ -7,9 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.BanActionType;
-import com.zhiyi.common.enums.ItemStatus;
-import com.zhiyi.common.enums.ModerationStatus;
-import com.zhiyi.common.enums.ViolationSource;
+import com.zhiyi.common.enums.OrderCancelReason;
 import com.zhiyi.common.enums.ViolationStatus;
 import com.zhiyi.module.admin.dto.ConfirmViolationDTO;
 import com.zhiyi.module.admin.entity.ViolationLog;
@@ -20,7 +18,9 @@ import com.zhiyi.module.admin.vo.PenaltyStatsVO;
 import com.zhiyi.module.admin.vo.ViolationVO;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
-import com.zhiyi.module.item.service.TagQueryService;
+import com.zhiyi.module.trade.entity.TradeOrder;
+import com.zhiyi.module.trade.mapper.TradeOrderMapper;
+import com.zhiyi.module.trade.service.ForceCancelService;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.ReputationPenaltyService;
@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,16 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 内容审核工作台。内容违规只下架并执行固定警告扣分，账号封禁由用户管理独立完成。
+ * 内容审核工作台。
+ *
+ * 确认违规（B4/I24）：以"买家用户行 + 商品行"为聚合串行点，强制撤销该商品进行中
+ * 订单（ADMIN_FORCE + 买家全额退款 + 独立 event_id 通知），再抢占审核记录并重新
+ * 投影商品审核状态；REJECTED 商品不得残留 WAITING_MEET 订单。抢占失败时整个事务
+ * （含已执行的撤单）一并回滚，无半撤单状态。与确认收货并发时由锁序串行化：
+ * 确认收货先行提交则无单可撤（已完成交易不追溯退款）；违规确认先行则随后的
+ * 确认收货得 ORDER_STATUS_ERROR。
+ *
+ * 驳回与申诉路径不涉及撤单，仅做状态抢占 + 投影。
  */
 @Slf4j
 @Service
@@ -49,9 +57,11 @@ public class AdminViolationService {
     private final ViolationReportMapper violationReportMapper;
     private final SysUserMapper sysUserMapper;
     private final ItemMapper itemMapper;
+    private final TradeOrderMapper orderMapper;
     private final ViolationLogMapper violationLogMapper;
     private final ReputationPenaltyService reputationPenaltyService;
-    private final TagQueryService tagQueryService;
+    private final ForceCancelService forceCancelService;
+    private final ModerationProjectionService projectionService;
 
     public IPage<ViolationVO> getViolations(int page, int size, String status) {
         IPage<ViolationReport> result = violationReportMapper.selectPage(
@@ -81,53 +91,76 @@ public class AdminViolationService {
 
     @Transactional(rollbackFor = Exception.class)
     public void confirmViolation(Long reportId, ConfirmViolationDTO dto, Long adminId) {
+        // 1. 无锁读报告与活跃订单，仅为确定锁序所需 ID
         ViolationReport report = requirePending(reportId);
-        LocalDateTime now = LocalDateTime.now();
-        if (violationReportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
+        Long itemId = report.getItemId();
+        TradeOrder active = itemId == null ? null : orderMapper.selectActiveByItemId(itemId);
+
+        // 2. 锁定买家用户行（锁序：用户 → 商品 → 订单 → 报告）；无挂单则跳过
+        if (active != null) {
+            sysUserMapper.selectByIdForUpdate(active.getBuyerId());
+        }
+
+        // 3. 锁定商品（聚合串行点）
+        if (itemId != null) {
+            itemMapper.selectByIdForUpdate(itemId);
+        }
+
+        // 4. 强制撤单：无条件调用子例程持锁重查（无锁预读在 REPEATABLE READ 下可能
+        //     漏掉刚提交的挂单/已完成迁移；商品锁已在本事务手中，子例程以当前读判定）。
+        //     撤单、退款、买卖双方独立 event_id 通知与本次审核决定同事务。
+        if (itemId != null) {
+            forceCancelService.cancelActiveOrderOfItem(itemId, OrderCancelReason.ADMIN_FORCE,
+                    "您购买的商品因内容违规被平台强制撤单",
+                    "您发布的商品因内容违规被平台强制撤单");
+        }
+
+        // 5. 抢占审核记录（失败抛 CONFLICT，整个事务含撤单一并回滚）
+        int updated = violationReportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
                 .eq(ViolationReport::getId, reportId)
                 .eq(ViolationReport::getStatus, ViolationStatus.PENDING)
                 .set(ViolationReport::getStatus, ViolationStatus.CONFIRMED)
                 .set(ViolationReport::getHandlerId, adminId)
                 .set(ViolationReport::getHandleNote, trimToNull(dto.getHandleNote()))
-                .set(ViolationReport::getHandledAt, now)) == 0) {
+                .setSql("handled_at = CURRENT_TIMESTAMP(6)"));
+        if (updated == 0) {
             throw new BusinessException(ResultCode.CONFLICT, "该记录已被其他管理员处理");
         }
 
-        Item item = report.getItemId() == null ? null : itemMapper.selectById(report.getItemId());
-        if (item != null) {
-            item.setModerationStatus(ModerationStatus.REJECTED);
-            if (item.getStatus() != ItemStatus.SOLD) {
-                item.setStatus(ItemStatus.OFF_SHELF);
-            }
-            itemMapper.updateById(item);
-            tagQueryService.invalidate(item.getSchoolId());
+        // 6. 重新投影商品审核状态（REJECTED 时 ON_SALE/RESERVED 一律压到 OFF_SHELF）
+        if (itemId != null) {
+            projectionService.projectItemModerationStatus(itemId);
         }
+
+        // 7. 记录处罚（DuplicateKeyException 幂等复返，唯一约束竞争不暴露 500）
         reputationPenaltyService.recordContentWarning(
                 reportId, report.getUserId(), adminId, dto.getReason().trim());
-        log.info("管理员 {} 确认内容违规 reportId={} seller={}", adminId, reportId, report.getUserId());
+        log.info("管理员 {} 确认内容违规 reportId={} seller={}（挂单已强制撤销）",
+                adminId, reportId, report.getUserId());
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void dismissViolation(Long reportId, Long adminId) {
+        // 1. 无锁读报告取 itemId；锁定商品（聚合串行点）
         ViolationReport report = requirePending(reportId);
+        if (report.getItemId() != null) {
+            itemMapper.selectByIdForUpdate(report.getItemId());
+        }
+
+        // 2. 抢占更新报告状态
         if (violationReportMapper.update(null, new LambdaUpdateWrapper<ViolationReport>()
                 .eq(ViolationReport::getId, reportId)
                 .eq(ViolationReport::getStatus, ViolationStatus.PENDING)
                 .set(ViolationReport::getStatus, ViolationStatus.DISMISSED)
                 .set(ViolationReport::getHandlerId, adminId)
                 .set(ViolationReport::getHandleNote, "审核未发现违规，予以放行")
-                .set(ViolationReport::getHandledAt, LocalDateTime.now())) == 0) {
+                .setSql("handled_at = CURRENT_TIMESTAMP(6)")) == 0) {
             throw new BusinessException(ResultCode.CONFLICT, "该记录已被其他管理员处理");
         }
 
-        if (report.getSource() != ViolationSource.USER_REPORT && report.getItemId() != null) {
-            Item item = itemMapper.selectById(report.getItemId());
-            if (item != null && item.getStatus() != ItemStatus.SOLD) {
-                item.setModerationStatus(ModerationStatus.PASSED);
-                item.setStatus(ItemStatus.ON_SALE);
-                itemMapper.updateById(item);
-                tagQueryService.invalidate(item.getSchoolId());
-            }
+        // 3. 重新投影商品审核状态：商品 status 永不自动重新上架，恢复由卖家手动 relist
+        if (report.getItemId() != null) {
+            projectionService.projectItemModerationStatus(report.getItemId());
         }
         log.info("管理员 {} 放行内容审核 reportId={}", adminId, reportId);
     }

@@ -25,12 +25,26 @@ public enum ResultCode {
     USER_NOT_FOUND(1006, "用户不存在"),
     SAME_AS_OLD_PASSWORD(1007, "新密码不能与原密码相同"),
     USER_CANCELLED(1008, "该账户已注销"),
+    /** 用户状态冲突（如对方被封禁/注销导致交易无法进行）；结果明确，幂等键可清除 */
+    USER_STATUS_ERROR(1009, "账户状态异常，无法完成操作"),
+    /** 资料版本冲突（乐观并发）；前端应展示最新资料并要求确认 */
+    PROFILE_CONFLICT(1010, "资料已被修改，请刷新后重试"),
     BALANCE_NOT_ENOUGH(3001, "余额不足"),
     ORDER_STATUS_ERROR(3002, "订单状态异常"),
     ORDER_ALREADY_REVIEWED(3003, "该订单已评价"),
+    /** 交易准入/锁繁忙背压：结果不确定，客户端应保留幂等键退避重试 */
+    TRADE_BUSY(3004, "当前交易繁忙，请稍后重试"),
+    /** 幂等键参数冲突：同键不同参数，明确拒绝 */
+    IDEMPOTENCY_CONFLICT(3005, "重复请求的参数与原请求不一致"),
+    /** 幂等记录处理中：结果不确定，客户端应保留幂等键稍后查询 */
+    IDEMPOTENCY_PROCESSING(3006, "相同请求正在处理中，请稍后查看结果"),
+    /** 幂等键格式非法 */
+    IDEMPOTENCY_KEY_INVALID(3007, "幂等键缺失或格式非法，请刷新页面后重试"),
     ITEM_NOT_ON_SALE(2001, "商品已下架或已售出"),
     CONTENT_REVIEW_REQUIRED(2002, "内容涉嫌违规，已转入人工审核"),
-    DUPLICATE_FAVORITE(2003, "已收藏过该商品");
+    DUPLICATE_FAVORITE(2003, "已收藏过该商品"),
+    /** Feed 游标过期/签名不匹配：客户端需从首屏重新开始 */
+    FEED_CURSOR_INVALID(2004, "列表游标已过期，请重新加载");
 
     private final int code;
     private final String message;

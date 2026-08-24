@@ -31,4 +31,8 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
             ORDER BY MAX(id) DESC
             """)
     List<ConversationAggregate> aggregateConversations(@Param("userId") Long userId);
+
+    /** 全局未读数：单条 idx_chat_receiver_unread (receiver_id, is_read, id) 覆盖索引 COUNT，固定成本。 */
+    @Select("SELECT COUNT(*) FROM chat_message WHERE receiver_id = #{userId} AND is_read = 0")
+    long countUnreadByReceiver(@Param("userId") Long userId);
 }
