@@ -6,9 +6,10 @@ import {
   orderStatusBadge,
   itemStatusLabel,
   itemStatusBadge,
+  itemTypeLabel,
   violationStatusLabel,
   walletLogTypeLabel,
-  formatPrice,
+  formatPriceYuan,
   isExpense,
   buildOrderParams,
   expProgress
@@ -53,6 +54,14 @@ test('itemStatusBadge returns correct CSS classes', () => {
   assert.equal(itemStatusBadge('OFF_SHELF'), 'badge--muted')
 })
 
+test('itemTypeLabel maps all types and passes through unknown values', () => {
+  assert.equal(itemTypeLabel('SELL'), '出售')
+  assert.equal(itemTypeLabel('BUY'), '求购')
+  assert.equal(itemTypeLabel('SWAP'), '换物')
+  assert.equal(itemTypeLabel('ERRAND'), '跑腿')
+  assert.equal(itemTypeLabel('BOGUS'), 'BOGUS')
+})
+
 // ================================================================
 // 违规状态
 // ================================================================
@@ -70,7 +79,7 @@ test('violationStatusLabel maps all known statuses', () => {
 
 test('walletLogTypeLabel maps all types', () => {
   assert.equal(walletLogTypeLabel('RECHARGE'), '充值')
-  assert.equal(walletLogTypeLabel('PAYMENT'), '支付')
+  assert.equal(walletLogTypeLabel('PAYMENT'), '支出')
   assert.equal(walletLogTypeLabel('REFUND'), '退款')
   assert.equal(walletLogTypeLabel('INCOME'), '收入')
 })
@@ -79,23 +88,23 @@ test('walletLogTypeLabel maps all types', () => {
 // 金额格式化
 // ================================================================
 
-test('formatPrice handles normal values', () => {
-  assert.equal(formatPrice(99), '¥99.00')
-  assert.equal(formatPrice(0), '¥0.00')
-  assert.equal(formatPrice(99.5), '¥99.50')
-  assert.equal(formatPrice(1000), '¥1,000.00')
-  assert.equal(formatPrice(1234567.89), '¥1,234,567.89')
+test('formatPriceYuan handles normal values', () => {
+  assert.equal(formatPriceYuan(99), '¥99.00')
+  assert.equal(formatPriceYuan(0), '¥0.00')
+  assert.equal(formatPriceYuan(99.5), '¥99.50')
+  assert.equal(formatPriceYuan(1000), '¥1,000.00')
+  assert.equal(formatPriceYuan(1234567.89), '¥1,234,567.89')
 })
 
-test('formatPrice handles edge cases', () => {
-  assert.equal(formatPrice(null), '¥0.00')
-  assert.equal(formatPrice(undefined), '¥0.00')
-  assert.equal(formatPrice('abc'), '¥0.00')
-  assert.equal(formatPrice(''), '¥0.00')
+test('formatPriceYuan handles edge cases', () => {
+  assert.equal(formatPriceYuan(null), '¥0.00')
+  assert.equal(formatPriceYuan(undefined), '¥0.00')
+  assert.equal(formatPriceYuan('abc'), '¥0.00')
+  assert.equal(formatPriceYuan(''), '¥0.00')
 })
 
-test('formatPrice handles negative values', () => {
-  assert.equal(formatPrice(-50), '¥-50.00')
+test('formatPriceYuan handles negative values', () => {
+  assert.equal(formatPriceYuan(-50), '¥-50.00')
 })
 
 // ================================================================

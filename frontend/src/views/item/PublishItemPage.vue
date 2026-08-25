@@ -217,7 +217,7 @@
             </span>
             <div class="submit-actions">
               <button v-if="!editMode" class="btn" type="button" @click="saveDraft">存草稿</button>
-              <router-link v-else :to="`/item/${route.params.id}`" class="btn">取消</router-link>
+              <router-link v-else :to="ROUTE_PATH.item(route.params.id as string)" class="btn">取消</router-link>
               <button class="btn btn--primary btn--lg submit-button" type="button" :disabled="submitting || uploading || pageLoading" :aria-busy="submitting" @click="handleSubmit">
                 <svg v-if="submitting" class="icon submit-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                   <circle cx="12" cy="12" r="9" opacity=".3" />

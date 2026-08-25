@@ -5,10 +5,11 @@ import { ElMessage } from 'element-plus'
 import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking, toggleFavorite } from '@/api/item'
 import type { ItemFeedQuery } from '@/api/item'
 import type { Category, EventTopic, Item, TagCloudGroup } from '@/types/models'
-import { ITEM_TYPE_LABELS, ITEM_TYPE_OPTIONS } from '@/constants/domain'
-import type { ItemType, SelectOption } from '@/constants/domain'
+import { ITEM_TYPE_OPTIONS } from '@/constants/domain'
+import type { SelectOption } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
 import { ApiError } from '@/utils/request'
+import { itemTypeLabel } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
 import { useLatestWins } from '@/composables/useLatestWins'
@@ -373,7 +374,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     filters.keyword = tag
     filters.tags = []
     activeTags.value = []
-    router.replace({ path: '/', query: { keyword: tag } })
+    router.replace({ path: ROUTE_PATH.HOME, query: { keyword: tag } })
     handleSearch()
     scrollToHall()
   }
@@ -435,10 +436,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     }
     // 并发结束后合并一次 latest-wins 刷新榜单，不与列表请求竞争
     await fetchRanking()
-  }
-
-  function itemTypeLabel(type: string): string {
-    return ITEM_TYPE_LABELS[type as ItemType] || type
   }
 
   watch(

@@ -135,7 +135,7 @@ export const VIOLATION_STATUS_LABELS: Record<ViolationStatus, string> = Object.f
 
 export const WALLET_LOG_TYPE_LABELS: Record<WalletLogType, string> = Object.freeze({
   [WALLET_LOG_TYPE.RECHARGE]: '充值',
-  [WALLET_LOG_TYPE.PAYMENT]: '支付',
+  [WALLET_LOG_TYPE.PAYMENT]: '支出', // 钱包页展示措辞（买家视角），与 WalletPage 收敛时确定
   [WALLET_LOG_TYPE.REFUND]: '退款',
   [WALLET_LOG_TYPE.INCOME]: '收入'
 })

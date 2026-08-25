@@ -129,6 +129,7 @@ import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getWalletBalance, rechargeWallet, getWalletLogs } from '@/api/wallet'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, formatPrice } from '@/utils/format'
+import { walletLogTypeLabel } from '@/utils/trade'
 import { validateForm } from '@/utils/formValidate'
 import { ROUTE_PATH } from '@/constants/routes'
 import { getPending, getOrCreatePending, clearPending } from '@/utils/idempotency'
@@ -233,19 +234,20 @@ async function handleRecharge() {
 // ---- 流水（服务端分页状态机） ----
 const { records: logs, currentPage, pageSize, total, loading, loadError: logsError, fetchList: fetchLogs, goToFirstPage } = usePagedList(getWalletLogs)
 
-const TYPE_MAP: Record<string, { label: string; cls: string }> = {
-  RECHARGE: { label: '充值', cls: 'badge--ok' },
-  PAYMENT: { label: '支出', cls: 'badge--sell' },
-  REFUND: { label: '退款', cls: 'badge--buy' },
-  INCOME: { label: '收入', cls: 'badge--ok' }
+/** 流水类型 → 徽标类名（文案统一走 walletLogTypeLabel） */
+const TYPE_CLS: Record<string, string> = {
+  RECHARGE: 'badge--ok',
+  PAYMENT: 'badge--sell',
+  REFUND: 'badge--buy',
+  INCOME: 'badge--ok'
 }
 
 function typeLabel(type: string) {
-  return TYPE_MAP[type]?.label || type
+  return walletLogTypeLabel(type)
 }
 
 function typeClass(type: string) {
-  return TYPE_MAP[type]?.cls || 'badge--muted'
+  return TYPE_CLS[type] || 'badge--muted'
 }
 
 function isIncome(type: string) {

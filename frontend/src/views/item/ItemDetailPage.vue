@@ -12,20 +12,11 @@
       <template v-else-if="item">
         <section class="detail">
           <div class="gallery">
-            <div class="gallery__main" :class="placeholderClass(item.id)">
-              <img v-if="activeImage" :src="activeImage" :alt="item.title" />
+            <GalleryBlock :images="itemImages" :cover-image="item?.coverImage || ''" :alt="item?.title || ''" :placeholder="placeholderClass(item.id)">
               <span class="badge gallery-state" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
                 {{ itemTypeLabel(item.type) }}
               </span>
-              <button v-if="(item.images?.length || 0) > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
-              <button v-if="(item.images?.length || 0) > 1" class="gallery__nav gallery__nav--next" aria-label="下一张" @click="switchImage(1)">›</button>
-              <span v-if="item.images?.length" class="gallery__count">{{ activeImageIndex + 1 }} / {{ item.images.length }}</span>
-            </div>
-            <div v-if="(item.images?.length || 0) > 1" class="gallery__thumbs">
-              <button v-for="image in item.images" :key="image" class="th" :class="{ active: image === activeImage }" @click="activeImage = image">
-                <img :src="image" :alt="item.title" />
-              </button>
-            </div>
+            </GalleryBlock>
           </div>
 
           <div class="info-panel rise rise-1">
@@ -127,7 +118,7 @@
                 <button v-if="item.type === ITEM_TYPE.SELL" class="btn btn--primary" :disabled="!isTradable || buyLoading" @click="handleBuy">
                   {{ buyLoading ? '下单中...' : '立即购买' }}
                 </button>
-                <button class="btn btn--danger btn--icon" :disabled="reportForm.submitting" title="举报商品" aria-label="举报商品" @click="openReportDialog">
+                <button class="btn btn--danger btn--icon" title="举报商品" aria-label="举报商品" @click="openReportDialog">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2.5 4L17 12H4" /></svg>
                 </button>
               </template>
@@ -135,38 +126,7 @@
           </div>
         </section>
 
-        <section v-if="Number(item.categoryId) === 2" class="lineage-section" aria-labelledby="lineage-title">
-          <div class="lineage-section__head">
-            <span class="lineage-section__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-                <path d="M9 7h7M9 11h5" />
-              </svg>
-            </span>
-            <div>
-              <h2 id="lineage-title">教材传承时间轴</h2>
-            </div>
-          </div>
-
-          <el-skeleton v-if="lineageLoading" :rows="3" animated />
-          <ol v-else-if="lineage?.chain?.length" class="lineage-timeline">
-            <li v-for="(node, index) in lineage.chain" :key="`${node.userId}-${node.time}-${index}`">
-              <span class="lineage-timeline__dot">{{ index + 1 }}</span>
-              <div class="lineage-timeline__content">
-                <div>
-                  <strong>{{ node.nickname || '校园同学' }}</strong>
-                  <span>{{ node.role === 'PUBLISHER' ? '最初发布' : '完成接力' }}</span>
-                </div>
-                <small>
-                  {{ formatDate(node.time) }}
-                  <template v-if="node.price != null">· 成交 ¥{{ Number(node.price).toFixed(2) }}</template>
-                </small>
-              </div>
-            </li>
-          </ol>
-          <p v-else class="lineage-section__empty">这本教材刚刚开始它的校园旅程。</p>
-        </section>
+        <ProvenanceTimeline v-if="Number(item.categoryId) === 2" :chain="lineage?.chain" :loading="lineageLoading" />
       </template>
 
       <div v-else class="empty-state">
@@ -190,30 +150,13 @@
         @retry="loadSellerDetail"
       />
 
-      <el-dialog v-model="reportForm.visible" title="举报商品" width="min(520px, 92vw)" :close-on-click-modal="!reportForm.submitting">
-        <div class="report-form">
-          <label>
-            <span>举报类型</span>
-            <AppSelect v-model="reportForm.type" :options="REPORT_TYPE_OPTIONS" />
-          </label>
-          <label>
-            <span>补充说明</span>
-            <el-input v-model="reportForm.details" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="请说明具体问题；选择“其他”时必填" />
-          </label>
-        </div>
-        <template #footer>
-          <button class="btn" :disabled="reportForm.submitting" @click="reportForm.visible = false">取消</button>
-          <button class="btn btn--danger" :disabled="reportForm.submitting" @click="submitReport">
-            {{ reportForm.submitting ? '提交中...' : '提交举报' }}
-          </button>
-        </template>
-      </el-dialog>
+      <ReportDialog v-model:visible="reportVisible" :item-id="item?.id || 0" />
     </div>
   </DefaultLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
@@ -221,22 +164,24 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import SellerDetailDialog from '@/components/user/SellerDetailDialog.vue'
-import AppSelect from '@/components/common/AppSelect.vue'
-import { getItemDetail, getItemLineage, reportItem, toggleFavorite } from '@/api/item'
+import ProvenanceTimeline from './components/ProvenanceTimeline.vue'
+import ReportDialog from './components/ReportDialog.vue'
+import GalleryBlock from './components/GalleryBlock.vue'
+import { getItemDetail, getItemLineage, toggleFavorite } from '@/api/item'
 import { getSellerDetail, getUserRelation, getUserReputation } from '@/api/auth'
 import type { ItemDetail, ItemLineage } from '@/types/models'
 import { startItemConversation } from '@/api/chat'
 import { createOrder } from '@/api/order'
 import { getOrCreatePending, clearPending } from '@/utils/idempotency'
 import { ApiError } from '@/utils/request'
-import { ITEM_STATUS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
-import type { ItemStatus, ItemType } from '@/constants/domain'
+import { ITEM_STATUS, ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
+import type { ItemStatus } from '@/constants/domain'
 import { getUserId, isLoggedIn } from '@/utils/auth'
 import type { ReputationVo } from '@/utils/reputation'
 import { normalizeRelationTags } from '@/utils/relation'
-import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
+import { itemStatusBadge, itemStatusLabel, itemTypeLabel } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
-import { formatDate, formatDateTime, placeholderClass } from '@/utils/format'
+import { formatDateTime, placeholderClass } from '@/utils/format'
 
 /**
  * 卖家档案弹窗数据：打开时的兜底摘要（id/nickname/level）与 getSellerDetail
@@ -250,14 +195,6 @@ interface SellerDetail {
   [key: string]: unknown
 }
 
-const REPORT_TYPE_OPTIONS = [
-  { label: '价格欺诈', value: 'PRICE_FRAUD' },
-  { label: '违禁物品', value: 'PROHIBITED_ITEM' },
-  { label: '图片违规', value: 'IMAGE_VIOLATION' },
-  { label: '广告引流', value: 'ADVERTISING' },
-  { label: '其他问题', value: 'OTHER' }
-]
-
 const route = useRoute()
 const router = useRouter()
 const item = ref<ItemDetail | null>(null)
@@ -269,7 +206,6 @@ const chatLoading = ref(false)
 const buyLoading = ref(false)
 const favorite = ref(false)
 const favoriteCount = ref(0)
-const activeImage = ref('')
 const sellerDialogVisible = ref(false)
 const sellerDetailLoading = ref(false)
 const sellerDetailError = ref(false)
@@ -278,17 +214,15 @@ const sellerReputation = ref<ReputationVo | null>(null)
 const sellerRelations = ref<string[]>([])
 const lineage = ref<ItemLineage | null>(null)
 const lineageLoading = ref(false)
-const reportForm = reactive({ visible: false, type: 'PRICE_FRAUD', details: '', submitting: false })
+/** 举报弹窗开关：表单状态与提交逻辑由 ReportDialog 自持 */
+const reportVisible = ref(false)
 
 const isOwner = computed(() => String(item.value?.publisherId || '') === String(getUserId() || ''))
 const canCompareSeller = computed(() => !!item.value?.publisherId && !isOwner.value && isLoggedIn())
 const displayStatus = computed(() => (item.value?.moderationStatus === MODERATION_STATUS.PENDING ? ITEM_STATUS.REVIEWING : item.value?.status))
 const isTradable = computed(() => item.value?.status === ITEM_STATUS.ON_SALE && item.value?.moderationStatus === MODERATION_STATUS.PASSED && !item.value?.reserved)
-const activeImageIndex = computed(() => {
-  const images = item.value?.images || []
-  const index = images.indexOf(activeImage.value)
-  return index >= 0 ? index : 0
-})
+/** 传给 GalleryBlock 的稳定图片集引用：item 为空时回退空数组（避免内联数组每次渲染变化触发子组件重置） */
+const itemImages = computed(() => item.value?.images || [])
 
 function statusText(status: ItemStatus | string | undefined): string {
   // 模板仅在 item 已加载的分支调用；as 仅消除联合中的 undefined，运行时取值不变
@@ -297,17 +231,6 @@ function statusText(status: ItemStatus | string | undefined): string {
 
 function statusBadge(status: ItemStatus | string | undefined): string {
   return itemStatusBadge(status as string)
-}
-
-function itemTypeLabel(type: string): string {
-  return ITEM_TYPE_LABELS[type as ItemType] || type
-}
-
-function switchImage(offset: number): void {
-  const images = item.value?.images || []
-  if (!images.length) return
-  const nextIndex = (activeImageIndex.value + offset + images.length) % images.length
-  activeImage.value = images[nextIndex]
 }
 
 async function fetchDetail(): Promise<void> {
@@ -319,7 +242,6 @@ async function fetchDetail(): Promise<void> {
     const res = await getItemDetail(route.params.id as string)
     if (gen !== detailGen) return
     item.value = res.data
-    activeImage.value = item.value.coverImage || item.value.images?.[0] || ''
     favorite.value = !!item.value.favoriteByCurrentUser
     favoriteCount.value = Number(item.value.favoriteCount || 0)
     loadSellerRelation(item.value.publisherId)
@@ -387,7 +309,7 @@ async function contactSeller(): Promise<void> {
   try {
     const res = await startItemConversation(item.value.id)
     router.push({
-      path: '/chat',
+      path: ROUTE_PATH.CHAT,
       query: {
         conversationId: res.data.conversationId,
         peerId: res.data.peer?.id,
@@ -472,30 +394,11 @@ async function handleBuy(): Promise<void> {
 
 function openReportDialog(): void {
   if (!requireLogin()) return
-  reportForm.type = 'PRICE_FRAUD'
-  reportForm.details = ''
-  reportForm.visible = true
-}
-
-async function submitReport(): Promise<void> {
-  if (!item.value) return // 举报按钮仅在 item 存在分支渲染，此行只为类型收窄
-  const details = reportForm.details.trim()
-  if (reportForm.type === 'OTHER' && !details) {
-    ElMessage.warning('选择“其他问题”时请填写补充说明')
-    return
-  }
-  reportForm.submitting = true
-  try {
-    await reportItem(item.value.id, { type: reportForm.type, details: details || null })
-    reportForm.visible = false
-    ElMessage.success('举报已提交，管理员核实前不会影响商品展示')
-  } finally {
-    reportForm.submitting = false
-  }
+  reportVisible.value = true
 }
 
 function goTag(tag: string): void {
-  router.push({ path: '/', query: { keyword: tag } })
+  router.push({ path: ROUTE_PATH.HOME, query: { keyword: tag } })
 }
 
 onMounted(() => {
@@ -514,10 +417,9 @@ watch(
     if (newId === oldId || !isLoggedIn()) return
     detailGen += 1
     item.value = null
-    activeImage.value = ''
     lineage.value = null
     sellerDialogVisible.value = false
-    reportForm.visible = false
+    reportVisible.value = false
     fetchDetail()
   }
 )
@@ -566,106 +468,10 @@ watch(
   top: 84px;
 }
 
-.gallery__main {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-l);
-  box-shadow: var(--shadow-m);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-.gallery__main img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .gallery-state {
   position: absolute;
   top: 14px;
   left: 14px;
-}
-
-.gallery__nav {
-  position: absolute;
-  top: 50%;
-  translate: 0 -50%;
-  width: 40px;
-  height: 40px;
-  border: var(--bw) solid var(--line);
-  border-radius: 50%;
-  background: var(--white);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow: var(--shadow-s);
-  font-size: 26px;
-  line-height: 1;
-}
-
-.gallery__nav:hover {
-  background: var(--paper-deep);
-}
-
-.gallery__nav--prev {
-  left: 14px;
-}
-.gallery__nav--next {
-  right: 14px;
-}
-
-.gallery__count {
-  position: absolute;
-  bottom: 12px;
-  right: 14px;
-  padding: 3px 12px;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.gallery__thumbs {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-  overflow-x: auto;
-}
-
-.th {
-  width: 68px;
-  height: 68px;
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-s);
-  overflow: hidden;
-  background: var(--paper-deep);
-  cursor: pointer;
-  opacity: 0.55;
-  transition:
-    color 0.15s,
-    background-color 0.15s,
-    border-color 0.15s,
-    box-shadow 0.15s,
-    transform 0.15s;
-}
-
-.th:hover {
-  opacity: 0.85;
-}
-
-.th.active {
-  opacity: 1;
-  border-color: var(--primary);
-}
-
-.th img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .info-head {
@@ -741,18 +547,6 @@ watch(
   font-weight: 600;
 }
 
-.report-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.report-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  font-weight: 600;
-}
-
 .seller-card {
   display: flex;
   align-items: center;
@@ -820,114 +614,6 @@ watch(
 .desc-block {
   padding: 22px 24px;
   margin-bottom: 24px;
-}
-
-.lineage-section {
-  margin-top: 28px;
-  padding: 22px 24px 26px;
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-m);
-  background: var(--white);
-  box-shadow: var(--shadow-m);
-}
-
-.lineage-section__head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding-bottom: 18px;
-  border-bottom: var(--bw) solid var(--line);
-}
-
-.lineage-section__icon {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-m);
-  background: var(--paper-deep);
-  color: var(--ink-soft);
-  box-shadow: var(--shadow-s);
-}
-
-.lineage-section__icon svg {
-  width: 27px;
-  height: 27px;
-}
-.lineage-section__head h2 {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.lineage-timeline {
-  display: flex;
-  margin-top: 22px;
-  padding: 0;
-  list-style: none;
-  overflow-x: auto;
-}
-
-.lineage-timeline li {
-  position: relative;
-  min-width: 190px;
-  flex: 1 0 190px;
-  padding-right: 22px;
-}
-
-.lineage-timeline li:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 17px;
-  left: 34px;
-  right: 0;
-  border-top: var(--bw) solid var(--line);
-}
-
-.lineage-timeline__dot {
-  position: relative;
-  z-index: 1;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border: var(--bw) solid var(--line);
-  border-radius: 50%;
-  background: var(--yellow);
-  box-shadow: var(--shadow-s);
-  font-family: var(--font-display);
-}
-
-.lineage-timeline__content {
-  margin-top: 12px;
-}
-.lineage-timeline__content > div {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-.lineage-timeline__content strong {
-  font-size: 14px;
-}
-.lineage-timeline__content span {
-  padding: 2px 6px;
-  border: var(--bw) solid var(--line);
-  border-radius: 5px;
-  background: var(--paper-deep);
-  font-size: 10px;
-  font-weight: 800;
-}
-.lineage-timeline__content small {
-  display: block;
-  margin-top: 5px;
-  color: var(--ink-soft);
-  font-size: 11px;
-}
-.lineage-section__empty {
-  margin: 22px 0 2px;
-  color: var(--ink-soft);
-  font-size: 13px;
 }
 
 .desc-block h2 {

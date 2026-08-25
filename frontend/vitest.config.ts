@@ -40,6 +40,13 @@ export default mergeConfig(
             branches: 65,
             statements: 75
           },
+          // DashboardPage 拆出的热力图区块（D5）：纯展示计算，要求全行覆盖
+          'src/views/admin/components/TradeHeatmap.vue': {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100
+          },
           'src/views/wallet/OrdersBoughtPage.vue': {
             lines: 80,
             functions: 80,

@@ -158,18 +158,7 @@
         <!-- 交易热力图（D5） -->
         <div class="section">
           <h3 class="section-title">交易热力图</h3>
-          <div v-if="heatmapData.length === 0" class="card card--flat state-card">
-            <span class="muted">暂无交易地点数据</span>
-          </div>
-          <div v-else class="heatmap-grid card">
-            <div v-for="(h, i) in heatmapData" :key="i" class="heatmap-bar-row">
-              <span class="heatmap-loc">{{ h.location }}</span>
-              <div class="heatmap-bar-wrap">
-                <div class="heatmap-bar" :style="{ width: heatmapWidth(h.count) + '%' }" :class="heatColor(i)"></div>
-              </div>
-              <span class="heatmap-count">{{ h.count }} 笔</span>
-            </div>
-          </div>
+          <TradeHeatmap :entries="heatmapData" />
         </div>
 
         <!-- 最近违规 -->
@@ -204,6 +193,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
+import TradeHeatmap from './components/TradeHeatmap.vue'
 import { getDashboard, getSchools, getTradeHeatmap } from '@/api/admin'
 import type { DashboardStats, School, TradeHeatEntry } from '@/types/models'
 import { ROUTE_PATH } from '@/constants/routes'
@@ -254,7 +244,6 @@ const hoveredIndex = ref<number | null>(null)
 
 // ---- 热力图（D5） ----
 const heatmapData = ref<TradeHeatEntry[]>([])
-const heatmapMax = computed(() => Math.max(1, ...heatmapData.value.map((h) => h.count)))
 
 /**
  * 学校切换 latest-wins 守卫：fetchDashboard 入口推进代数，作废上一学校
@@ -272,15 +261,6 @@ async function fetchHeatmap() {
   } catch {
     /* ignore */
   }
-}
-
-function heatmapWidth(count: number) {
-  return Math.round((count / heatmapMax.value) * 100)
-}
-
-const HEAT_COLORS = ['heat--1', 'heat--2', 'heat--3', 'heat--4', 'heat--5']
-function heatColor(i: number) {
-  return HEAT_COLORS[i % HEAT_COLORS.length]
 }
 
 function switchSchool(schoolId: number | null) {
@@ -530,65 +510,6 @@ function violationBadge(type: string | undefined) {
 .school-chip.active {
   background: var(--ink);
   color: var(--paper);
-}
-
-/* 热力图（D5） */
-.heatmap-grid {
-  padding: 20px 24px;
-}
-.heatmap-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-.heatmap-bar-row:not(:last-child) {
-  border-bottom: var(--bw) solid var(--line);
-}
-.heatmap-loc {
-  width: 120px;
-  flex-shrink: 0;
-  font-weight: 700;
-  font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.heatmap-bar-wrap {
-  flex: 1;
-  height: 22px;
-  background: var(--paper-deep);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.heatmap-bar {
-  height: 100%;
-  border-radius: 4px;
-  min-width: 4px;
-  transition: width 0.4s ease;
-}
-.heatmap-count {
-  width: 50px;
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: var(--font-display);
-}
-.heat--1 {
-  background: var(--primary);
-}
-.heat--2 {
-  background: #e8852e;
-}
-.heat--3 {
-  background: var(--yellow);
-}
-.heat--4 {
-  background: var(--green);
-}
-.heat--5 {
-  background: var(--blue);
 }
 
 .state-card {

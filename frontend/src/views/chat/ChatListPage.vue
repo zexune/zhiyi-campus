@@ -16,33 +16,13 @@
           </div>
           <el-skeleton v-if="loading" :rows="8" animated />
           <div v-else-if="filteredConversations.length" class="conv-items">
-            <button
+            <ConversationListItem
               v-for="conversation in filteredConversations"
               :key="conversation.conversationId"
-              class="conv-item"
-              :class="{ active: selectedConversationId === conversation.conversationId }"
-              @click="selectConversation(conversation)"
-            >
-              <UserAvatar :nickname="conversation.peer?.nickname || '同学'" :user-id="conversation.peer?.id || 0" size="m" />
-              <span class="conv-item__body">
-                <span class="conv-item__top">
-                  <span class="conv-item__name">
-                    {{ conversation.peer?.nickname || '同学' }}
-                    <LevelBadge :level="conversation.peer?.level || 1" />
-                  </span>
-                  <span class="conv-item__time">{{ formatTimeShort(conversation.lastMessageTime) }}</span>
-                </span>
-                <span class="conv-item__preview">{{ conversation.lastMessage || '暂无消息' }}</span>
-                <span v-if="conversation.relatedItem" class="conv-item__goods">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                    <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
-                  </svg>
-                  {{ conversation.relatedItem.title }}
-                </span>
-              </span>
-              <span v-if="conversation.unreadCount > 0" class="conv-item__unread">{{ conversation.unreadCount }}</span>
-            </button>
+              :conversation="conversation"
+              :active="selectedConversationId === conversation.conversationId"
+              @select="selectConversation(conversation)"
+            />
           </div>
           <div v-else class="conv-empty">
             <p class="muted">还没有聊天记录</p>
@@ -61,16 +41,7 @@
             </div>
           </header>
 
-          <router-link v-if="activeRelatedItem" class="related-item" :to="`/item/${activeRelatedItem.id}`">
-            <span class="related-item__thumb" :class="placeholderClass(activeRelatedItem.id)">
-              <img v-if="activeRelatedItem.coverImage" :src="activeRelatedItem.coverImage" :alt="activeRelatedItem.title" />
-            </span>
-            <span class="related-item__info">
-              <strong>{{ activeRelatedItem.title }}</strong>
-              <PriceTag :value="activeRelatedItem.price" font-size="18px" />
-            </span>
-            <span class="btn btn--sm btn--primary">查看商品</span>
-          </router-link>
+          <RelatedItemCard v-if="activeRelatedItem" :item="activeRelatedItem" />
 
           <main ref="messagePanel" class="msg-flow">
             <el-skeleton v-if="threadLoading && !messages.length" :rows="8" animated />
@@ -132,13 +103,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search, Service } from '@element-plus/icons-vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
-import PriceTag from '@/components/common/PriceTag.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { ackChatRead, getChatMessages, getConversations, sendChatMessage, startCustomerService } from '@/api/chat'
 import type { ChatMessagesQuery } from '@/api/chat'
 import type { ChatMessage, ChatThread, Conversation } from '@/types/models'
+import ConversationListItem from './components/ConversationListItem.vue'
+import RelatedItemCard from './components/RelatedItemCard.vue'
 import { ROUTE_PATH } from '@/constants/routes'
-import { formatChatTime, formatTimeShort, placeholderClass } from '@/utils/format'
+import { formatChatTime } from '@/utils/format'
 import { useContextGuard } from '@/composables/useContextGuard'
 
 /**
@@ -309,7 +281,7 @@ async function selectConversation(conversation: ConversationLike, updateUrl = tr
   earlierLoaded = false
   hasEarlier.value = false
   lastAckedMessageId = null
-  if (updateUrl) await router.replace({ path: '/chat', query: { conversationId: conversation.conversationId, peerId: conversation.peer?.id, relatedItemId: conversation.relatedItem?.id } })
+  if (updateUrl) await router.replace({ path: ROUTE_PATH.CHAT, query: { conversationId: conversation.conversationId, peerId: conversation.peer?.id, relatedItemId: conversation.relatedItem?.id } })
   await fetchThread()
 }
 
@@ -460,90 +432,6 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
 }
-.conv-item {
-  width: 100%;
-  display: flex;
-  gap: 12px;
-  padding: 13px 20px;
-  cursor: pointer;
-  border: none;
-  border-bottom: var(--bw) solid var(--line);
-  background: transparent;
-  color: var(--ink);
-  text-align: left;
-  position: relative;
-}
-.conv-item:hover {
-  background: var(--paper-deep);
-}
-.conv-item.active {
-  background: var(--yellow);
-  box-shadow: inset 5px 0 0 var(--primary);
-}
-.conv-item__body {
-  flex: 1;
-  min-width: 0;
-  display: block;
-}
-.conv-item__top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-.conv-item__name {
-  min-width: 0;
-  font-weight: 800;
-  font-size: 14.5px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.conv-item__time {
-  flex-shrink: 0;
-  font-size: 11.5px;
-  color: var(--ink-soft);
-}
-.conv-item__preview,
-.conv-item__goods {
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.conv-item__preview {
-  font-size: 13px;
-  color: var(--ink-soft);
-  margin-top: 3px;
-}
-.conv-item__goods {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--green-deep);
-}
-.conv-item__goods svg {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 12px;
-}
-.conv-item__unread {
-  position: absolute;
-  right: 18px;
-  bottom: 14px;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  border-radius: 10px;
-  background: var(--red);
-  color: var(--white);
-  font-size: 11px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
-  border: var(--bw) solid var(--line);
-}
 .conv-empty,
 .chat-placeholder,
 .empty-chat {
@@ -598,41 +486,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-.related-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 14px 22px 0;
-  background: var(--white);
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-m);
-  padding: 10px 14px;
-  box-shadow: var(--shadow-s);
-}
-.related-item__thumb {
-  width: 46px;
-  height: 46px;
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-s);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.related-item__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.related-item__info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.related-item__info strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .msg-flow {
   flex: 1;
@@ -729,37 +582,11 @@ onUnmounted(() => {
   .conv-search {
     margin: 6px 8px 10px;
   }
-  .conv-item {
-    padding: 10px 8px;
-    gap: 7px;
-  }
-  .conv-item :deep(.avatar) {
-    display: none;
-  }
-  .conv-item__top {
-    display: block;
-  }
-  .conv-item__time,
-  .conv-item__goods,
-  .conv-item__name :deep(.badge) {
-    display: none;
-  }
-  .conv-item__unread {
-    right: 6px;
-    bottom: 6px;
-  }
   .chat-pane__head,
   .msg-flow,
   .chat-input {
     padding-left: 12px;
     padding-right: 12px;
-  }
-  .related-item {
-    margin-left: 12px;
-    margin-right: 12px;
-  }
-  .related-item .btn {
-    display: none;
   }
   .msg {
     max-width: 92%;

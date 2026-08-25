@@ -1,10 +1,8 @@
 import request from '@/utils/request'
 import type { PageResult, WalletBalance, WalletLog } from '@/types/models'
+import { IDEMPOTENCY_HEADER } from './order'
 
 /** 钱包相关接口（D 负责） */
-
-/** 资金操作幂等键请求头（与 order.ts 共用同一约定） */
-export const IDEMPOTENCY_HEADER = 'X-Idempotency-Key'
 
 export function getWalletBalance() {
   return request.get<WalletBalance>('/wallet/balance')

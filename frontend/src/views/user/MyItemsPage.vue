@@ -106,10 +106,10 @@ import { onMounted, reactive, ref } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } from '@/api/item'
-import { APPEAL_STATUS, APPEAL_STATUS_LABELS, ITEM_STATUS, ITEM_STATUS_OPTIONS, ITEM_TYPE, ITEM_TYPE_LABELS, MODERATION_STATUS } from '@/constants/domain'
-import type { AppealStatus, ItemType } from '@/constants/domain'
+import { APPEAL_STATUS, APPEAL_STATUS_LABELS, ITEM_STATUS, ITEM_STATUS_OPTIONS, ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
+import type { AppealStatus } from '@/constants/domain'
 import type { Item } from '@/types/models'
-import { itemStatusBadge, itemStatusLabel } from '@/utils/trade'
+import { itemStatusBadge, itemStatusLabel, itemTypeLabel } from '@/utils/trade'
 import { buildMyItemsParams } from './myItemsQuery'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, placeholderClass } from '@/utils/format'
@@ -151,9 +151,6 @@ function statusText(status: string) {
 }
 function statusBadge(status: string) {
   return itemStatusBadge(status)
-}
-function itemTypeLabel(type: string) {
-  return ITEM_TYPE_LABELS[type as ItemType] || type
 }
 function appealStatusText(status: string) {
   return APPEAL_STATUS_LABELS[status as AppealStatus] || status

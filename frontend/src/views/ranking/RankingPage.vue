@@ -201,7 +201,7 @@ function goDetail(id: number | string): void {
   router.push(ROUTE_PATH.item(id))
 }
 function goTag(tag: string): void {
-  router.push({ path: '/', query: { keyword: tag } })
+  router.push({ path: ROUTE_PATH.HOME, query: { keyword: tag } })
 }
 
 async function fetchRanking(): Promise<void> {

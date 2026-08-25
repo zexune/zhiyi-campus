@@ -7,11 +7,13 @@
 import {
   ITEM_STATUS_BADGES,
   ITEM_STATUS_LABELS,
+  ITEM_TYPE_LABELS,
   ORDER_STATUS_BADGES,
   ORDER_STATUS_LABELS,
   VIOLATION_STATUS_LABELS,
   WALLET_LOG_TYPE_LABELS,
   type ItemStatus,
+  type ItemType,
   type OrderStatus,
   type ViolationStatus,
   type WalletLogType
@@ -37,6 +39,11 @@ export function itemStatusBadge(status: string): string {
   return ITEM_STATUS_BADGES[status as ItemStatus] || 'badge--muted'
 }
 
+/** 商品类型 → 中文标签 */
+export function itemTypeLabel(type: string): string {
+  return ITEM_TYPE_LABELS[type as ItemType] || type
+}
+
 /** 违规状态 → 中文标签 */
 export function violationStatusLabel(status: string): string {
   return VIOLATION_STATUS_LABELS[status as ViolationStatus] || status || '未知'
@@ -47,8 +54,8 @@ export function walletLogTypeLabel(type: string): string {
   return WALLET_LOG_TYPE_LABELS[type as WalletLogType] || type || '未知'
 }
 
-/** 金额格式化（¥ + 两位小数 + 千分位）；注意与 utils/format.ts 的同名纯小数版本语义不同 */
-export function formatPrice(value: unknown): string {
+/** 金额格式化（¥ + 两位小数 + 千分位）；注意与 utils/format.ts 的 formatPrice（纯小数版）语义不同 */
+export function formatPriceYuan(value: unknown): string {
   if (value === null || value === undefined) return '¥0.00'
   const num = Number(value)
   if (Number.isNaN(num)) return '¥0.00'
