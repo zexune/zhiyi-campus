@@ -9,7 +9,7 @@
 | 后端单元测试 | JUnit 5、Mockito；`mvn test` | 用户、交易、内容治理、后台治理、查询组装、边界与异常 | 否 |
 | HTTP 契约测试 | Spring MVC Test、MockMvc；`mvn test` | 参数校验、统一响应结构、金额/状态序列化、业务异常、用户端与管理端登录契约 | 否 |
 | 持久化与事务集成测试 | Spring Boot Test、Testcontainers、MySQL 9.7 LTS；`mvn verify -Pintegration` | 真实建表 SQL、MyBatis 映射、唯一约束、钱包/订单/商品状态机/流水原子性、事务回滚、CyclicBarrier 并发竞态验收 | Docker |
-| 前端工具与组件测试 | Vitest、Vue Test Utils、happy-dom；`npm test` | 领域映射、评价弹窗、钱包、买入订单、后台数据大盘、违规治理工作台（含分页竞态回归）、后台用户管理及失败/空态 | 否 |
+| 前端工具与组件测试 | Vitest、Vue Test Utils、happy-dom；`npm test` | 领域映射、评价弹窗、钱包、买入订单、后台数据大盘、违规治理工作台（含分页竞态回归）、后台用户管理、首页交易大厅（含挂载并发回归）及失败/空态 | 否 |
 | 浏览器烟测 | Playwright Chromium；`npm run test:e2e` | 生产构建、路由守卫、钱包加载/充值/刷新、浏览器运行时错误 | 否，API 使用确定性 mock |
 | 全系统 E2E | Playwright → Vue → Spring Boot → MySQL；`npm run test:system` | 注册、发布、充值、下单、确认收货、评价、后台看板与角色隔离 | MySQL 与后端 |
 

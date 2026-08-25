@@ -176,7 +176,10 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   const allTags = ref<TagCloudGroup[]>([])
   const activeTags = ref<string[]>([])
   const showTagCloud = ref(false)
+  /** feed 专用守卫：fetchItems/loadMore 同属一条游标链，共享同一代数 */
   const guard = useLatestWins()
+  /** 榜单独立守卫：与 feed 并发挂载拉取，不得互相推进代数 */
+  const rankingGuard = useLatestWins()
   /** 当前游标链：null 表示尚未开始 / 已重置 */
   let nextCursor: string | null = null
   let priceFilterTimer: number | undefined
@@ -226,12 +229,12 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   async function fetchRanking(): Promise<void> {
     if (!loggedIn) return
-    const gen = guard.begin()
+    const gen = rankingGuard.begin()
     try {
       const response = await getItemRanking({ limit: 10 })
-      if (guard.isCurrent(gen)) ranking.value = response.data || []
+      if (rankingGuard.isCurrent(gen)) ranking.value = response.data || []
     } catch {
-      if (guard.isCurrent(gen)) ranking.value = []
+      if (rankingGuard.isCurrent(gen)) ranking.value = []
     }
   }
 
