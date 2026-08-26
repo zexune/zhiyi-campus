@@ -5,19 +5,19 @@
     </span>
     <span class="related-item__info">
       <strong>{{ item.title }}</strong>
-      <PriceTag :value="item.price" font-size="18px" />
+      <ItemPrice :type="item.type" :price="item.price" font-size="18px" />
     </span>
     <span class="btn btn--sm btn--primary">查看商品</span>
   </router-link>
 </template>
 
 <script setup lang="ts">
-import PriceTag from '@/components/common/PriceTag.vue'
+import ItemPrice from '@/components/common/ItemPrice.vue'
 import type { ChatItemSummary } from '@/types/models'
 import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
 
-/** 会话内相关商品卡片：纯展示，点击跳商品详情 */
+/** 会话内相关商品卡片：纯展示，点击跳商品详情（SWAP 显示以物换物，不出现 ¥0.00） */
 defineProps<{
   item: ChatItemSummary
 }>()

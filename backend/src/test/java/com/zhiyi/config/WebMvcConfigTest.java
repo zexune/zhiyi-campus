@@ -1,5 +1,6 @@
 package com.zhiyi.config;
 
+import com.zhiyi.common.WebResponseUtil;
 import com.zhiyi.interceptor.JwtInterceptor;
 import com.zhiyi.interceptor.RoleInterceptor;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.handler.MappedInterceptor;
 import org.springframework.web.util.ServletRequestPathUtils;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 
@@ -15,10 +17,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 class WebMvcConfigTest {
 
+    private static WebResponseUtil webResponseUtil() {
+        return new WebResponseUtil(JsonMapper.builder().build());
+    }
+
     @Test
     void jwtInterceptorStillAppliesToNonGetItemRoute() {
-        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null);
-        RoleInterceptor roleInterceptor = new RoleInterceptor();
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null, webResponseUtil());
+        RoleInterceptor roleInterceptor = new RoleInterceptor(webResponseUtil());
         WebMvcConfig config = new WebMvcConfig(
                 jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
         ExposedInterceptorRegistry registry = new ExposedInterceptorRegistry();
@@ -34,8 +40,8 @@ class WebMvcConfigTest {
 
     @Test
     void trendingTagsRouteRequiresLogin() {
-        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null);
-        RoleInterceptor roleInterceptor = new RoleInterceptor();
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null, webResponseUtil());
+        RoleInterceptor roleInterceptor = new RoleInterceptor(webResponseUtil());
         WebMvcConfig config = new WebMvcConfig(
                 jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
         ExposedInterceptorRegistry registry = new ExposedInterceptorRegistry();
@@ -50,8 +56,8 @@ class WebMvcConfigTest {
 
     @Test
     void adminLoginIsPublicButAdminPasswordChangeRequiresToken() {
-        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null);
-        RoleInterceptor roleInterceptor = new RoleInterceptor();
+        JwtInterceptor jwtInterceptor = new JwtInterceptor(null, null, null, webResponseUtil());
+        RoleInterceptor roleInterceptor = new RoleInterceptor(webResponseUtil());
         WebMvcConfig config = new WebMvcConfig(
                 jwtInterceptor, roleInterceptor, new String[]{"http://localhost:3000"});
         ExposedInterceptorRegistry registry = new ExposedInterceptorRegistry();

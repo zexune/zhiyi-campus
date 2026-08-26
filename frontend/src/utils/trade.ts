@@ -8,6 +8,7 @@ import {
   ITEM_STATUS_BADGES,
   ITEM_STATUS_LABELS,
   ITEM_TYPE_LABELS,
+  ITEM_TYPE,
   ORDER_STATUS_BADGES,
   ORDER_STATUS_LABELS,
   VIOLATION_STATUS_LABELS,
@@ -42,6 +43,18 @@ export function itemStatusBadge(status: string): string {
 /** 商品类型 → 中文标签 */
 export function itemTypeLabel(type: string): string {
   return ITEM_TYPE_LABELS[type as ItemType] || type
+}
+
+const ITEM_TYPE_BADGES: Record<ItemType, string> = Object.freeze({
+  [ITEM_TYPE.SELL]: 'badge--sell',
+  [ITEM_TYPE.BUY]: 'badge--buy',
+  [ITEM_TYPE.SWAP]: 'badge--swap',
+  [ITEM_TYPE.ERRAND]: 'badge--errand'
+})
+
+/** 商品类型 → 徽标样式类（与 itemTypeLabel 成对使用，四种类型全覆盖） */
+export function typeBadgeClass(type: string): string {
+  return ITEM_TYPE_BADGES[type as ItemType] || 'badge--muted'
 }
 
 /** 违规状态 → 中文标签 */

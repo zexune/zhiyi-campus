@@ -51,8 +51,9 @@ public class WalletService {
     @RetryOnDeadlock
     @Transactional(rollbackFor = Exception.class)
     public WalletBalanceVO recharge(Long userId, BigDecimal amount, String idempotencyKey) {
+        // Web 请求身份由 JwtInterceptor 保证：null userId 是编程错误，不是业务失败
         if (userId == null) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "用户身份校验失败");
+            throw new IllegalStateException("userId 缺失：拦截器未注入登录身份");
         }
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "充值金额必须大于 0");

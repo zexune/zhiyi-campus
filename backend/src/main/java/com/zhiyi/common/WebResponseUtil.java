@@ -1,26 +1,55 @@
 package com.zhiyi.common;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 在拦截器等无法直接返回 {@link Result} 的位置写入统一 JSON 响应。
+ * 拦截器等无法走 @RestControllerAdvice 的位置的统一失败信封写入器。
+ *
+ * 作为 Spring Bean 注入应用实际使用的 {@link JsonMapper}：拦截器直写的
+ * JSON 与 MVC（GlobalExceptionHandler → HttpMessageConverter）序列化的
+ * 信封由同一个 mapper 产生，null/枚举/字段顺序不会出现两套结果。
+ * 失败对象一律经 {@link ApiFailure#of} 工厂创建，HTTP 状态与业务码成对出现。
  */
-public final class WebResponseUtil {
+@Component
+public class WebResponseUtil {
 
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+    private final JsonMapper jsonMapper;
 
-    private WebResponseUtil() {
+    public WebResponseUtil(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
     }
 
-    public static void writeJson(HttpServletResponse response, int httpStatus, int code, String message)
+    public void writeFailure(HttpServletResponse response, ResultCode code, String message)
+            throws IOException {
+        writeFailure(response, ApiFailure.of(code, message), code.getHttpStatus().value(),
+                code.getRetryAfterSeconds());
+    }
+
+    /** 业务异常（含实例级 Retry-After/requestOutcome 覆盖与冲突详情）。 */
+    public void writeFailure(HttpServletResponse response, BusinessException exception)
+            throws IOException {
+        writeFailure(response,
+                ApiFailure.of(exception.getResultCode(), exception.getMessage(), exception.getConflictDetail(),
+                        exception.effectiveRequestOutcome()),
+                exception.getHttpStatus().value(),
+                exception.effectiveRetryAfterSeconds());
+    }
+
+    private void writeFailure(HttpServletResponse response, ApiFailure failure, int httpStatus,
+                              int retryAfterSeconds)
             throws IOException {
         response.setStatus(httpStatus);
         response.setContentType("application/json;charset=UTF-8");
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(JSON_MAPPER.writeValueAsString(Result.fail(code, message)));
+        if (retryAfterSeconds > 0) {
+            response.setHeader(HttpHeaders.RETRY_AFTER, Integer.toString(retryAfterSeconds));
+        }
+        response.getWriter().write(jsonMapper.writeValueAsString(failure));
     }
 }

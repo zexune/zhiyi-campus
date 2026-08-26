@@ -46,6 +46,16 @@ public class LoginAttemptService {
         return attemptMapper.isLocked(attemptKey);
     }
 
+    /**
+     * 锁定剩余秒数（数据库时间，向上取整），供 Retry-After 实例覆盖使用；
+     * 竞态下锁定刚好到期时返回 1（客户端 1 秒后重试即可正常通过）。
+     */
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+    public int remainingLockSeconds(String attemptKey) {
+        Integer remaining = attemptMapper.lockedRemainingSeconds(attemptKey);
+        return remaining != null && remaining > 0 ? remaining : 1;
+    }
+
     /** 记一次失败；达到阈值后按数据库时间锁定。返回是否触发锁定（供日志/指标）。 */
     @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public boolean recordFailure(String attemptKey) {

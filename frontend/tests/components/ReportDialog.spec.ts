@@ -46,7 +46,7 @@ function mountDialog(visible = true) {
 
 beforeEach(() => {
   vi.mocked(reportItem).mockReset()
-  vi.mocked(reportItem).mockResolvedValue({ code: 200, message: 'ok', data: undefined })
+  vi.mocked(reportItem).mockResolvedValue({ code: 200, message: 'ok', data: null })
   vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({}) as never)
 })

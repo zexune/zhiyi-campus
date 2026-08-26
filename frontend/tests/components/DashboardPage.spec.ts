@@ -29,6 +29,7 @@ function dashboard(overrides = {}) {
         id: 1,
         source: 'LOCAL_RULE',
         status: 'PENDING',
+        userId: 10,
         reporterName: '张同学',
         originalTitle: '待复核教材',
         violationType: '虚假信息',

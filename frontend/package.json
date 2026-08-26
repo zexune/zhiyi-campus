@@ -23,9 +23,11 @@
     "pretest:e2e": "npm run build",
     "test:e2e": "node tests/run-e2e.mjs --grep-invert @system",
     "pretest:system": "npm run build",
-    "test:system": "node tests/run-e2e.mjs --grep @system",
+    "test:system": "node tests/run-e2e.mjs --grep @system --workers 1",
     "test:all": "npm run test:coverage && npm run test:e2e",
-    "typecheck": "vue-tsc -b"
+    "typecheck": "vue-tsc -b",
+    "gen:api": "openapi-typescript ../openapi.json --output src/types/api.gen.d.ts",
+    "gen:api:dev": "node scripts/update-api-spec.mjs && openapi-typescript ../openapi.json --output src/types/api.gen.d.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.2",
@@ -50,6 +52,7 @@
     "globals": "17.11.0",
     "happy-dom": "20.11.2",
     "jiti": "2.7.0",
+    "openapi-typescript": "^7.13.0",
     "prettier": "3.9.6",
     "typescript": "5.9.3",
     "unplugin-auto-import": "21.1.0",

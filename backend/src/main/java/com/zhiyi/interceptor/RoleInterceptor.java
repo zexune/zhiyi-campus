@@ -1,5 +1,6 @@
 package com.zhiyi.interceptor;
 
+import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.WebResponseUtil;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.common.enums.UserRole;
@@ -16,6 +17,12 @@ import org.springframework.web.servlet.HandlerInterceptor;
  */
 @Component
 public class RoleInterceptor implements HandlerInterceptor {
+
+    private final WebResponseUtil webResponseUtil;
+
+    public RoleInterceptor(WebResponseUtil webResponseUtil) {
+        this.webResponseUtil = webResponseUtil;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
@@ -35,11 +42,11 @@ public class RoleInterceptor implements HandlerInterceptor {
         boolean adminApi = path.equals("/api/admin") || path.startsWith("/api/admin/");
 
         if (UserRole.ADMIN.code().equals(role) && !adminApi) {
-            WebResponseUtil.writeJson(response, 403, 403, "管理员账号仅可访问管理后台");
+            webResponseUtil.writeFailure(response, ResultCode.FORBIDDEN, "管理员账号仅可访问管理后台");
             return false;
         }
         if (adminApi && role != null && !UserRole.ADMIN.code().equals(role)) {
-            WebResponseUtil.writeJson(response, 403, 403, "普通用户无权访问管理后台");
+            webResponseUtil.writeFailure(response, ResultCode.FORBIDDEN, "普通用户无权访问管理后台");
             return false;
         }
 
@@ -52,7 +59,7 @@ public class RoleInterceptor implements HandlerInterceptor {
         }
 
         if (role == null || !required.value().code().equals(role)) {
-            WebResponseUtil.writeJson(response, 403, 403, "权限不足");
+            webResponseUtil.writeFailure(response, ResultCode.FORBIDDEN, "权限不足");
             return false;
         }
         return true;

@@ -31,6 +31,7 @@ declare module 'vue' {
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    ItemPrice: typeof import('./src/components/common/ItemPrice.vue')['default']
     LevelBadge: typeof import('./src/components/common/LevelBadge.vue')['default']
     OrderReviewDialog: typeof import('./src/components/trade/OrderReviewDialog.vue')['default']
     PriceTag: typeof import('./src/components/common/PriceTag.vue')['default']

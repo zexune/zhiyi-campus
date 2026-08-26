@@ -31,7 +31,7 @@
 
 | 层级 | 技术 |
 | --- | --- |
-| 前端 | TypeScript 5.9（strict）、Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components |
+| 前端 | TypeScript 5.9（strict）、Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components、openapi-typescript（契约类型生成） |
 | 后端 | Java 25、Spring Boot 4.1.1、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.16 |
 | 基础库 | Lombok 1.18.46、JJWT 0.13.0、Jackson 3 |
 | 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion，httpOnly Cookie 下发 + Bearer 双通道）、BCrypt、来源白名单 CORS |
@@ -45,7 +45,8 @@
 - **规范化标签**：`tag` 保存标准标签，`item_tag` 保存多对多关系；筛选使用等值索引与 `EXISTS`。校级标签聚合为主库直读，查询命中 `item` 的 `(school_id, status, moderation_status, is_deleted)` 前缀索引与 `item_tag`/`tag` 等值连接，不引入本地缓存。
 - **数据库聚合统计**：交易日趋势、成交额和地点热力由聚合 SQL 直接返回小结果集，并以半开时间区间匹配索引。
 - **浏览量写缓冲**：商品详情读取路径只做内存原子累加，零数据库写；后台任务周期性把增量批量持久化到独立统计表 `item_view_stat`，以 `view_flush` 凭据行保证批次幂等。缓冲有界，溢出或崩溃时接受损失一个刷新窗口的增量，商品业务行全程无浏览写锁。
-- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端全量 TypeScript（strict），API 契约类型手写在 `src/api/*.ts` 与 `src/types/models.ts`，状态码枚举（`as const` + 派生联合类型）集中在 `src/constants/domain.ts`；JSON 数组由 Jackson 3/MyBatis TypeHandler 统一映射为 `List<String>`。
+- **强类型领域契约**：后端状态使用带 `@EnumValue` 的领域枚举，前端全量 TypeScript（strict）；API 契约类型以 OpenAPI 规格为唯一真相源——后端启动导出 `/v3/api-docs` 快照至根目录 `openapi.json`，`npm run gen:api` 经 openapi-typescript 生成 `src/types/api.gen.d.ts`；`src/types/contracts.ts` 与 `src/types/models.ts` 是生成类型的两个受控消费入口，前者约束 operation，后者为 schema 起领域别名；状态码枚举（`as const` + 派生联合类型）集中在 `src/constants/domain.ts`；JSON 数组由 Jackson 3/MyBatis TypeHandler 统一映射为 `List<String>`。
+- **响应 VO 必须声明 nullability**：所有对外返回的 VO/实体字段一律用 `@Schema(requiredMode = REQUIRED)` 标注恒有字段，可空字段追加 `nullable = true`（序列化为显式 null 而非省略），仅"随视图条件填充"的字段不标注；漏标只会让生成类型退化为可选（安全方向），但会削弱前端契约精度。Springdoc 输出的 `$ref + nullable` 会在快照规范化阶段改写为 OpenAPI 3.1 的 `anyOf`（引用类型 + `null`），生成类型可直接保留 `| null`，无需前端 Omit+覆写。
 
 初始化脚本中的复合索引与上述查询形状是一体设计。修改查询条件、排序字段或学校隔离规则时，应同步用 `EXPLAIN ANALYZE` 复核索引命中情况，而不是盲目新增单列索引。
 
@@ -173,6 +174,8 @@ npm run lint          # ESLint（CI 同款）
 npm run lint:fix      # 自动修复可修复问题
 npm run format:check  # Prettier 检查（CI 同款）
 npm run format        # 按 Prettier 格式化
+npm run gen:api       # 从根目录 openapi.json 快照重新生成契约类型（改后端 DTO 后执行）
+npm run gen:api:dev   # 直接从本地运行中的后端 /v3/api-docs 生成并刷新快照来源
 ```
 
 前端生产构建产物位于 `frontend/dist`。
@@ -241,7 +244,7 @@ zhiyi-campus/
 - 后端 API 基础地址：`http://localhost:8080/api`
 - 前端开发环境请求前缀：`/api`
 - 除下列公开接口外，其他 `/api/**` 请求均需携带请求头 `Authorization: Bearer <JWT>`。
-- 成功与业务失败均使用统一响应结构：
+- 成功与业务失败均使用统一响应信封：
 
 ```json
 {
@@ -250,6 +253,13 @@ zhiyi-campus/
   "data": {}
 }
 ```
+
+- 错误语义采用双层契约：**HTTP 状态码负责粗分类，body 的 `code` 负责细粒度业务原因**。成功为 `HTTP 200 + code 200`；业务失败返回真实 4xx/5xx（400 参数、403 权限、404 不存在、409 状态/并发冲突、422 内容待审、429 限流与交易背压、500 系统），映射表见 `ResultCode`。凭证类失败（密码/密保错误）刻意用 400 而非 401——HTTP 401 保留给会话失效，前端收到即清除登录态并跳转登录页。
+- **认证错误唯一映射（P0-1）**：业务层的 `USER_CANCELLED(1008)` 是 403（注销账户登录/资金操作被明确拒绝，不触发前端登出）；`JwtInterceptor` 发现 Token 无效/过期、账户注销后的旧 Token 时直写通用 `401 + UNAUTHORIZED(401)`，改密/改角色后的旧 Token 直写 `401 + SESSION_INVALIDATED(1401)`——拦截器不返回业务码 1008，且任何 401 都同时清除 httpOnly 会话 Cookie。前端只以**真实 HTTP 401** 作为清理登录态的依据。
+- **失败信封元数据（P1-3）**：失败响应携带必填 `meta.requestOutcome`（`REJECTED`=明确拒绝可清幂等键 / `PROCESSING`=服务端处理中 / `UNKNOWN`=结果不明保留幂等键），前端在信封完整性校验通过后以它为权威；完整旧信封（`code/message/data` 齐备且 `meta` 自有属性完全不存在）按业务码白名单 fallback；残缺形态（缺 code/message/data、`meta` 为 null/缺字段/非法枚举、非 JSON、代理 HTML）不信任 body 的业务码与 message，按传输层错误保守处理（RETAIN）；允许退避的失败（如 429 交易繁忙）附标准 `Retry-After` 头。
+- **`@BusinessErrors` 声明纪律**：每个 Controller operation 都必须显式声明 `@BusinessErrors`（空注解=已审计且无特有业务错误）；只有 `BAD_REQUEST` 隐式允许，`FORBIDDEN`/`SERVER_ERROR`/`USER_NOT_FOUND`/`CONFLICT` 等显式业务错误必须逐 operation 声明，否则 strict 模式契约测试（`BusinessErrorContractVerifier`）直接失败。
+- **契约治理**：仓库根目录的 `openapi.json` 是从运行中后端导出的规范化快照（可空 `$ref` 统一为 anyOf、键序与 required/enum/x-business-codes 集合排序），`frontend/src/types/api.gen.d.ts` 由快照生成、禁止手改；CI 以固定版本 oasdiff（v1.29.1，下载进入 Runner 临时目录 + sha256 校验 + `--version` 冒烟，任一失败即任务失败）对 PR 基线做 breaking 审计（基线无快照时明确报告 `baseline unavailable`，不静默通过；bootstrap 只跳过历史快照比较，不跳过工具安装），破坏性变更必须在 `.github/openapi-breaking-approvals.txt` 登记批准，见 `.github/OPENAPI_BASELINE.md`。
+- **全局 HTTP 状态迁移与消费者登记**：业务失败从"HTTP 200 + body 业务码"迁移到"真实 4xx/5xx + 完整 `ApiFailure`"。发布顺序：先发布兼容新旧信封的前端，再发布新后端；旧信封 fallback 的兼容窗口、回滚方案与仓库外消费者确认门栏记录在 `.github/OPENAPI_BASELINE.md` 的 breaking migration 一节——无法确认消费者身份时不得上线全局状态迁移。
 
 公开接口包括：
 
@@ -294,6 +304,10 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 - OpenAPI YAML：`http://localhost:8080/v3/api-docs.yaml`
 
 Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接口前，点击页面右上角的 **Authorize**，粘贴用户端或管理端登录接口返回的 JWT（无需手动添加 `Bearer ` 前缀）。公开接口可以直接调用。
+
+前端契约类型以该规格为唯一真相源：后端 DTO/VO 变更后，启动一次后端并执行 `npm run gen:api:dev` 刷新根目录 `openapi.json` 快照与 `frontend/src/types/api.gen.d.ts`（或分别手动更新）。`api.gen.d.ts` 为机器产物禁止手改；仅 `src/types/contracts.ts` 与 `src/types/models.ts` 可直接导入它，分别负责 operation 级请求/响应约束，以及 schema 领域别名与少量客户端组装类型。
+
+快照一致性由 CI 强制审计（`api-contract-drift` 作业）：每次 push/PR 都会启动真实后端导出实时规格，与提交的 `openapi.json` 做语义级比对，再从快照重新生成类型与提交版比对——两处任一漂移即失败，并提示执行 `npm run gen:api:dev`。因此"改了后端忘记同步前端类型"无法合入。
 
 也可从以下位置交叉核对接口实现：
 

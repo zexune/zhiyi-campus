@@ -13,7 +13,7 @@
         <section class="detail">
           <div class="gallery">
             <GalleryBlock :images="itemImages" :cover-image="item?.coverImage || ''" :alt="item?.title || ''" :placeholder="placeholderClass(item.id)">
-              <span class="badge gallery-state" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
+              <span class="badge gallery-state" :class="typeBadgeClass(item.type)">
                 {{ itemTypeLabel(item.type) }}
               </span>
             </GalleryBlock>
@@ -21,7 +21,7 @@
 
           <div class="info-panel rise rise-1">
             <div class="info-head">
-              <span class="badge" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
+              <span class="badge" :class="typeBadgeClass(item.type)">
                 {{ itemTypeLabel(item.type) }}
               </span>
               <h1>{{ item.title }}</h1>
@@ -29,8 +29,7 @@
             </div>
 
             <div class="price-strip">
-              <strong v-if="item.type === ITEM_TYPE.SWAP" class="price">以物换物</strong>
-              <PriceTag v-else :value="item.price" font-size="40px" />
+              <ItemPrice :type="item.type" :price="item.price" font-size="40px" />
               <span class="escrow">{{ item.type === ITEM_TYPE.SELL ? '平台担保 · 确认收货后打款' : '双方沟通后线下完成' }}</span>
             </div>
 
@@ -161,12 +160,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
-import PriceTag from '@/components/common/PriceTag.vue'
+import ItemPrice from '@/components/common/ItemPrice.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import SellerDetailDialog from '@/components/user/SellerDetailDialog.vue'
+import GalleryBlock from './components/GalleryBlock.vue'
 import ProvenanceTimeline from './components/ProvenanceTimeline.vue'
 import ReportDialog from './components/ReportDialog.vue'
-import GalleryBlock from './components/GalleryBlock.vue'
 import { getItemDetail, getItemLineage, toggleFavorite } from '@/api/item'
 import { getSellerDetail, getUserRelation, getUserReputation } from '@/api/auth'
 import type { ItemDetail, ItemLineage } from '@/types/models'
@@ -179,7 +178,7 @@ import type { ItemStatus } from '@/constants/domain'
 import { getUserId, isLoggedIn } from '@/utils/auth'
 import type { ReputationVo } from '@/utils/reputation'
 import { normalizeRelationTags } from '@/utils/relation'
-import { itemStatusBadge, itemStatusLabel, itemTypeLabel } from '@/utils/trade'
+import { itemStatusBadge, itemStatusLabel, itemTypeLabel, typeBadgeClass } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatDateTime, placeholderClass } from '@/utils/format'
 

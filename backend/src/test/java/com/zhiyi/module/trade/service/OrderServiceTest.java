@@ -348,6 +348,7 @@ class OrderServiceTest {
             BusinessException error = assertThrows(BusinessException.class,
                     () -> orderService.createOrder(BUYER_ID, dto, KEY));
             assertEquals(ResultCode.TRADE_BUSY.getCode(), error.getCode());
+            assertEquals(ResultCode.RequestOutcome.UNKNOWN, error.effectiveRequestOutcome());
         }
 
         @Test
@@ -363,6 +364,7 @@ class OrderServiceTest {
             BusinessException error = assertThrows(BusinessException.class,
                     () -> orderService.createOrder(BUYER_ID, dto, KEY));
             assertEquals(ResultCode.TRADE_BUSY.getCode(), error.getCode());
+            assertEquals(ResultCode.RequestOutcome.UNKNOWN, error.effectiveRequestOutcome());
         }
     }
 

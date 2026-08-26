@@ -1,5 +1,6 @@
 package com.zhiyi.config;
 
+import com.zhiyi.common.ApiHeaders;
 import com.zhiyi.interceptor.JwtInterceptor;
 import com.zhiyi.interceptor.RoleInterceptor;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,36 +29,30 @@ public class WebMvcConfig implements WebMvcConfigurer {
      * CORS 跨域（前端分离部署时用）。
      * allowCredentials=true：登录凭证迁移到 httpOnly Cookie 后，跨源部署的前端必须携带 Cookie；
      * allowedOrigins 为显式白名单（非通配），与凭证模式兼容。
+     * 请求头放行资金操作的 X-Idempotency-Key；暴露 Retry-After 供浏览器 JS 读取退避建议。
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type", "Accept")
+                .allowedHeaders("Authorization", "Content-Type", "Accept", ApiHeaders.IDEMPOTENCY_KEY)
+                .exposedHeaders(ApiHeaders.RETRY_AFTER)
                 .allowCredentials(true)
                 .maxAge(3600);
     }
 
     /**
-     * JWT 拦截器 + 角色拦截器（顺序：先登录校验，后角色校验）
+     * JWT 拦截器 + 角色拦截器（顺序：先登录校验，后角色校验）。
+     * 公开路由排除清单来自 {@link PublicEndpointPolicy} 单一策略源；
+     * 动态公开路由（/api/user/{id}/card 等）由 JwtInterceptor 内按方法复核放行。
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
-                .addPathPatterns("/api/**")                       // 拦截所有 API
-                .excludePathPatterns(
-                        "/api/auth/register",                     // 注册
-                        "/api/auth/login",                        // 登录
-                        "/api/auth/logout",                       // 登出（幂等清除 Cookie，无需登录态）
-                        "/api/auth/security-question",            // 获取密保问题
-                        "/api/auth/security-questions",           // 预设密保问题列表
-                        "/api/auth/reset-password",               // 重置密码
-                        "/api/admin/auth/login",                  // 管理员独立登录
-                        "/api/admin/auth/logout",                 // 管理员登出（幂等清除 Cookie）
-                        "/api/school/list",                       // 学校列表（注册/资料页下拉）
-                        "/api/category/list"                      // 分类列表
-                ).order(0);
+                .addPathPatterns("/api/**")
+                .excludePathPatterns(PublicEndpointPolicy.staticExcludePatterns().toArray(String[]::new))
+                .order(0);
         registry.addInterceptor(roleInterceptor)
                 .addPathPatterns("/api/**")
                 .order(1);

@@ -46,7 +46,8 @@ public class TradingAdmissionGate {
         Object marker = new Object();
         if (inFlightItems.putIfAbsent(itemId, marker) != null) {
             busyRejects.incrementAndGet();
-            throw new BusinessException(ResultCode.TRADE_BUSY, "该商品交易请求处理中，请稍后重试");
+            throw new BusinessException(ResultCode.TRADE_BUSY, "该商品交易请求处理中，请稍后重试")
+                    .withRequestOutcome(ResultCode.RequestOutcome.UNKNOWN);
         }
         try {
             return withGlobalAdmission(action);
@@ -55,7 +56,12 @@ public class TradingAdmissionGate {
         }
     }
 
-    /** 全局容量准入（确认/取消等非同商品单飞路径）。 */
+    /**
+     * 全局容量准入（确认/取消等非同商品单飞路径）。
+     *
+     * 准入失败只能证明当前物理请求未执行，无法排除同一幂等键的另一请求仍在处理，
+     * 因此 outcome 必须保持 UNKNOWN，客户端不得据此清除幂等键。
+     */
     public <T> T withGlobalAdmission(Supplier<T> action) {
         boolean acquired = false;
         try {
@@ -63,11 +69,13 @@ public class TradingAdmissionGate {
                 acquired = globalSlots.tryAcquire(globalAcquireTimeoutMillis, TimeUnit.MILLISECONDS);
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
-                throw new BusinessException(ResultCode.TRADE_BUSY);
+                throw new BusinessException(ResultCode.TRADE_BUSY)
+                        .withRequestOutcome(ResultCode.RequestOutcome.UNKNOWN);
             }
             if (!acquired) {
                 busyRejects.incrementAndGet();
-                throw new BusinessException(ResultCode.TRADE_BUSY);
+                throw new BusinessException(ResultCode.TRADE_BUSY)
+                        .withRequestOutcome(ResultCode.RequestOutcome.UNKNOWN);
             }
             return action.get();
         } finally {

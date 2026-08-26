@@ -21,7 +21,19 @@ function mountDialog(props = {}) {
   return mount(OrderReviewDialog, {
     props: {
       visible: true,
-      order: { id: 42, itemId: 17, itemTitle: '九成新教材', peerNickname: '张同学', price: 19.9, status: 'COMPLETED', createdAt: '2026-08-13T10:00:00' },
+      order: {
+        id: 42,
+        itemId: 17,
+        buyerId: 1,
+        sellerId: 2,
+        itemTitle: '九成新教材',
+        itemCover: null,
+        peerNickname: '张同学',
+        price: 19.9,
+        status: 'COMPLETED',
+        reviewed: false,
+        createdAt: '2026-08-13T10:00:00'
+      },
       submitting: false,
       ...props
     },

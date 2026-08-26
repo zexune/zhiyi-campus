@@ -48,7 +48,9 @@ import java.util.Objects;
  * - 买家取消：订单 WAITING_MEET → CANCELLED(USER_CANCEL)；商品按规则回 ON_SALE 或 OFF_SHELF
  * - 资金不变量：PAYMENT/INCOME/REFUND 各恰好一条，由 uk_wallet_order_type 数据库兜底。
  *
- * 背压：用户行与下单商品行使用 NOWAIT 锁定，锁繁忙映射为 TRADE_BUSY（幂等 RETAIN）；
+ * 背压：用户行与下单商品行使用 NOWAIT 锁定，锁繁忙映射为 TRADE_BUSY；
+ * 当前事务虽会回滚，但不能排除同一幂等键的另一请求仍在执行，因此异常实例将
+ * requestOutcome 保守标记为 UNKNOWN；
  * 事务外准入闸门由 TradingEntryService 承担；@RetryOnDeadlock 只重试真正的死锁/锁超时，
  * 且重试切面在事务切面之外，每次重试都是全新事务。
  */
@@ -364,7 +366,8 @@ public class OrderService {
             return sysUserMapper.selectByIdForUpdateNowait(userId);
         } catch (DataAccessException failure) {
             if (LockFailureDetector.isNowaitConflict(failure)) {
-                throw new BusinessException(ResultCode.TRADE_BUSY);
+                throw new BusinessException(ResultCode.TRADE_BUSY)
+                        .withRequestOutcome(ResultCode.RequestOutcome.UNKNOWN);
             }
             throw failure;
         }
@@ -375,7 +378,8 @@ public class OrderService {
             return itemMapper.selectByIdForUpdateNowait(itemId);
         } catch (DataAccessException failure) {
             if (LockFailureDetector.isNowaitConflict(failure)) {
-                throw new BusinessException(ResultCode.TRADE_BUSY);
+                throw new BusinessException(ResultCode.TRADE_BUSY)
+                        .withRequestOutcome(ResultCode.RequestOutcome.UNKNOWN);
             }
             throw failure;
         }
@@ -387,7 +391,8 @@ public class OrderService {
 
     // @RetryOnDeadlock 重试耗尽后不在此处挂 @Recover（spring-retry 的 recover
     // 方法匹配对多方法/代理场景存在版本怪癖）；耗尽的 ConcurrencyFailureException
-    // 由编排层 TradingEntryService 统一转 TRADE_BUSY（幂等 RETAIN）。
+    // 由编排层 TradingEntryService 统一转 TRADE_BUSY。当前事务虽已回滚，但仍无法
+    // 排除同一幂等键的另一请求正在等待或执行，因此结果为 UNKNOWN。
 
     /** 供编排层校验订单参与者（无锁读，仅用于权限预检）。 */
     public boolean isBuyerOf(TradeOrder order, Long userId) {

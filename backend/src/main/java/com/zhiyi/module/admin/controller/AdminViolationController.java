@@ -1,7 +1,9 @@
 package com.zhiyi.module.admin.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.PageResponse;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.dto.ConfirmViolationDTO;
 import com.zhiyi.module.admin.dto.HandleAppealDTO;
@@ -35,67 +37,75 @@ public class AdminViolationController {
      * 违规记录列表（支持按状态筛选）
      */
     @GetMapping("/violations")
-    public Result<IPage<ViolationVO>> list(
+    @BusinessErrors
+    public ApiSuccess<PageResponse<ViolationVO>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status) {
-        return Result.ok(violationService.getViolations(page, size, status));
+        return ApiSuccess.ok(PageResponse.from(violationService.getViolations(page, size, status)));
     }
 
     /**
      * 确认违规：下架商品并执行固定警告扣分。
+     * ORDER_STATUS_ERROR：强制取消在途订单时订单状态已迁移的防御分支。
      */
     @PutMapping("/violations/{id}/confirm")
-    public Result<?> confirm(
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT, ResultCode.ORDER_STATUS_ERROR})
+    public ApiSuccess<Void> confirm(
             @PathVariable Long id,
             @Valid @RequestBody ConfirmViolationDTO dto,
             HttpServletRequest request) {
         Long adminId = (Long) request.getAttribute("userId");
         violationService.confirmViolation(id, dto, adminId);
-        return Result.ok("违规已确认，商品已下架并扣除合规分");
+        return ApiSuccess.ok("违规已确认，商品已下架并扣除合规分", null);
     }
 
     /**
      * 用户处罚评分统计（D4：独立信誉处罚）
      */
     @GetMapping("/penalty-stats")
-    public Result<PenaltyStatsVO> penaltyStats(@RequestParam Long userId) {
-        return Result.ok(violationService.getPenaltyStats(userId));
+    @BusinessErrors(ResultCode.NOT_FOUND)
+    public ApiSuccess<PenaltyStatsVO> penaltyStats(@RequestParam Long userId) {
+        return ApiSuccess.ok(violationService.getPenaltyStats(userId));
     }
 
     /**
      * 误判放行
      */
     @PutMapping("/violations/{id}/dismiss")
-    public Result<?> dismiss(
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT})
+    public ApiSuccess<Void> dismiss(
             @PathVariable Long id,
             HttpServletRequest request) {
         Long adminId = (Long) request.getAttribute("userId");
         violationService.dismissViolation(id, adminId);
-        return Result.ok("已放行，该违规记录已撤销");
+        return ApiSuccess.ok("已放行，该违规记录已撤销", null);
     }
 
     @GetMapping("/appeals")
-    public Result<IPage<AppealVO>> appeals(
+    @BusinessErrors
+    public ApiSuccess<PageResponse<AppealVO>> appeals(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status) {
-        return Result.ok(appealService.list(page, size, status));
+        return ApiSuccess.ok(PageResponse.from(appealService.list(page, size, status)));
     }
 
     @PutMapping("/appeals/{id}/approve")
-    public Result<Void> approveAppeal(@PathVariable Long id,
-                                      @Valid @RequestBody HandleAppealDTO dto,
-                                      HttpServletRequest request) {
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> approveAppeal(@PathVariable Long id,
+                                          @Valid @RequestBody HandleAppealDTO dto,
+                                          HttpServletRequest request) {
         appealService.approve(id, (Long) request.getAttribute("userId"), dto);
-        return Result.ok("申诉已通过，处罚已撤销", null);
+        return ApiSuccess.ok("申诉已通过，处罚已撤销", null);
     }
 
     @PutMapping("/appeals/{id}/reject")
-    public Result<Void> rejectAppeal(@PathVariable Long id,
-                                     @Valid @RequestBody HandleAppealDTO dto,
-                                     HttpServletRequest request) {
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> rejectAppeal(@PathVariable Long id,
+                                         @Valid @RequestBody HandleAppealDTO dto,
+                                         HttpServletRequest request) {
         appealService.reject(id, (Long) request.getAttribute("userId"), dto);
-        return Result.ok("申诉已驳回", null);
+        return ApiSuccess.ok("申诉已驳回", null);
     }
 }

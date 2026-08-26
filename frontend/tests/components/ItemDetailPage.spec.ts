@@ -82,7 +82,7 @@ function detail(overrides: Record<string, unknown> = {}) {
     type: 'SELL',
     status: 'ON_SALE',
     moderationStatus: 'PASSED',
-    price: '25.50',
+    price: 25.5,
     images: ['/img/a.jpg', '/img/b.jpg', '/img/c.jpg'],
     coverImage: '/img/a.jpg',
     categoryId: 2,
@@ -106,7 +106,7 @@ const lineage: ItemLineage = {
 beforeEach(() => {
   vi.mocked(getItemDetail).mockResolvedValue({ code: 200, message: 'ok', data: detail() } as unknown as ApiResult<ItemDetail>)
   vi.mocked(getItemLineage).mockResolvedValue({ code: 200, message: 'ok', data: lineage })
-  vi.mocked(reportItem).mockResolvedValue({ code: 200, message: 'ok', data: undefined })
+  vi.mocked(reportItem).mockResolvedValue({ code: 200, message: 'ok', data: null })
   vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({}) as never)
 })

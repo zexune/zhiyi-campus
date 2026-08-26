@@ -29,7 +29,9 @@ public class AdminAuthService {
         String canonicalUsername = StudentIdNormalizer.normalize(username);
         String loginKey = "admin:" + canonicalUsername;
         if (loginAttemptService.isLocked(loginKey)) {
-            throw new BusinessException(ResultCode.LOGIN_LOCKED);
+            throw new BusinessException(ResultCode.LOGIN_LOCKED,
+                    ResultCode.LOGIN_LOCKED.getMessage())
+                    .withRetryAfterSeconds(loginAttemptService.remainingLockSeconds(loginKey));
         }
 
         SysUser admin = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()

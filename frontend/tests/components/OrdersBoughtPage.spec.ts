@@ -45,6 +45,8 @@ function order(overrides = {}) {
   return {
     id: 71,
     itemId: 17,
+    buyerId: 1,
+    sellerId: 2,
     itemTitle: '算法教材',
     itemCover: null,
     peerNickname: '卖家同学',
@@ -59,7 +61,7 @@ function order(overrides = {}) {
 
 beforeEach(() => {
   vi.mocked(getBoughtOrders).mockResolvedValue({ code: 200, message: 'ok', data: { records: [order()], total: 1 } })
-  vi.mocked(reviewOrder).mockResolvedValue({ code: 200, message: 'ok', data: undefined })
+  vi.mocked(reviewOrder).mockResolvedValue({ code: 200, message: 'ok', data: null })
   // 组件不消费这两个响应的 data，载荷无关紧要
   vi.mocked(confirmReceipt).mockResolvedValue({ code: 200, message: 'ok', data: undefined as unknown as Order })
   vi.mocked(cancelOrder).mockResolvedValue({ code: 200, message: 'ok', data: undefined as unknown as Order })
@@ -164,7 +166,7 @@ test('已评价、已取消、有封面与空卖家昵称的订单都能渲染�
     data: {
       records: [
         order({ id: 1, status: 'COMPLETED', reviewed: true, itemCover: '/uploads/items/a.png' }),
-        order({ id: 2, status: 'CANCELLED', reviewed: null, cancelledAt: '2026-08-13T12:00:00', peerNickname: '' })
+        order({ id: 2, status: 'CANCELLED', reviewed: false, cancelledAt: '2026-08-13T12:00:00', peerNickname: '' })
       ],
       total: 2
     }
@@ -224,7 +226,7 @@ test('确认收货被明确拒绝（CLEAR）时清除未决键并刷新列表', 
   vi.mocked(getBoughtOrders).mockResolvedValue({ code: 200, message: 'ok', data: { records: [order({ status: 'WAITING_MEET', reviewed: null })], total: 1 } })
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
-  vi.mocked(confirmReceipt).mockRejectedValueOnce(new ApiError('订单状态异常', 3002, 200, 'CLEAR'))
+  vi.mocked(confirmReceipt).mockRejectedValueOnce(new ApiError('订单状态异常', 3002, 409, 'CLEAR'))
   const wrapper = mount(OrdersBoughtPage, { global })
   await flushPromises()
 
@@ -269,7 +271,7 @@ test('取消订单被明确拒绝（CLEAR）时清除未决键', async () => {
   vi.mocked(getBoughtOrders).mockResolvedValue({ code: 200, message: 'ok', data: { records: [order({ status: 'WAITING_MEET', reviewed: null })], total: 1 } })
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
-  vi.mocked(cancelOrder).mockRejectedValueOnce(new ApiError('订单状态异常', 3002, 200, 'CLEAR'))
+  vi.mocked(cancelOrder).mockRejectedValueOnce(new ApiError('订单状态异常', 3002, 409, 'CLEAR'))
   const wrapper = mount(OrdersBoughtPage, { global })
   await flushPromises()
 

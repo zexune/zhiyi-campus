@@ -1,5 +1,6 @@
-import request from '@/utils/request'
-import type { AxiosRequestConfig } from 'axios'
+import { contracts } from '@/types/contracts'
+import type { TransportOptions } from '@/types/contracts'
+import { mapRequiredData, mapVoidData } from '@/api/mappers'
 import type { ChatMessage, ChatStartResult, ChatThread, Conversation } from '@/types/models'
 
 export interface ChatMessagesQuery {
@@ -17,34 +18,35 @@ export interface SendChatPayload {
 }
 
 export function startItemConversation(itemId: number) {
-  return request.post<ChatStartResult>('/chat/start', { itemId })
+  return contracts.post('/api/chat/start', { body: { itemId } }).then((res) => mapRequiredData(res, '/api/chat/start', (wire) => wire as ChatStartResult))
 }
 
 export function startCustomerService() {
-  return request.post<ChatStartResult>('/chat/customer-service')
+  return contracts.post('/api/chat/customer-service').then((res) => mapRequiredData(res, '/api/chat/customer-service', (wire) => wire as ChatStartResult))
 }
 
 export function getConversations() {
-  return request.get<Conversation[]>('/chat/conversations')
+  return contracts.get('/api/chat/conversations').then((res) => mapRequiredData(res, '/api/chat/conversations', (wire) => wire as Conversation[]))
 }
 
-export function getChatMessages(params: ChatMessagesQuery, config?: AxiosRequestConfig) {
-  return request.get<ChatThread>('/chat/messages', { params, ...config })
+/** transport 承载超时/静默等传输层选项，不能绕过 query/header 契约 */
+export function getChatMessages(params: ChatMessagesQuery, transport?: TransportOptions) {
+  return contracts.get('/api/chat/messages', { query: params, transport }).then((res) => mapRequiredData(res, '/api/chat/messages', (wire) => wire as ChatThread))
 }
 
 export function sendChatMessage(data: SendChatPayload) {
-  return request.post<ChatMessage>('/chat/send', data)
+  return contracts.post('/api/chat/send', { body: { ...data, relatedItemId: data.relatedItemId ?? undefined } }).then((res) => mapRequiredData(res, '/api/chat/send', (wire) => wire as ChatMessage))
 }
 
 /** 显式已读确认：lastSeenMessageId 为当前视口最后一条可见的"接收"消息 ID */
 export function ackChatRead(conversationId: string, lastSeenMessageId: number) {
-  return request.post<void>('/chat/ack', null, { params: { conversationId, lastSeenMessageId } })
+  return contracts.post('/api/chat/ack', { query: { conversationId, lastSeenMessageId } }).then(mapVoidData)
 }
 
-export function getUnreadCount(config?: AxiosRequestConfig) {
-  return request.get<number>('/chat/unread-count', config)
+export function getUnreadCount(transport?: TransportOptions) {
+  return contracts.get('/api/chat/unread-count', { transport }).then((res) => mapRequiredData(res, '/api/chat/unread-count', (wire) => wire as number))
 }
 
 export function getUnreadMessages(params: { conversationId?: string }) {
-  return request.get<ChatMessage[]>('/chat/unread', { params })
+  return contracts.get('/api/chat/unread', { query: params }).then((res) => mapRequiredData(res, '/api/chat/unread', (wire) => wire as ChatMessage[]))
 }

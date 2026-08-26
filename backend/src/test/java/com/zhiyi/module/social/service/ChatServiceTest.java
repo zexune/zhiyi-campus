@@ -3,6 +3,7 @@ package com.zhiyi.module.social.service;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.ItemStatus;
+import com.zhiyi.common.enums.ItemType;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.item.entity.Item;
@@ -12,6 +13,7 @@ import com.zhiyi.module.social.dto.ChatStartDTO;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.mapper.ChatResponseSampleMapper;
+import com.zhiyi.module.social.vo.ChatItemSummaryVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.mapper.UserReputationMetricMapper;
@@ -22,11 +24,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,6 +84,31 @@ class ChatServiceTest {
 
         assertEquals("1_2", result.getConversationId());
         assertEquals(2L, result.getPeer().getId());
+        // P0-2：会话商品摘要必须携带真实类型，前端按 (type, price) 渲染而非用 null 反推
+        ChatItemSummaryVO summary = result.getRelatedItem();
+        assertEquals("SELL", summary.getType());
+        assertEquals(new BigDecimal("19.90"), summary.getPrice());
+    }
+
+    /** 交叉字段契约：SWAP => price=null；SELL/BUY/ERRAND => price!=null；无封面 => 显式 null 而非空串。 */
+    @Test
+    void relatedItemSummaryHonorsTypePriceCrossFieldContract() {
+        Item swap = item(101L, 2L, 1L);
+        swap.setType(ItemType.SWAP);
+        swap.setPrice(null);
+        swap.setImages(List.of());
+        when(itemMapper.selectById(101L)).thenReturn(swap);
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 1L, "USER"));
+
+        ChatStartDTO dto = new ChatStartDTO();
+        dto.setItemId(101L);
+
+        ChatItemSummaryVO summary = service.startItemConversation(1L, dto).getRelatedItem();
+
+        assertEquals("SWAP", summary.getType());
+        assertNull(summary.getPrice(), "SWAP 商品价格必须为 null，前端显示「以物换物」而非 ¥0.00");
+        assertNull(summary.getCoverImage(), "无封面图必须是显式 null，不允许空字符串");
     }
 
     @Test
@@ -386,6 +415,8 @@ class ChatServiceTest {
         item.setPublisherId(publisherId);
         item.setSchoolId(schoolId);
         item.setTitle("测试商品");
+        item.setType(ItemType.SELL);
+        item.setPrice(new BigDecimal("19.90"));
         item.setStatus(ItemStatus.ON_SALE);
         item.setImages(List.of());
         return item;

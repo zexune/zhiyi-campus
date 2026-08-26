@@ -122,7 +122,7 @@ test('点击搜索固化模糊筛选并回到第一页，重置后清空条件',
 test('强制重置密码经二次确认后调用接口', async () => {
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
   const success = vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
-  vi.mocked(resetUserPassword).mockResolvedValue({ code: 200, message: 'ok', data: undefined })
+  vi.mocked(resetUserPassword).mockResolvedValue({ code: 200, message: 'ok', data: null })
   const wrapper = mount(UsersPage, { global })
   await flushPromises()
 
@@ -171,7 +171,7 @@ test('已封禁用户经二次确认后解除封禁并恢复状态', async () =>
   vi.mocked(searchAdminUsers).mockResolvedValue({ code: 200, message: 'ok', data: { records: [user({ status: 'BANNED_PERM' })], total: 1 } })
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
   const success = vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
-  vi.mocked(unbanUser).mockResolvedValue({ code: 200, message: 'ok', data: undefined })
+  vi.mocked(unbanUser).mockResolvedValue({ code: 200, message: 'ok', data: null })
   const wrapper = mount(UsersPage, { global })
   await flushPromises()
 

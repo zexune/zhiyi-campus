@@ -1,7 +1,9 @@
 package com.zhiyi.module.admin.controller;
 
 import com.zhiyi.common.AuthTokenCookieWriter;
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminAuthService;
 import com.zhiyi.module.admin.vo.AdminLoginVO;
@@ -30,26 +32,30 @@ public class AdminAuthController {
     private final AuthTokenCookieWriter cookieWriter;
 
     @PostMapping("/login")
-    public Result<AdminLoginVO> login(@Valid @RequestBody AdminLoginRequest request,
+    @BusinessErrors({ResultCode.PASSWORD_ERROR, ResultCode.LOGIN_LOCKED, ResultCode.FORBIDDEN})
+    public ApiSuccess<AdminLoginVO> login(@Valid @RequestBody AdminLoginRequest request,
                                       HttpServletResponse response) {
         AdminLoginVO vo = adminAuthService.login(request.username(), request.password());
         cookieWriter.write(response, vo.token());
-        return Result.ok("登录成功", vo);
+        return ApiSuccess.ok("登录成功", vo);
     }
 
-    /** 管理员登出：清除会话 Cookie，幂等。 */
+    /** 管理员登出：清除会话 Cookie，幂等；无特有业务错误。 */
     @PostMapping("/logout")
-    public Result<Void> logout(HttpServletResponse response) {
+    @BusinessErrors
+    public ApiSuccess<Void> logout(HttpServletResponse response) {
         cookieWriter.clear(response);
-        return Result.ok("已退出登录", null);
+        return ApiSuccess.ok("已退出登录", null);
     }
 
     @PutMapping("/change-password")
     @RoleRequired
-    public Result<Void> changePassword(@RequestAttribute("userId") Long adminId,
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.PASSWORD_ERROR, ResultCode.LOGIN_LOCKED,
+            ResultCode.SAME_AS_OLD_PASSWORD})
+    public ApiSuccess<Void> changePassword(@RequestAttribute("userId") Long adminId,
                                        @Valid @RequestBody ChangePasswordDTO request) {
         accountSecurityService.changePassword(adminId, request);
-        return Result.ok("密码修改成功，请重新登录", null);
+        return ApiSuccess.ok("密码修改成功，请重新登录", null);
     }
 
     public record AdminLoginRequest(

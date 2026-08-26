@@ -15,7 +15,7 @@ const global = {
 const conversation = {
   conversationId: 'c1',
   peer: { id: 2, nickname: '卖家小明', level: 3 },
-  relatedItem: { id: 5, title: '二手教材', price: '12.00', status: 'ON_SALE' },
+  relatedItem: { id: 5, title: '二手教材', price: 12, status: 'ON_SALE' },
   lastMessage: '可以约图书馆',
   lastMessageTime: '2026-08-24T10:00:00',
   unreadCount: 3

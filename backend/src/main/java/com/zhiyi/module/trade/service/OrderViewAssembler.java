@@ -72,6 +72,8 @@ public class OrderViewAssembler {
         vo.setCreatedAt(order.getCreatedAt());
         vo.setCompletedAt(order.getCompletedAt());
         vo.setCancelledAt(order.getCancelledAt());
+        // 单订单响应（下单/确认/取消）语义上必然"尚未评价"，显式赋默认值而非留 null（P0-3）
+        vo.setReviewed(false);
         if (item != null) {
             vo.setItemTitle(item.getTitle());
             List<String> images = item.getImages();

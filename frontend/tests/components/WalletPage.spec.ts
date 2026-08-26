@@ -152,7 +152,7 @@ test('明确业务拒绝（CLEAR）清空未决键，下一次充值使用新键
 
   await wrapper.get('.balance-card__actions .btn--primary').trigger('click')
   await wrapper.get('[data-test="recharge-dialog"] input').setValue('8')
-  vi.mocked(rechargeWallet).mockRejectedValueOnce(new ApiError('参数非法', 400, 200, 'CLEAR'))
+  vi.mocked(rechargeWallet).mockRejectedValueOnce(new ApiError('参数非法', 400, 400, 'CLEAR'))
   await wrapper.get('[data-test="recharge-dialog"] .btn--primary').trigger('click')
   await flushPromises()
   const rejectedKey = vi.mocked(rechargeWallet).mock.calls[0]?.[1]

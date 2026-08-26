@@ -22,7 +22,8 @@ import java.math.BigDecimal;
  *
  * 死锁重试兜底：@RetryOnDeadlock 耗尽后不再依赖 @Recover（spring-retry 的
  * recover 方法匹配存在版本怪癖），耗尽的 ConcurrencyFailureException 在本层
- * 统一转 TRADE_BUSY（幂等 RETAIN，客户端保留原键退避重试）。
+ * 统一转 TRADE_BUSY。事务回滚只能证明当前物理请求没有提交，无法排除同一幂等键的
+ * 另一请求正在等待或执行，因此结果保守标记为 UNKNOWN。
  */
 @Slf4j
 @Service
@@ -62,7 +63,8 @@ public class TradingEntryService {
             return action.get();
         } catch (ConcurrencyFailureException exhausted) {
             log.warn("资金事务死锁重试耗尽 operation={}", operation, exhausted);
-            throw new BusinessException(ResultCode.TRADE_BUSY);
+            throw new BusinessException(ResultCode.TRADE_BUSY)
+                    .withRequestOutcome(ResultCode.RequestOutcome.UNKNOWN);
         }
     }
 }

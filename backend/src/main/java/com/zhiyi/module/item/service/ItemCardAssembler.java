@@ -12,7 +12,6 @@ import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.entity.ItemViewStat;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemViewStatMapper;
-import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.social.entity.ItemFavorite;
 import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
 import com.zhiyi.module.user.entity.SysUser;
@@ -36,7 +35,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 商品卡片批量装配器。每批数据按表执行固定次数查询，避免逐行回表。
+ * 商品卡片批量装配器（P2：产出内部 {@link ItemSnapshot}）。
+ * 每批数据按表执行固定次数查询，避免逐行回表；对外形状由快照投影为
+ * ItemSummaryResponse / ItemDetailResponse / ItemCardVO（兼容适配层）。
  *
  * RESERVED（交易中）由 item.status 派生（item_reservation 已淘汰）；
  * 浏览量来自独立的 item_view_stat 统计表。
@@ -56,7 +57,7 @@ public class ItemCardAssembler {
     @Value("${zhiyi.moderation.appeal-window-days:7}")
     private int appealWindowDays = 7;
 
-    public List<ItemCardVO> assemble(List<Item> items, Long currentUserId) {
+    public List<ItemSnapshot> assemble(List<Item> items, Long currentUserId) {
         if (items == null || items.isEmpty()) return List.of();
 
         Set<Long> categoryIds = items.stream().map(Item::getCategoryId)
@@ -79,26 +80,26 @@ public class ItemCardAssembler {
         Map<Long, ViolationAppeal> appealsByReport = appealsByReport(latestViolations.values());
         LocalDateTime now = LocalDateTime.now();
 
-        return items.stream().map(item -> toCard(item, currentUserId, viewer, now,
+        return items.stream().map(item -> toSnapshot(item, currentUserId, viewer, now,
                 categories, users, tags, favoriteCounts, viewCounts, myFavorites,
                 latestViolations, appealsByReport)).toList();
     }
 
-    private ItemCardVO toCard(Item item,
-                              Long currentUserId,
-                              SysUser viewer,
-                              LocalDateTime now,
-                              Map<Long, Category> categories,
-                              Map<Long, SysUser> users,
-                              Map<Long, List<String>> tags,
-                              Map<Long, Long> favoriteCounts,
-                              Map<Long, Long> viewCounts,
-                              Set<Long> myFavorites,
-                              Map<Long, ViolationReport> latestViolations,
-                              Map<Long, ViolationAppeal> appealsByReport) {
+    private ItemSnapshot toSnapshot(Item item,
+                                    Long currentUserId,
+                                    SysUser viewer,
+                                    LocalDateTime now,
+                                    Map<Long, Category> categories,
+                                    Map<Long, SysUser> users,
+                                    Map<Long, List<String>> tags,
+                                    Map<Long, Long> favoriteCounts,
+                                    Map<Long, Long> viewCounts,
+                                    Set<Long> myFavorites,
+                                    Map<Long, ViolationReport> latestViolations,
+                                    Map<Long, ViolationAppeal> appealsByReport) {
         Category category = categories.get(item.getCategoryId());
         SysUser publisher = users.get(item.getPublisherId());
-        ItemCardVO vo = new ItemCardVO();
+        ItemSnapshot vo = new ItemSnapshot();
         vo.setId(item.getId());
         vo.setPublisherId(item.getPublisherId());
         if (publisher != null) {
@@ -116,7 +117,8 @@ public class ItemCardAssembler {
         vo.setPrice(item.getPrice());
         List<String> images = item.getImages() == null ? List.of() : item.getImages();
         vo.setImages(images);
-        vo.setCoverImage(images.isEmpty() ? "" : images.getFirst());
+        // 无封面图统一序列化为显式 null（与 ChatItemSummaryVO/OrderVO 同一语义，不使用空字符串）
+        vo.setCoverImage(images.isEmpty() ? null : images.getFirst());
         vo.setTags(tags.getOrDefault(item.getId(), List.of()));
         vo.setTradeLocation(item.getTradeLocation());
         vo.setPickupLocation(item.getPickupLocation());

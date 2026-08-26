@@ -1,25 +1,27 @@
 package com.zhiyi.module.user.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.PageResponse;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.entity.ViolationLog;
 import com.zhiyi.module.admin.mapper.ViolationLogMapper;
 import com.zhiyi.module.user.dto.AdminUserSearchQuery;
 import com.zhiyi.module.user.dto.BanUserDTO;
+import com.zhiyi.module.user.dto.UnbanUserDTO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.BanService;
 import com.zhiyi.module.user.vo.UserVO;
+import com.zhiyi.module.user.vo.ViolationLogRowResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -30,7 +32,7 @@ import java.util.stream.Collectors;
  * GET  /api/admin/users           用户列表（学校精确 + 学号/昵称/邮箱/手机号模糊搜索）
  * POST /api/admin/ban-user        限时或永久封禁用户
  * POST /api/admin/unban-user      提前解封 / 恢复注销账户
- * GET  /api/admin/violation-logs  处罚记录（可追溯）
+ * GET  /api/admin/violation-logs  处罚记录（可追溯，命名 DTO，P0-4）
  */
 @Validated
 @RoleRequired
@@ -44,47 +46,49 @@ public class BanController {
     private final SysUserMapper userMapper;
 
     @GetMapping("/users")
-    public Result<IPage<UserVO>> searchUsers(@RequestParam(required = false) Long schoolId,
-                                             @RequestParam(required = false) String studentId,
-                                             @RequestParam(required = false) String nickname,
-                                             @RequestParam(required = false) String email,
-                                             @RequestParam(required = false) String phone,
-                                             @RequestParam(defaultValue = "1") int page,
-                                             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(banService.searchUsers(
-                new AdminUserSearchQuery(schoolId, studentId, nickname, email, phone), page, size));
+    @BusinessErrors
+    public ApiSuccess<PageResponse<UserVO>> searchUsers(@RequestParam(required = false) Long schoolId,
+                                                        @RequestParam(required = false) String studentId,
+                                                        @RequestParam(required = false) String nickname,
+                                                        @RequestParam(required = false) String email,
+                                                        @RequestParam(required = false) String phone,
+                                                        @RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "10") int size) {
+        return ApiSuccess.ok(PageResponse.from(banService.searchUsers(
+                new AdminUserSearchQuery(schoolId, studentId, nickname, email, phone), page, size)));
     }
 
+    /** ORDER_STATUS_ERROR：封禁强制取消在途订单时订单状态已迁移的防御分支。 */
     @PostMapping("/ban-user")
-    public Result<Void> banUser(@RequestAttribute("userId") Long adminId,
-                                @Valid @RequestBody BanUserDTO dto) {
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.CONFLICT,
+            ResultCode.ORDER_STATUS_ERROR})
+    public ApiSuccess<Void> banUser(@RequestAttribute("userId") Long adminId,
+                                    @Valid @RequestBody BanUserDTO dto) {
         banService.punish(dto, adminId);
-        return Result.ok("处罚已执行", null);
+        return ApiSuccess.ok("处罚已执行", null);
     }
 
     @PostMapping("/unban-user")
-    public Result<Void> unbanUser(@RequestAttribute("userId") Long adminId,
-                                  @RequestBody Map<String, Long> body) {
-        Long targetId = body.get("userId");
-        if (targetId == null) {
-            return Result.fail(400, "用户ID不能为空");
-        }
-        banService.unban(targetId, adminId);
-        return Result.ok("已解封", null);
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.CONFLICT})
+    public ApiSuccess<Void> unbanUser(@RequestAttribute("userId") Long adminId,
+                                      @Valid @RequestBody UnbanUserDTO dto) {
+        banService.unban(dto.getUserId(), adminId);
+        return ApiSuccess.ok("已解封", null);
     }
 
     @GetMapping("/violation-logs")
-    public Result<IPage<Map<String, Object>>> violationLogs(
+    @BusinessErrors
+    public ApiSuccess<PageResponse<ViolationLogRowResponse>> violationLogs(
             @RequestParam(required = false) Long userId,
-            @RequestParam(defaultValue = "1") @NotNull int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        IPage<ViolationLog> result = violationLogMapper.selectPage(
+        Page<ViolationLog> result = violationLogMapper.selectPage(
                 new Page<>(page, Math.min(size, 50)),
                 Wrappers.<ViolationLog>lambdaQuery()
                         .eq(userId != null, ViolationLog::getUserId, userId)
                         .orderByDesc(ViolationLog::getId));
 
-        // 批量补充被处罚用户的学号/昵称（单条 IN 查询，避免 N+1）
+        // 批量补充被处罚用户的学号/昵称（单条 IN 查询，避免 N+1）；用户已删除时保持 null
         Set<Long> userIds = result.getRecords().stream()
                 .map(ViolationLog::getUserId).collect(Collectors.toSet());
         Map<Long, SysUser> userMap = userIds.isEmpty() ? Map.of()
@@ -93,19 +97,18 @@ public class BanController {
                         .in(SysUser::getId, userIds))
                 .stream().collect(Collectors.toMap(SysUser::getId, u -> u));
 
-        IPage<Map<String, Object>> enriched = result.convert(logRow -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("id", logRow.getId());
-            row.put("userId", logRow.getUserId());
-            row.put("type", logRow.getType());
-            row.put("reason", logRow.getReason());
-            row.put("banDays", logRow.getBanDays());
-            row.put("createdAt", logRow.getCreatedAt());
+        return ApiSuccess.ok(PageResponse.from(result.convert(logRow -> {
+            ViolationLogRowResponse row = new ViolationLogRowResponse();
+            row.setId(logRow.getId());
+            row.setUserId(logRow.getUserId());
+            row.setType(logRow.getType() == null ? null : logRow.getType().code());
+            row.setReason(logRow.getReason());
+            row.setBanDays(logRow.getBanDays());
+            row.setCreatedAt(logRow.getCreatedAt());
             SysUser u = userMap.get(logRow.getUserId());
-            row.put("studentId", u != null ? u.getStudentId() : null);
-            row.put("nickname", u != null ? u.getNickname() : null);
+            row.setStudentId(u != null ? u.getStudentId() : null);
+            row.setNickname(u != null ? u.getNickname() : null);
             return row;
-        });
-        return Result.ok(enriched);
+        })));
     }
 }

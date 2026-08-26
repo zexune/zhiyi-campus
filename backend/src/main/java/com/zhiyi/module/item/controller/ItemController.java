@@ -1,7 +1,9 @@
 package com.zhiyi.module.item.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.PageResponse;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.module.admin.service.AdminLineageService;
 import com.zhiyi.module.admin.service.ViolationAppealService;
@@ -14,12 +16,16 @@ import com.zhiyi.module.item.service.ItemPublishService;
 import com.zhiyi.module.item.service.MarketplaceService;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.ItemDetailResponse;
+import com.zhiyi.module.item.vo.ItemSummaryResponse;
 import com.zhiyi.module.item.vo.MarketplaceFeedVO;
 import com.zhiyi.module.item.vo.TagTrendVO;
 import com.zhiyi.module.item.vo.TagGroupVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,17 +52,27 @@ public class ItemController {
     private final AdminLineageService lineageService;
     private final ViolationAppealService appealService;
 
-    @PostMapping("/upload-image")
-    public Result<UploadImageVO> uploadImage(@RequestParam("file") MultipartFile file) {
-        return Result.ok(itemPublishService.uploadImage(file));
+    /**
+     * 图片上传（multipart 契约）：显式声明 consumes 使 springdoc 生成
+     * required requestBody + multipart/form-data + file(binary)；@NotNull
+     * 同时驱动 springdoc 生成 requestBody.required=true（@RequestPart 的
+     * required 不被 springdoc 识别）。缺 file/空文件属于 400；Servlet 限额
+     * 拒绝为 413；Content-Type 不匹配为 415，均返回统一 ApiFailure。
+     */
+    @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @BusinessErrors(ResultCode.SERVER_ERROR)
+    public ApiSuccess<UploadImageVO> uploadImage(@RequestPart("file") @NotNull MultipartFile file) {
+        return ApiSuccess.ok(itemPublishService.uploadImage(file));
     }
 
     /**
-     * 标签建议：按标题与分类生成候选标签，仅供发布页选择，不落库。
+     * 标签建议：按标题与分类生成候选标签，仅供发布页选择，不落库；
+     * 分类不存在时 404。
      */
     @PostMapping("/tag-suggestions")
-    public Result<List<String>> tagSuggestions(@Valid @RequestBody TagSuggestionRequest request) {
-        return Result.ok(itemPublishService.suggestTags(request.title(), request.categoryId()));
+    @BusinessErrors(ResultCode.NOT_FOUND)
+    public ApiSuccess<List<String>> tagSuggestions(@Valid @RequestBody TagSuggestionRequest request) {
+        return ApiSuccess.ok(itemPublishService.suggestTags(request.title(), request.categoryId()));
     }
 
     /**
@@ -68,22 +85,27 @@ public class ItemController {
     }
 
     @PostMapping("/publish")
-    public Result<ItemCardVO> publish(@RequestAttribute("userId") Long userId,
-                                      @Valid @RequestBody PublishItemDTO dto) {
-        return Result.ok("发布成功", itemPublishService.publish(userId, dto));
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND, ResultCode.CONFLICT,
+            ResultCode.FORBIDDEN})
+    public ApiSuccess<ItemCardVO> publish(@RequestAttribute("userId") Long userId,
+                                          @Valid @RequestBody PublishItemDTO dto) {
+        return ApiSuccess.ok("发布成功", itemPublishService.publish(userId, dto));
     }
 
     @GetMapping("/my-items/{id}")
-    public Result<ItemCardVO> ownItem(@RequestAttribute("userId") Long userId,
-                                      @PathVariable Long id) {
-        return Result.ok(marketplaceService.getOwnItem(userId, id));
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<ItemDetailResponse> ownItem(@RequestAttribute("userId") Long userId,
+                                                  @PathVariable Long id) {
+        return ApiSuccess.ok(marketplaceService.getOwnItem(userId, id));
     }
 
     @PutMapping("/{id}")
-    public Result<ItemCardVO> update(@RequestAttribute("userId") Long userId,
-                                     @PathVariable Long id,
-                                     @Valid @RequestBody PublishItemDTO dto) {
-        return Result.ok("修改成功", itemPublishService.update(userId, id, dto));
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND, ResultCode.CONFLICT,
+            ResultCode.FORBIDDEN})
+    public ApiSuccess<ItemCardVO> update(@RequestAttribute("userId") Long userId,
+                                         @PathVariable Long id,
+                                         @Valid @RequestBody PublishItemDTO dto) {
+        return ApiSuccess.ok("修改成功", itemPublishService.update(userId, id, dto));
     }
 
     /**
@@ -91,133 +113,155 @@ public class ItemController {
      * total 为首屏估算值（estimatedTotal），不承诺跨页精确。
      */
     @GetMapping("/list")
-    public Result<MarketplaceFeedVO> list(@RequestParam(required = false) String keyword,
-                                          @RequestParam(required = false) Long categoryId,
-                                          @RequestParam(required = false) BigDecimal minPrice,
-                                          @RequestParam(required = false) BigDecimal maxPrice,
-                                          @RequestParam(required = false) String type,
-                                          @RequestParam(required = false) List<String> tag,
-                                          @RequestParam(defaultValue = "random") String sort,
-                                          @RequestParam(required = false) String cursor,
-                                          @RequestParam(defaultValue = "12") int size,
-                                          @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.listFeed(
+    @BusinessErrors({ResultCode.FEED_CURSOR_INVALID, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<MarketplaceFeedVO> list(@RequestParam(required = false) String keyword,
+                                              @RequestParam(required = false) Long categoryId,
+                                              @RequestParam(required = false) BigDecimal minPrice,
+                                              @RequestParam(required = false) BigDecimal maxPrice,
+                                              @RequestParam(required = false) String type,
+                                              @RequestParam(required = false) List<String> tag,
+                                              @RequestParam(defaultValue = "random") String sort,
+                                              @RequestParam(required = false) String cursor,
+                                              @RequestParam(defaultValue = "12") int size,
+                                              @RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.listFeed(
                 keyword, categoryId, minPrice, maxPrice, sort, type, tag, cursor, size, userId));
     }
 
     @GetMapping("/search")
-    public Result<MarketplaceFeedVO> search(@RequestParam(required = false) String keyword,
-                                            @RequestParam(required = false) Long categoryId,
-                                            @RequestParam(required = false) BigDecimal minPrice,
-                                            @RequestParam(required = false) BigDecimal maxPrice,
-                                            @RequestParam(required = false) String type,
-                                            @RequestParam(required = false) List<String> tag,
-                                            @RequestParam(defaultValue = "latest") String sort,
-                                            @RequestParam(required = false) String cursor,
-                                            @RequestParam(defaultValue = "12") int size,
-                                            @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.listFeed(
+    @BusinessErrors({ResultCode.FEED_CURSOR_INVALID, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<MarketplaceFeedVO> search(@RequestParam(required = false) String keyword,
+                                                @RequestParam(required = false) Long categoryId,
+                                                @RequestParam(required = false) BigDecimal minPrice,
+                                                @RequestParam(required = false) BigDecimal maxPrice,
+                                                @RequestParam(required = false) String type,
+                                                @RequestParam(required = false) List<String> tag,
+                                                @RequestParam(defaultValue = "latest") String sort,
+                                                @RequestParam(required = false) String cursor,
+                                                @RequestParam(defaultValue = "12") int size,
+                                                @RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.listFeed(
                 keyword, categoryId, minPrice, maxPrice, sort, type, tag, cursor, size, userId));
     }
 
     @GetMapping("/tags")
-    public Result<List<TagGroupVO>> allTags(@RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.getAllTags(userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<List<TagGroupVO>> allTags(@RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.getAllTags(userId));
     }
 
     @GetMapping("/ranking")
-    public Result<List<ItemCardVO>> ranking(@RequestParam(defaultValue = "10") int limit,
-                                            @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.ranking(limit, userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<List<ItemSummaryResponse>> ranking(@RequestParam(defaultValue = "10") int limit,
+                                                @RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.ranking(limit, userId));
     }
 
     @GetMapping("/swap-matches")
-    public Result<List<ItemCardVO>> swapMatches(@RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.listSwapMatches(userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<List<ItemSummaryResponse>> swapMatches(@RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.listSwapMatches(userId));
     }
 
     @GetMapping("/errands")
-    public Result<List<ItemCardVO>> errands(@RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.listErrands(userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<List<ItemSummaryResponse>> errands(@RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.listErrands(userId));
     }
 
     @GetMapping("/ranking/tags")
-    public Result<List<TagTrendVO>> trendingTags(@RequestParam(defaultValue = "10") int limit,
-                                                 @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.trendingTags(limit, userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<List<TagTrendVO>> trendingTags(@RequestParam(defaultValue = "10") int limit,
+                                                     @RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.trendingTags(limit, userId));
     }
 
+    /** 跨校浏览同校隔离：非同校用户访问详情返回 403（SchoolScopeGuard）。 */
     @GetMapping("/{id}")
-    public Result<ItemCardVO> detail(@PathVariable Long id,
-                                     @RequestAttribute("userId") Long userId) {
-        return Result.ok(marketplaceService.getDetail(id, userId));
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<ItemDetailResponse> detail(@PathVariable Long id,
+                                                 @RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(marketplaceService.getDetail(id, userId));
     }
 
     @GetMapping("/{id}/lineage")
-    public Result<ItemLineageVO> lineage(@PathVariable Long id,
-                                         @RequestAttribute("userId") Long userId) {
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<ItemLineageVO> lineage(@PathVariable Long id,
+                                             @RequestAttribute("userId") Long userId) {
         marketplaceService.requireVisibleItem(userId, id);
-        return Result.ok(lineageService.getLineage(id));
+        return ApiSuccess.ok(lineageService.getLineage(id));
     }
 
     @PostMapping("/{id}/favorite")
-    public Result<FavoriteToggleVO> favorite(@RequestAttribute("userId") Long userId,
-                                             @PathVariable Long id) {
-        return Result.ok(marketplaceService.toggleFavorite(userId, id));
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND,
+            ResultCode.ITEM_NOT_ON_SALE, ResultCode.FORBIDDEN})
+    public ApiSuccess<FavoriteToggleVO> favorite(@RequestAttribute("userId") Long userId,
+                                                 @PathVariable Long id) {
+        return ApiSuccess.ok(marketplaceService.toggleFavorite(userId, id));
     }
 
     @GetMapping("/my-favorites")
-    public Result<IPage<ItemCardVO>> myFavorites(@RequestAttribute("userId") Long userId,
-                                                 @RequestParam(defaultValue = "1") int page,
-                                                 @RequestParam(defaultValue = "12") int size) {
-        return Result.ok(marketplaceService.listMyFavorites(userId, page, size));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<PageResponse<ItemCardVO>> myFavorites(@RequestAttribute("userId") Long userId,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "12") int size) {
+        return ApiSuccess.ok(PageResponse.from(marketplaceService.listMyFavorites(userId, page, size)));
     }
 
     @GetMapping("/my-items")
-    public Result<IPage<ItemCardVO>> myItems(@RequestAttribute("userId") Long userId,
-                                             @RequestParam(required = false) String status,
-                                             @RequestParam(defaultValue = "1") int page,
-                                             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(marketplaceService.listMyItems(userId, status, page, size));
+    @BusinessErrors
+    public ApiSuccess<PageResponse<ItemDetailResponse>> myItems(@RequestAttribute("userId") Long userId,
+                                                                @RequestParam(required = false) String status,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "10") int size) {
+        return ApiSuccess.ok(PageResponse.from(marketplaceService.listMyItems(userId, status, page, size)));
     }
 
     @PutMapping("/{id}/off-shelf")
-    public Result<Void> offShelf(@RequestAttribute("userId") Long userId,
-                                 @PathVariable Long id) {
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> offShelf(@RequestAttribute("userId") Long userId,
+                                     @PathVariable Long id) {
         marketplaceService.offShelf(userId, id);
-        return Result.ok("已下架", null);
+        return ApiSuccess.ok("已下架", null);
     }
 
     @PutMapping("/{id}/relist")
-    public Result<ItemCardVO> relist(@RequestAttribute("userId") Long userId,
-                                     @PathVariable Long id) {
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND, ResultCode.CONFLICT,
+            ResultCode.FORBIDDEN})
+    public ApiSuccess<ItemCardVO> relist(@RequestAttribute("userId") Long userId,
+                                         @PathVariable Long id) {
         ItemCardVO item = itemPublishService.relist(userId, id);
         String message = ModerationStatus.PENDING.code().equals(item.getModerationStatus())
                 ? "检测到风险内容，已提交管理员审核"
                 : "已重新上架";
-        return Result.ok(message, item);
+        return ApiSuccess.ok(message, item);
     }
 
+    /** 举报：商品不可见（403）与重复举报（409）都是显式契约。 */
     @PostMapping("/{id}/reports")
-    public Result<Void> report(@RequestAttribute("userId") Long userId,
-                               @PathVariable Long id,
-                               @Valid @RequestBody ReportItemDTO dto) {
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.NOT_FOUND,
+            ResultCode.FORBIDDEN, ResultCode.CONFLICT})
+    public ApiSuccess<Void> report(@RequestAttribute("userId") Long userId,
+                                   @PathVariable Long id,
+                                   @Valid @RequestBody ReportItemDTO dto) {
         itemPublishService.report(userId, id, dto);
-        return Result.ok("举报已提交，管理员会尽快处理", null);
+        return ApiSuccess.ok("举报已提交，管理员会尽快处理", null);
     }
 
     @PostMapping("/{id}/appeals")
-    public Result<AppealVO> appeal(@RequestAttribute("userId") Long userId,
-                                   @PathVariable Long id,
-                                   @Valid @RequestBody SubmitAppealDTO dto) {
-        return Result.ok("申诉已提交", appealService.submitLatestForItem(userId, id, dto));
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT})
+    public ApiSuccess<AppealVO> appeal(@RequestAttribute("userId") Long userId,
+                                       @PathVariable Long id,
+                                       @Valid @RequestBody SubmitAppealDTO dto) {
+        return ApiSuccess.ok("申诉已提交", appealService.submitLatestForItem(userId, id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@RequestAttribute("userId") Long userId,
-                               @PathVariable Long id) {
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> delete(@RequestAttribute("userId") Long userId,
+                                   @PathVariable Long id) {
         marketplaceService.deleteOwnItem(userId, id);
-        return Result.ok("已删除", null);
+        return ApiSuccess.ok("已删除", null);
     }
 
 }

@@ -6,7 +6,7 @@ import HomePage from '@/views/home/HomePage.vue'
 import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking } from '@/api/item'
 import type { ItemFeedResult } from '@/api/item'
 import type { ApiResult } from '@/utils/request'
-import type { Item } from '@/types/models'
+import type { Item, ItemSummary } from '@/types/models'
 
 vi.mock('@/api/item', () => ({
   getCategories: vi.fn(),
@@ -48,15 +48,16 @@ function feedItem(overrides = {}) {
     title: '智能推荐对照商品',
     type: 'SELL',
     status: 'ON_SALE',
-    price: '9.90',
+    price: 9.9,
+    coverImage: null,
     tags: [],
     viewCount: 0,
     favoriteCount: 0,
     ...overrides
-  } as Item
+  } as ItemSummary
 }
 
-function feedPage(records: Item[]): FeedResult {
+function feedPage(records: ItemSummary[]): FeedResult {
   return { code: 200, message: 'ok', data: { records, nextCursor: null, hasMore: false, estimatedTotal: records.length } }
 }
 

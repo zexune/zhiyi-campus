@@ -1,6 +1,7 @@
-import request from '@/utils/request'
-import type { ApiResult } from '@/utils/request'
-import type { Category, EventTopic, FavoriteToggleResult, Item, ItemDetail, ItemLineage, ModerationResult, PageResult, PublishItemPayload, TagCloudGroup, TagCount } from '@/types/models'
+import { contracts } from '@/types/contracts'
+import type { ApiResult, QueryOf, Schemas } from '@/types/contracts'
+import { mapNullableData, mapPageData, mapRequiredData, mapVoidData, ProtocolViolationError } from '@/api/mappers'
+import type { Category, EventTopic, FavoriteToggleResult, Item, ItemDetail, ItemLineage, ItemSummary, PublishItemPayload, TagCloudGroup, TagCount } from '@/types/models'
 import type { PageQuery } from '@/types/models'
 
 /** 商品相关接口（B/C 负责后端；A 的「我的发布/我的收藏」页面按附录B契约调用） */
@@ -42,111 +43,176 @@ export interface ItemFeedQuery {
  * 不承诺跨页精确；hasMore + nextCursor 驱动"加载更多"。
  */
 export interface ItemFeedResult {
-  records: Item[]
+  records: ItemSummary[]
   nextCursor: string | null
   hasMore: boolean
   estimatedTotal: number
 }
 
+type FeedQuery = QueryOf<'/api/item/list', 'get'>
+
+/** 页面输入（路由参数/表单值可能是字符串）→ 生成契约的 path id（number） */
+function toPathId(id: number | string): number {
+  return typeof id === 'number' ? id : Number(id)
+}
+
+function toOptionalNumber(value: number | string | null | undefined): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+/** 页面输入（表单值可能是字符串/空串）→ 生成契约的 query 形状 */
+function toFeedQuery(params: ItemFeedQuery): FeedQuery {
+  return {
+    keyword: params.keyword || undefined,
+    categoryId: toOptionalNumber(params.categoryId),
+    minPrice: toOptionalNumber(params.minPrice),
+    maxPrice: toOptionalNumber(params.maxPrice),
+    type: params.type || undefined,
+    tag: params.tag === undefined ? undefined : Array.isArray(params.tag) ? params.tag : [params.tag],
+    sort: params.sort || undefined,
+    cursor: params.cursor || undefined,
+    size: params.size
+  }
+}
+
+/** 发布/编辑载荷：SWAP 的 price 为 null，契约侧归一为字段缺省 */
+function toPublishBody(data: PublishItemPayload) {
+  return { ...data, price: data.price ?? undefined }
+}
+
+function toReportBody(data: ReportPayload) {
+  return { type: data.type, details: data.details ?? undefined }
+}
+
 export function getItemList(params: ItemFeedQuery): Promise<ApiResult<ItemFeedResult>> {
-  return request.get<ItemFeedResult>('/item/list', { params })
+  return contracts.get('/api/item/list', { query: toFeedQuery(params) }).then((res) => mapRequiredData(res, '/api/item/list', (wire) => toFeedResult(wire, '/api/item/list')))
 }
 
 export function searchItems(params: ItemFeedQuery): Promise<ApiResult<ItemFeedResult>> {
-  return request.get<ItemFeedResult>('/item/search', { params })
+  return contracts.get('/api/item/search', { query: toFeedQuery(params) }).then((res) => mapRequiredData(res, '/api/item/search', (wire) => toFeedResult(wire, '/api/item/search')))
 }
 
 export function getItemDetail(id: number | string) {
-  return request.get<ItemDetail>(`/item/${id}`)
+  return contracts.get('/api/item/{id}', { path: { id: toPathId(id) } }).then((res) => mapRequiredData(res, '/api/item/{id}', (wire) => wire as ItemDetail))
 }
 
 export function getItemLineage(id: number | string) {
-  return request.get<ItemLineage>(`/item/${id}/lineage`)
+  return contracts.get('/api/item/{id}/lineage', { path: { id: toPathId(id) } }).then((res) => mapRequiredData(res, '/api/item/{id}/lineage', (wire) => wire as ItemLineage))
 }
 
 export function getCategories() {
-  return request.get<Category[]>('/category/list')
+  return contracts.get('/api/category/list').then((res) => mapRequiredData(res, '/api/category/list', (wire) => wire as Category[]))
 }
 
 /** 标签建议：按标题与分类生成候选，仅供选择，不落库 */
 export function getItemTagSuggestions(title: string, categoryId?: number | string | null) {
-  return request.post<string[]>('/item/tag-suggestions', {
-    title,
-    categoryId: categoryId === '' ? null : (categoryId ?? null)
-  })
+  return contracts
+    .post('/api/item/tag-suggestions', {
+      body: { title, categoryId: toOptionalNumber(categoryId) }
+    })
+    .then((res) => mapRequiredData(res, '/api/item/tag-suggestions', (wire) => wire as string[]))
 }
 
 export function getItemRanking(params: { limit: number }) {
-  return request.get<Item[]>('/item/ranking', { params })
+  return contracts.get('/api/item/ranking', { query: params }).then((res) => mapRequiredData(res, '/api/item/ranking', (wire) => wire as ItemSummary[]))
 }
 
 export function getTrendingTags(params: { limit: number }) {
-  return request.get<TagCount[]>('/item/ranking/tags', { params })
+  return contracts.get('/api/item/ranking/tags', { query: params }).then((res) => mapRequiredData(res, '/api/item/ranking/tags', (wire) => wire as TagCount[]))
 }
 
 export function getSwapMatches() {
-  return request.get<Item[]>('/item/swap-matches')
+  return contracts.get('/api/item/swap-matches').then((res) => mapRequiredData(res, '/api/item/swap-matches', (wire) => wire as ItemSummary[]))
 }
 
 export function getErrands() {
-  return request.get<Item[]>('/item/errands')
+  return contracts.get('/api/item/errands').then((res) => mapRequiredData(res, '/api/item/errands', (wire) => wire as ItemSummary[]))
 }
 
-export function getActiveTopic() {
-  return request.get<EventTopic>('/item/active-topic')
+/** 当前活动专题；"没有活动专题"是正常结果（data 为真实 null） */
+export function getActiveTopic(): Promise<ApiResult<EventTopic | null>> {
+  return contracts.get('/api/item/active-topic').then((res) => mapNullableData(res, (wire) => wire as EventTopic))
 }
 
 /** 获取本地生成标签及出现次数（按商品大类分组，供精细筛选标签云） */
 export function getAllTags() {
-  return request.get<TagCloudGroup[]>('/item/tags')
+  return contracts.get('/api/item/tags').then((res) => mapRequiredData(res, '/api/item/tags', (wire) => wire as TagCloudGroup[]))
 }
 
+/** 图片上传：受控 postFile（multipart 契约由生成类型约束，binary 字段即 File） */
 export function uploadItemImage(file: File) {
-  const formData = new FormData()
-  formData.append('file', file)
-  return request.post<{ url: string }>('/item/upload-image', formData)
+  return contracts.postFile('/api/item/upload-image', file).then((res) => mapRequiredData(res, '/api/item/upload-image', (wire) => wire as { url: string }))
 }
 
 export function publishItem(data: PublishItemPayload) {
-  return request.post<ModerationResult>('/item/publish', data)
+  return contracts.post('/api/item/publish', { body: toPublishBody(data) }).then((res) => mapRequiredData(res, '/api/item/publish', (wire) => wire as Item))
 }
 
 export function getOwnItem(id: number | string) {
-  return request.get<ItemDetail>(`/item/my-items/${id}`)
+  return contracts.get('/api/item/my-items/{id}', { path: { id: toPathId(id) } }).then((res) => mapRequiredData(res, '/api/item/my-items/{id}', (wire) => wire as ItemDetail))
 }
 
 export function updateItem(id: number | string, data: PublishItemPayload) {
-  return request.put<ModerationResult>(`/item/${id}`, data)
+  return contracts.put('/api/item/{id}', { path: { id: toPathId(id) }, body: toPublishBody(data) }).then((res) => mapRequiredData(res, '/api/item/{id}', (wire) => wire as Item))
 }
 
 export function getMyItems(params: PageQuery & { status?: string }) {
-  return request.get<PageResult<Item>>('/item/my-items', { params })
+  return contracts.get('/api/item/my-items', { query: params }).then((res) => mapPageData(res, '/api/item/my-items', (row): ItemDetail => row))
 }
 
 export function getMyFavorites(params: PageQuery) {
-  return request.get<PageResult<Item>>('/item/my-favorites', { params })
+  return contracts.get('/api/item/my-favorites', { query: params }).then((res) => mapPageData(res, '/api/item/my-favorites', (row): Item => row))
 }
 
 export function toggleFavorite(id: number | string) {
-  return request.post<FavoriteToggleResult>(`/item/${id}/favorite`)
+  return contracts.post('/api/item/{id}/favorite', { path: { id: toPathId(id) } }).then((res) => mapRequiredData(res, '/api/item/{id}/favorite', (wire) => wire as FavoriteToggleResult))
 }
 
-export function offShelfItem(id: number | string) {
-  return request.put<ModerationResult>(`/item/${id}/off-shelf`)
+/** 下架是 void 操作：成功信封 data 为 null，不再断言成商品对象 */
+export function offShelfItem(id: number | string): Promise<ApiResult<null>> {
+  return contracts.put('/api/item/{id}/off-shelf', { path: { id: toPathId(id) } }).then(mapVoidData)
 }
 
 export function relistItem(id: number | string) {
-  return request.put<ModerationResult>(`/item/${id}/relist`)
+  return contracts.put('/api/item/{id}/relist', { path: { id: toPathId(id) } }).then((res) => mapRequiredData(res, '/api/item/{id}/relist', (wire) => wire as Item))
 }
 
 export function reportItem(id: number | string, data: ReportPayload) {
-  return request.post<void>(`/item/${id}/reports`, data)
+  return contracts.post('/api/item/{id}/reports', { path: { id: toPathId(id) }, body: toReportBody(data) }).then(mapVoidData)
 }
 
-export function submitItemAppeal(id: number | string, data: { reason: string }) {
-  return request.post<void>(`/item/${id}/appeals`, data)
+/** 申诉成功后后端回传完整 AppealVO（生成契约），消费方按需读取 */
+export function submitItemAppeal(id: number | string, data: { reason: string }): Promise<ApiResult<Schemas['AppealVO']>> {
+  return contracts.post('/api/item/{id}/appeals', { path: { id: toPathId(id) }, body: data }).then((res) => mapRequiredData(res, '/api/item/{id}/appeals', (wire) => wire))
 }
 
 export function deleteItem(id: number | string) {
-  return request.delete<void>(`/item/${id}`)
+  return contracts.delete('/api/item/{id}', { path: { id: toPathId(id) } }).then(mapVoidData)
+}
+
+function toFeedResult(wire: Schemas['MarketplaceFeedVO'], operation: '/api/item/list' | '/api/item/search'): ItemFeedResult {
+  if (!Array.isArray(wire.records)) {
+    throw new ProtocolViolationError(`${operation} 的 MarketplaceFeedVO.records 不是数组`)
+  }
+  const invalidRecordIndex = wire.records.findIndex((row) => row === null || row === undefined)
+  if (invalidRecordIndex >= 0) {
+    throw new ProtocolViolationError(`${operation} 的 MarketplaceFeedVO.records[${invalidRecordIndex}] 不能为空`)
+  }
+  if (wire.nextCursor !== null && typeof wire.nextCursor !== 'string') {
+    throw new ProtocolViolationError(`${operation} 的 MarketplaceFeedVO.nextCursor 必须为字符串或 null`)
+  }
+  if (typeof wire.hasMore !== 'boolean') {
+    throw new ProtocolViolationError(`${operation} 的 MarketplaceFeedVO.hasMore 不是布尔值`)
+  }
+  if (typeof wire.estimatedTotal !== 'number' || !Number.isFinite(wire.estimatedTotal) || wire.estimatedTotal < 0) {
+    throw new ProtocolViolationError(`${operation} 的 MarketplaceFeedVO.estimatedTotal 非法：${String(wire.estimatedTotal)}`)
+  }
+  return {
+    records: wire.records,
+    nextCursor: wire.nextCursor,
+    hasMore: wire.hasMore,
+    estimatedTotal: wire.estimatedTotal
+  }
 }

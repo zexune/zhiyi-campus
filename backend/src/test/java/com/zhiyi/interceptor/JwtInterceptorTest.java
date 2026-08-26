@@ -1,6 +1,7 @@
 package com.zhiyi.interceptor;
 
 import com.zhiyi.common.AuthTokenCookieWriter;
+import com.zhiyi.common.WebResponseUtil;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.module.user.entity.SysUser;
@@ -12,6 +13,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.time.Duration;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,7 +32,9 @@ class JwtInterceptorTest {
 
     private final AuthTokenCookieWriter cookieWriter = new AuthTokenCookieWriter("zhiyi_token", false, Duration.ofHours(24));
 
-    private final JwtInterceptor interceptor = new JwtInterceptor(null, null, cookieWriter);
+    private final WebResponseUtil webResponseUtil = new WebResponseUtil(JsonMapper.builder().build());
+
+    private final JwtInterceptor interceptor = new JwtInterceptor(null, null, cookieWriter, webResponseUtil);
 
     @Test
     void publicUserRoutesRemainPublic() throws Exception {
@@ -50,6 +54,8 @@ class JwtInterceptorTest {
         assertFalse(interceptor.preHandle(
                 new MockHttpServletRequest("GET", "/api/item/42"), response, new Object()));
         assertEquals(401, response.getStatus());
+        // P0-1：任何 401 都必须清除 httpOnly 会话 Cookie
+        assertTrue(response.getHeader("Set-Cookie").contains("Max-Age=0"));
     }
 
     @Test
@@ -111,7 +117,7 @@ class JwtInterceptorTest {
     }
 
     @Test
-    void mismatchedVersionIsRejected() throws Exception {
+    void mismatchedVersionIsRejectedAsSessionInvalidated() throws Exception {
         JwtUtils utils = jwtUtils();
         JwtInterceptor secured = securedInterceptor(
                 utils, authState(42L, UserRole.USER, UserStatus.ACTIVE, 4));
@@ -122,6 +128,10 @@ class JwtInterceptorTest {
                 response,
                 new Object()));
         assertEquals(401, response.getStatus());
+        // 改密/改角色后的旧 Token：独立会话失效语义 1401（不再复用业务码 1008）
+        assertTrue(response.getContentAsString().contains("1401"),
+                "应携带 SESSION_INVALIDATED(1401)：" + response.getContentAsString());
+        assertTrue(response.getHeader("Set-Cookie").contains("Max-Age=0"));
     }
 
     @Test
@@ -156,7 +166,7 @@ class JwtInterceptorTest {
     }
 
     @Test
-    void cancelledUserIsRejectedWith1008() throws Exception {
+    void cancelledUserOldTokenGetsGeneric401AndClearsCookie() throws Exception {
         JwtUtils utils = jwtUtils();
         JwtInterceptor secured = securedInterceptor(
                 utils, authState(42L, UserRole.USER, UserStatus.CANCELLED, 3));
@@ -166,8 +176,13 @@ class JwtInterceptorTest {
                 authenticatedRequest(utils.generateToken(42L, "USER", 3)),
                 response,
                 new Object()));
+        // P0-1 认证矩阵：注销账户的旧 Token 是认证失效——通用 401 + UNAUTHORIZED(401)，
+        // 拦截器不得返回业务码 1008（那是业务层 403 的语义）；同时清除 Cookie
         assertEquals(401, response.getStatus());
-        assertTrue(response.getContentAsString().contains("1008"));
+        assertTrue(response.getContentAsString().contains("\"code\":401"),
+                "应使用通用认证码 401：" + response.getContentAsString());
+        assertFalse(response.getContentAsString().contains("1008"));
+        assertTrue(response.getHeader("Set-Cookie").contains("Max-Age=0"));
     }
 
     @Test
@@ -175,7 +190,7 @@ class JwtInterceptorTest {
         JwtUtils utils = jwtUtils();
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectAuthState(42L)).thenReturn(null);
-        JwtInterceptor secured = new JwtInterceptor(utils, userMapper, cookieWriter);
+        JwtInterceptor secured = new JwtInterceptor(utils, userMapper, cookieWriter, webResponseUtil);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         assertFalse(secured.preHandle(
@@ -183,6 +198,7 @@ class JwtInterceptorTest {
                 response,
                 new Object()));
         assertEquals(401, response.getStatus());
+        assertTrue(response.getHeader("Set-Cookie").contains("Max-Age=0"));
     }
 
     @Test
@@ -227,7 +243,7 @@ class JwtInterceptorTest {
     private JwtInterceptor securedInterceptor(JwtUtils utils, SysUser authState) {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectAuthState(authState.getId())).thenReturn(authState);
-        return new JwtInterceptor(utils, userMapper, cookieWriter);
+        return new JwtInterceptor(utils, userMapper, cookieWriter, webResponseUtil);
     }
 
     private SysUser authState(Long id, UserRole role, UserStatus status, int tokenVersion) {

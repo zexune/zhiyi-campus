@@ -88,6 +88,18 @@ class OrderViewAssemblerTest {
         verify(userMapper, never()).selectById(any());
     }
 
+    /** P0-3：单订单响应显式赋默认值 reviewed=false，绝不序列化为 null。 */
+    @Test
+    void singleOrderResponseDefaultsReviewedToFalse() {
+        TradeOrder order = completedOrder(1L);
+        order.setBuyerId(7L);
+        order.setSellerId(8L);
+
+        OrderVO vo = assembler.assemble(order, null, null);
+
+        assertEquals(Boolean.FALSE, vo.getReviewed(), "下单/确认/取消响应语义上必然尚未评价");
+    }
+
     private TradeOrder completedOrder(long id) {
         TradeOrder order = new TradeOrder();
         order.setId(id);

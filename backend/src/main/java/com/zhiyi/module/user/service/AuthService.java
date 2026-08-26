@@ -130,7 +130,7 @@ public class AuthService {
         String loginKey = accountKey(school.getId(), studentId);
         // 失败限流（REQUIRES_NEW 独立事务）：BCrypt 校验开销大，先挡住暴力尝试
         if (loginAttemptService.isLocked(loginKey)) {
-            throw new BusinessException(ResultCode.LOGIN_LOCKED);
+            throw locked(loginKey);
         }
 
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
@@ -224,7 +224,7 @@ public class AuthService {
         // 密保答案验证也走失败限流，防止暴力猜答案
         String lockKey = "reset:" + accountKey(school.getId(), studentId);
         if (loginAttemptService.isLocked(lockKey)) {
-            throw new BusinessException(ResultCode.LOGIN_LOCKED, "尝试次数过多，请稍后再试");
+            throw locked(lockKey);
         }
 
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
@@ -261,6 +261,13 @@ public class AuthService {
 
         loginAttemptService.reset(lockKey);
         log.info("用户 {} 通过密保重置了密码", user.getStudentId());
+    }
+
+    /** 登录/密保锁定：附数据库计算的剩余秒数（Retry-After 实例覆盖）。 */
+    private BusinessException locked(String attemptKey) {
+        return new BusinessException(ResultCode.LOGIN_LOCKED,
+                ResultCode.LOGIN_LOCKED.getMessage())
+                .withRetryAfterSeconds(loginAttemptService.remainingLockSeconds(attemptKey));
     }
 
     /** 默认昵称：同学_学号后4位 */

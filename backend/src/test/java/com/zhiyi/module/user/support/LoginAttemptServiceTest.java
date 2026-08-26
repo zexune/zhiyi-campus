@@ -74,4 +74,21 @@ class LoginAttemptServiceTest {
 
         assertEquals(3, service.purgeStale(RETENTION_SECONDS));
     }
+
+    @Test
+    void remainingLockSecondsReturnsDatabaseValue() {
+        when(attemptMapper.lockedRemainingSeconds("1:admin")).thenReturn(137);
+
+        assertEquals(137, service.remainingLockSeconds("1:admin"));
+    }
+
+    @Test
+    void remainingLockSecondsFallsBackToOneSecondOnExpiryRace() {
+        // 竞态下锁定刚好到期（数据库不再返回剩余秒数）：客户端 1 秒后重试即可正常通过
+        when(attemptMapper.lockedRemainingSeconds("1:admin")).thenReturn(null);
+        assertEquals(1, service.remainingLockSeconds("1:admin"));
+
+        when(attemptMapper.lockedRemainingSeconds("1:admin")).thenReturn(0);
+        assertEquals(1, service.remainingLockSeconds("1:admin"));
+    }
 }

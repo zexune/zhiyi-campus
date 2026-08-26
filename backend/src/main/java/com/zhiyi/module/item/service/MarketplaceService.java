@@ -18,6 +18,8 @@ import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.support.ViewCountBuffer;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
 import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.ItemDetailResponse;
+import com.zhiyi.module.item.vo.ItemSummaryResponse;
 import com.zhiyi.module.item.vo.MarketplaceFeedVO;
 import com.zhiyi.module.item.vo.TagGroupVO;
 import com.zhiyi.module.item.vo.TagTrendVO;
@@ -91,7 +93,8 @@ public class MarketplaceService {
                 keyword, categoryId, minPrice, maxPrice, sort, type, tags);
         MarketplaceFeedService.FeedPage page = feedService.listByCursor(criteria, viewer, cursor, size);
         return new MarketplaceFeedVO(
-                itemCardAssembler.assemble(page.records(), currentUserId),
+                itemCardAssembler.assemble(page.records(), currentUserId)
+                        .stream().map(ItemSnapshot::toSummary).toList(),
                 page.nextCursor(), page.hasMore(), page.estimatedTotal());
     }
 
@@ -99,7 +102,7 @@ public class MarketplaceService {
      * 商品详情（只读）：浏览行为不再同步写 item 行——updated_at 只表达商品业务资料变化，
      * 浏览增量进入单实例有界缓冲，由后台任务批量持久化（崩溃最多损失一个刷新窗口）。
      */
-    public ItemCardVO getDetail(Long itemId, Long currentUserId) {
+    public ItemDetailResponse getDetail(Long itemId, Long currentUserId) {
         Item item = requireItem(itemId);
         requireSameSchool(currentUserId, item, "只能查看本校商品");
         if (!Objects.equals(item.getPublisherId(), currentUserId)
@@ -107,31 +110,34 @@ public class MarketplaceService {
             throw new BusinessException(ResultCode.NOT_FOUND, "商品正在审核或已被下架");
         }
         viewCountBuffer.record(itemId);
-        ItemCardVO vo = itemCardAssembler.assemble(List.of(item), currentUserId).getFirst();
-        vo.setViewCount(vo.getViewCount() == null
+        ItemSnapshot snapshot = itemCardAssembler.assemble(List.of(item), currentUserId).getFirst();
+        snapshot.setViewCount(snapshot.getViewCount() == null
                 ? viewCountBuffer.pendingDelta(itemId)
-                : vo.getViewCount() + viewCountBuffer.pendingDelta(itemId));
-        return vo;
+                : snapshot.getViewCount() + viewCountBuffer.pendingDelta(itemId));
+        return snapshot.toDetail();
     }
 
     public ItemCardVO getSnapshot(Long itemId, Long currentUserId) {
-        return itemCardAssembler.assemble(List.of(requireItem(itemId)), currentUserId).getFirst();
+        return itemCardAssembler.assemble(List.of(requireItem(itemId)), currentUserId)
+                .getFirst().toCard();
     }
 
-    public ItemCardVO getOwnItem(Long userId, Long itemId) {
-        return itemCardAssembler.assemble(List.of(requireOwnItem(userId, itemId)), userId).getFirst();
+    public ItemDetailResponse getOwnItem(Long userId, Long itemId) {
+        return itemCardAssembler.assemble(List.of(requireOwnItem(userId, itemId)), userId)
+                .getFirst().toDetail();
     }
 
-    public List<ItemCardVO> listErrands(Long currentUserId) {
+    public List<ItemSummaryResponse> listErrands(Long currentUserId) {
         Long schoolId = requireUserSchoolId(currentUserId);
         List<Item> items = itemMapper.selectList(visibleItems(schoolId)
                 .eq(Item::getType, ItemType.ERRAND)
                 .orderByDesc(Item::getCreatedAt)
                 .orderByDesc(Item::getId));
-        return itemCardAssembler.assemble(items, currentUserId);
+        return itemCardAssembler.assemble(items, currentUserId)
+                .stream().map(ItemSnapshot::toSummary).toList();
     }
 
-    public List<ItemCardVO> listSwapMatches(Long currentUserId) {
+    public List<ItemSummaryResponse> listSwapMatches(Long currentUserId) {
         Long schoolId = requireUserSchoolId(currentUserId);
         List<Item> mine = itemMapper.selectList(visibleItems(schoolId)
                 .eq(Item::getPublisherId, currentUserId)
@@ -145,7 +151,8 @@ public class MarketplaceService {
                 .in(!categoryIds.isEmpty(), Item::getCategoryId, categoryIds)
                 .orderByDesc(Item::getCreatedAt)
                 .orderByDesc(Item::getId));
-        return itemCardAssembler.assemble(matches, currentUserId);
+        return itemCardAssembler.assemble(matches, currentUserId)
+                .stream().map(ItemSnapshot::toSummary).toList();
     }
 
     public void requireVisibleItem(Long userId, Long itemId) {
@@ -207,11 +214,12 @@ public class MarketplaceService {
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
         List<Item> ordered = itemIds.stream().map(items::get).filter(Objects::nonNull).toList();
         Page<ItemCardVO> result = new Page<>(favoritePage.getCurrent(), favoritePage.getSize(), favoritePage.getTotal());
-        result.setRecords(itemCardAssembler.assemble(ordered, userId));
+        result.setRecords(itemCardAssembler.assemble(ordered, userId)
+                .stream().map(ItemSnapshot::toCard).toList());
         return result;
     }
 
-    public IPage<ItemCardVO> listMyItems(Long userId, String status, int page, int size) {
+    public IPage<ItemDetailResponse> listMyItems(Long userId, String status, int page, int size) {
         LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<Item>()
                 .eq(Item::getPublisherId, userId)
                 .orderByDesc(Item::getCreatedAt)
@@ -219,8 +227,9 @@ public class MarketplaceService {
         if (StringUtils.hasText(status)) applyOwnItemStatus(wrapper, status);
         Page<Item> itemPage = itemMapper.selectPage(
                 new Page<>(Math.max(page, 1), normalizeSize(size)), wrapper);
-        Page<ItemCardVO> result = new Page<>(itemPage.getCurrent(), itemPage.getSize(), itemPage.getTotal());
-        result.setRecords(itemCardAssembler.assemble(itemPage.getRecords(), userId));
+        Page<ItemDetailResponse> result = new Page<>(itemPage.getCurrent(), itemPage.getSize(), itemPage.getTotal());
+        result.setRecords(itemCardAssembler.assemble(itemPage.getRecords(), userId)
+                .stream().map(ItemSnapshot::toDetail).toList());
         return result;
     }
 
@@ -272,7 +281,7 @@ public class MarketplaceService {
         itemTagService.deleteTags(itemId, item.getSchoolId());
     }
 
-    public List<ItemCardVO> ranking(int limit, Long currentUserId) {
+    public List<ItemSummaryResponse> ranking(int limit, Long currentUserId) {
         Long schoolId = requireUserSchoolId(currentUserId);
         return rankingService.ranking(schoolId, limit, currentUserId);
     }
@@ -307,7 +316,8 @@ public class MarketplaceService {
     }
 
     private SysUser requireMarketplaceUser(Long userId) {
-        if (userId == null) throw new BusinessException(ResultCode.UNAUTHORIZED);
+        // Web 请求身份由 JwtInterceptor 保证：service 收到 null userId 是编程错误，不是业务失败
+        if (userId == null) throw new IllegalStateException("userId 缺失：拦截器未注入登录身份");
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException(ResultCode.USER_NOT_FOUND);
         SchoolScopeGuard.requireAssigned(user.getSchoolId());

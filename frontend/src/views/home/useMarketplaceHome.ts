@@ -20,7 +20,10 @@ const PAGE_SIZE = 12
 /** Feed 游标过期/版本冲突业务码（后端 FEED_CURSOR_INVALID）：从首屏重启 */
 const FEED_CURSOR_INVALID_CODE = 2004
 
-const FALLBACK_CATEGORIES = Object.freeze([
+/** 分类字典接口失败时的本地兜底；大厅只消费 id 与 name，用窄类型承接 */
+type CategoryOption = Pick<Category, 'id' | 'name'>
+
+const FALLBACK_CATEGORIES: readonly CategoryOption[] = Object.freeze([
   { id: 1, name: '数码电子' },
   { id: 2, name: '教材书籍' },
   { id: 3, name: '服饰鞋包' },
@@ -110,7 +113,7 @@ export interface MarketplaceHomeReturn {
   allTags: Ref<TagCloudGroup[]>
   applyPriceFilterNow: () => void
   applyTopic: (topic: TopicBanner) => void
-  categories: Ref<Category[]>
+  categories: Ref<CategoryOption[]>
   clearKeyword: () => void
   /** per-entity 收藏互斥：A 进行中不影响 B */
   favoriteBusyIds: Ref<Set<number>>
@@ -165,7 +168,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   const router = useRouter()
   const route = useRoute()
   const loggedIn = isLoggedIn()
-  const categories = ref<Category[]>([...FALLBACK_CATEGORIES])
+  const categories = ref<CategoryOption[]>([...FALLBACK_CATEGORIES])
   const items = ref<Item[]>([])
   const ranking = ref<Item[]>([])
   const loading = ref(false)

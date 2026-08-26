@@ -1,6 +1,8 @@
 package com.zhiyi.module.admin.controller;
 
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminLineageService;
 import com.zhiyi.module.admin.service.AdminManageService;
@@ -30,21 +32,23 @@ public class AdminManageController {
      * 强制重置密码
      */
     @PostMapping("/reset-password")
-    public Result<?> resetPassword(
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> resetPassword(
             @Validated @RequestBody ResetPasswordRequest body,
             HttpServletRequest request) {
         Long adminId = (Long) request.getAttribute("userId");
         manageService.resetPassword(body.userId(), adminId);
-        return Result.ok("密码已重置为 123456");
+        return ApiSuccess.ok("密码已重置为 123456", null);
     }
 
     /**
      * 商品传承链（D3）
      */
     @GetMapping("/item/{id}/lineage")
-    public Result<ItemLineageVO> lineage(@PathVariable Long id,
+    @BusinessErrors(ResultCode.NOT_FOUND)
+    public ApiSuccess<ItemLineageVO> lineage(@PathVariable Long id,
                                          @RequestParam(required = false) Long schoolId) {
-        return Result.ok(lineageService.getLineage(id, schoolId));
+        return ApiSuccess.ok(lineageService.getLineage(id, schoolId));
     }
 
     /**
@@ -52,9 +56,10 @@ public class AdminManageController {
      * 管理员账号被 RoleInterceptor 限制在 /api/admin/**，故此处提供独立入口。
      */
     @PostMapping("/item/tag-suggestions")
-    public Result<java.util.List<String>> tagSuggestions(
+    @BusinessErrors
+    public ApiSuccess<java.util.List<String>> tagSuggestions(
             @Validated @RequestBody TagSuggestionRequest request) {
-        return Result.ok(manageService.suggestTags(request.title(), request.categoryId()));
+        return ApiSuccess.ok(manageService.suggestTags(request.title(), request.categoryId()));
     }
 
     /**

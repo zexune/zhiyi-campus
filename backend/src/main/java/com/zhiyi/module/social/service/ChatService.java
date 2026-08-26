@@ -577,9 +577,10 @@ public class ChatService {
         ChatItemSummaryVO vo = new ChatItemSummaryVO();
         vo.setId(item.getId());
         vo.setTitle(item.getTitle());
+        vo.setType(item.getType().code());
         vo.setPrice(item.getPrice());
         List<String> images = item.getImages();
-        vo.setCoverImage(images == null || images.isEmpty() ? "" : images.getFirst());
+        vo.setCoverImage(images == null || images.isEmpty() ? null : images.getFirst());
         vo.setStatus(item.getStatus().code());
         return vo;
     }

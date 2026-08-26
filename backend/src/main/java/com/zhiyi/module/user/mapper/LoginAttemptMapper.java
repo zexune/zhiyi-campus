@@ -21,6 +21,12 @@ public interface LoginAttemptMapper extends BaseMapper<LoginAttempt> {
             + "WHERE attempt_key = #{key} AND locked_until IS NOT NULL AND locked_until > CURRENT_TIMESTAMP(6))")
     boolean isLocked(@Param("key") String attemptKey);
 
+    /** 锁定剩余秒数（向上取整，数据库时间判定）；未锁定返回 null。 */
+    @Select("SELECT CEIL(TIMESTAMPDIFF(MICROSECOND, CURRENT_TIMESTAMP(6), locked_until) / 1000000) "
+            + "FROM login_attempt "
+            + "WHERE attempt_key = #{key} AND locked_until IS NOT NULL AND locked_until > CURRENT_TIMESTAMP(6)")
+    Integer lockedRemainingSeconds(@Param("key") String attemptKey);
+
     /**
      * 记一次失败（原子状态机）：
      * - 锁有效：计数与锁定时间均不变（不续锁）；

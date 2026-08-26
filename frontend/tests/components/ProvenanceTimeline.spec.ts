@@ -13,7 +13,7 @@ const global = {
 
 const chain: LineageNode[] = [
   { userId: 1, nickname: '首届主人', role: 'PUBLISHER', time: '2025-09-01T10:00:00', price: 30 },
-  { userId: 2, nickname: null, role: 'BUYER', time: '2026-01-01T10:00:00' }
+  { userId: 2, nickname: null, role: 'BUYER', time: '2026-01-01T10:00:00', price: null }
 ]
 
 test('传承链按节点顺序渲染昵称、角色与成交价，缺省昵称回退通用文案', () => {

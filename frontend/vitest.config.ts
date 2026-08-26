@@ -11,6 +11,8 @@ export default mergeConfig(
       exclude: ['./tests/e2e/**', './node_modules/**', './dist/**'],
       clearMocks: true,
       restoreMocks: true,
+      // CI 冷缓存下首个用例需完成模块转译（request.test.ts 每用例重置模块图）
+      testTimeout: 30000,
       server: {
         deps: {
           // Element Plus 从包内导入样式；内联后由 Vite 处理 CSS，而不是交给 Node 直接加载。

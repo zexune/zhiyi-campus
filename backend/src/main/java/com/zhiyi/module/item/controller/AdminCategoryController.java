@@ -1,10 +1,12 @@
 package com.zhiyi.module.item.controller;
 
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.item.dto.CategoryDTO;
-import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.service.CategoryAdminService;
+import com.zhiyi.module.item.vo.CategoryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,23 +29,29 @@ public class AdminCategoryController {
     private final CategoryAdminService categoryAdminService;
 
     @GetMapping
-    public Result<List<Category>> list() {
-        return Result.ok(categoryAdminService.list());
+    @BusinessErrors
+    public ApiSuccess<List<CategoryResponse>> list() {
+        return ApiSuccess.ok(categoryAdminService.list().stream()
+                .map(CategoryResponse::from)
+                .toList());
     }
 
     @PostMapping
-    public Result<Category> create(@Valid @RequestBody CategoryDTO dto) {
-        return Result.ok("分类创建成功", categoryAdminService.create(dto));
+    @BusinessErrors(ResultCode.CONFLICT)
+    public ApiSuccess<CategoryResponse> create(@Valid @RequestBody CategoryDTO dto) {
+        return ApiSuccess.ok("分类创建成功", CategoryResponse.from(categoryAdminService.create(dto)));
     }
 
     @PutMapping("/{id}")
-    public Result<Category> update(@PathVariable Long id, @Valid @RequestBody CategoryDTO dto) {
-        return Result.ok("分类修改成功", categoryAdminService.update(id, dto));
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT})
+    public ApiSuccess<CategoryResponse> update(@PathVariable Long id, @Valid @RequestBody CategoryDTO dto) {
+        return ApiSuccess.ok("分类修改成功", CategoryResponse.from(categoryAdminService.update(id, dto)));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.CONFLICT})
+    public ApiSuccess<Void> delete(@PathVariable Long id) {
         categoryAdminService.delete(id);
-        return Result.ok("分类删除成功", null);
+        return ApiSuccess.ok("分类删除成功", null);
     }
 }

@@ -74,11 +74,11 @@
               </span>
             </div>
             <div class="podium-card__body">
-              <span class="badge" :class="entry.item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">{{ entry.item.type === ITEM_TYPE.BUY ? '求购' : '出售' }}</span>
+              <span class="badge" :class="typeBadgeClass(entry.item.type)">{{ itemTypeLabel(entry.item.type) }}</span>
               <h2>{{ entry.item.title }}</h2>
               <TagList :tags="entry.item.tags" :limit="3" @select="goTag" />
               <div class="podium-card__meta">
-                <PriceTag :value="entry.item.price" font-size="25px" />
+                <ItemPrice :type="entry.item.type" :price="entry.item.price" font-size="25px" swap-label="换物" />
                 <span class="favorite-count">
                   <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8">
                     <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
@@ -126,7 +126,7 @@
                 </small>
                 <TagList :tags="item.tags" :limit="2" compact @select="goTag" />
               </span>
-              <PriceTag :value="item.price" font-size="21px" />
+              <ItemPrice :type="item.type" :price="item.price" font-size="21px" swap-label="换物" />
               <span class="ranking-row__favorites" title="收藏数">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
@@ -170,12 +170,12 @@ import { useRouter } from 'vue-router'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import TagList from '@/components/common/TagList.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
-import PriceTag from '@/components/common/PriceTag.vue'
+import ItemPrice from '@/components/common/ItemPrice.vue'
 import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
 import { useEntityMutex } from '@/composables/useEntityMutex'
 import type { Item, TagCount } from '@/types/models'
-import { ITEM_TYPE } from '@/constants/domain'
 import { isLoggedIn } from '@/utils/auth'
+import { itemTypeLabel, typeBadgeClass } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
 

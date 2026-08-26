@@ -6,7 +6,7 @@ import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.vo.FavoriteRankRow;
-import com.zhiyi.module.item.vo.ItemCardVO;
+import com.zhiyi.module.item.vo.ItemSummaryResponse;
 import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class ItemRankingService {
     private final ItemMapper itemMapper;
     private final ItemCardAssembler itemCardAssembler;
 
-    public List<ItemCardVO> ranking(Long schoolId, int limit, Long currentUserId) {
+    public List<ItemSummaryResponse> ranking(Long schoolId, int limit, Long currentUserId) {
         int safeLimit = Math.max(1, Math.min(limit, 20));
         List<FavoriteRankRow> rows = favoriteMapper.selectVisibleRanking(
                 schoolId, safeLimit, ItemStatus.ON_SALE, ModerationStatus.PASSED);
@@ -54,11 +54,11 @@ public class ItemRankingService {
             items.addAll(itemMapper.selectList(filler));
         }
 
-        List<ItemCardVO> cards = itemCardAssembler.assemble(items, currentUserId);
-        cards.forEach(card -> {
-            Long count = counts.get(card.getId());
-            if (count != null) card.setFavoriteCount(count);
+        List<ItemSnapshot> snapshots = itemCardAssembler.assemble(items, currentUserId);
+        snapshots.forEach(snapshot -> {
+            Long count = counts.get(snapshot.getId());
+            if (count != null) snapshot.setFavoriteCount(count);
         });
-        return cards;
+        return snapshots.stream().map(ItemSnapshot::toSummary).toList();
     }
 }

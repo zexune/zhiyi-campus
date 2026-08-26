@@ -1,6 +1,7 @@
 package com.zhiyi.module.admin.controller;
 
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminDashboardService;
 import com.zhiyi.module.admin.vo.AdminDashboardVO;
@@ -27,17 +28,19 @@ public class AdminDashboardController {
     private final AdminDashboardService dashboardService;
 
     @GetMapping("/dashboard")
-    public Result<AdminDashboardVO> dashboard(
+    @BusinessErrors
+    public ApiSuccess<AdminDashboardVO> dashboard(
             @RequestParam(required = false) Long schoolId) {
-        return Result.ok(dashboardService.getDashboard(schoolId));
+        return ApiSuccess.ok(dashboardService.getDashboard(schoolId));
     }
 
     /**
      * 交易热力图（D5）：统计各 trade_location 的交易频次
      */
     @GetMapping("/trade-heatmap")
-    public Result<List<TradeHeatmapVO>> tradeHeatmap(
+    @BusinessErrors
+    public ApiSuccess<List<TradeHeatmapVO>> tradeHeatmap(
             @RequestParam(required = false) Long schoolId) {
-        return Result.ok(dashboardService.getTradeHeatmap(schoolId));
+        return ApiSuccess.ok(dashboardService.getTradeHeatmap(schoolId));
     }
 }

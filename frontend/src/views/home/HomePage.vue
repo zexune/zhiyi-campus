@@ -182,7 +182,7 @@
             <article v-for="item in items" :key="item.id" class="goods-card rise" @click="goDetail(item.id)">
               <div class="goods-card__img" :class="placeholderClass(item.id)">
                 <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
-                <span class="badge goods-card__type" :class="item.type === ITEM_TYPE.BUY ? 'badge--buy' : 'badge--sell'">
+                <span class="badge goods-card__type" :class="typeBadgeClass(item.type)">
                   {{ itemTypeLabel(item.type) }}
                 </span>
               </div>
@@ -206,8 +206,7 @@
                   </span>
                 </div>
                 <div class="goods-card__meta">
-                  <strong v-if="item.type === ITEM_TYPE.SWAP" class="price">换物</strong>
-                  <PriceTag v-else :value="item.price" font-size="22px" />
+                  <ItemPrice :type="item.type" :price="item.price" font-size="22px" swap-label="换物" />
                   <span class="goods-card__fav">
                     <svg class="heart-icon" viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
                       <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
@@ -285,9 +284,14 @@
                     <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
                   </span>
                   <span class="rank-item__info">
-                    <strong class="rank-item__title">{{ item.title }}</strong>
+                    <strong class="rank-item__title">
+                      <span class="badge" :class="typeBadgeClass(item.type)">{{ itemTypeLabel(item.type) }}</span>
+                      {{ item.title }}
+                    </strong>
                     <small class="rank-item__sub">
-                      <span class="p">¥{{ Number(item.price || 0).toFixed(2) }}</span>
+                      <span class="p">
+                        <ItemPrice :type="item.type" :price="item.price" font-size="13px" swap-label="换物" />
+                      </span>
                       <span>收藏 {{ item.favoriteCount || 0 }}</span>
                     </small>
                   </span>
@@ -312,10 +316,10 @@
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import CategoryIcon from '@/components/common/CategoryIcon.vue'
+import ItemPrice from '@/components/common/ItemPrice.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
-import PriceTag from '@/components/common/PriceTag.vue'
 import TagList from '@/components/common/TagList.vue'
-import { ITEM_TYPE } from '@/constants/domain'
+import { typeBadgeClass } from '@/utils/trade'
 import { useMarketplaceHome } from './useMarketplaceHome'
 import { ROUTE_PATH } from '@/constants/routes'
 

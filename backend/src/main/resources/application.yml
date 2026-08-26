@@ -6,6 +6,10 @@ server:
     accept-count: 1000
 
 spring:
+  jackson:
+    # Wire 约定：普通 DTO 的空值字段省略；只有显式标记为 required+nullable
+    # 的字段和信封 data 才稳定输出 JSON null。
+    default-property-inclusion: non_null
   threads:
     virtual:
       enabled: true

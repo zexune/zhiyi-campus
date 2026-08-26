@@ -129,9 +129,9 @@ class WalletServiceTest {
 
         @Test
         void shouldRejectNullUserId() {
-            BusinessException ex = assertThrows(BusinessException.class,
+            // Web 身份由拦截器保证：null userId 是编程错误（IllegalStateException）而非业务 401
+            assertThrows(IllegalStateException.class,
                     () -> walletService.recharge(null, new BigDecimal("100.00"), KEY));
-            assertEquals(ResultCode.UNAUTHORIZED.getCode(), ex.getCode());
         }
 
         @Test

@@ -1,21 +1,23 @@
 package com.zhiyi.module.admin.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 
 public record AppealVO(
-        Long id,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
         Long reportId,
         Long itemId,
         Long userId,
         String sellerName,
-        String itemTitle,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String itemTitle,
         String violationReason,
-        String reason,
-        String status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String reason,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String status,
         Long handlerId,
         String handlerName,
         String handleNote,
-        LocalDateTime createdAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime createdAt,
         LocalDateTime handledAt
 ) {
 }

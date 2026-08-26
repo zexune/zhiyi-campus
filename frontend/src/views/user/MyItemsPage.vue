@@ -42,7 +42,7 @@
               </div>
             </div>
 
-            <div class="item-row__price"><PriceTag :value="item.price" /></div>
+            <div class="item-row__price"><ItemPrice :type="item.type" :price="item.price" /></div>
             <div class="item-row__status">
               <span class="badge" :class="statusBadge(displayStatus(item))">{{ statusText(displayStatus(item)) }}</span>
             </div>
@@ -104,7 +104,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import PriceTag from '@/components/common/PriceTag.vue'
+import ItemPrice from '@/components/common/ItemPrice.vue'
 import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } from '@/api/item'
 import { APPEAL_STATUS, APPEAL_STATUS_LABELS, ITEM_STATUS, ITEM_STATUS_OPTIONS, ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
 import type { AppealStatus } from '@/constants/domain'
@@ -115,10 +115,8 @@ import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, placeholderClass } from '@/utils/format'
 import { ROUTE_PATH } from '@/constants/routes'
 
-/** 我的发布行数据：Item 之外，后端还会带回“当前是否可申诉”标记 */
-interface MyItemRow extends Item {
-  appealable?: boolean
-}
+/** 我的发布行：ItemCardVO 已包含后端带回的"当前是否可申诉"标记（appealable），无需扩展 */
+type MyItemRow = Item
 
 /** 申诉弹窗状态（item 为当前申诉的商品行） */
 interface AppealFormState {
@@ -240,6 +238,8 @@ async function submitAppeal() {
     appealForm.visible = false
     ElMessage.success('申诉已提交，请等待管理员复核')
     await fetchItems()
+  } catch {
+    // 业务失败提示由 request 层统一弹出；协议违约快速失败——弹窗保持打开供重试
   } finally {
     appealForm.submitting = false
   }

@@ -2,6 +2,7 @@ package com.zhiyi.module.item.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.zhiyi.common.mybatis.StringListJsonTypeHandler;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,8 +12,11 @@ import java.util.List;
 public class EventTopic {
     @TableId(type = IdType.AUTO)
     private Long id;
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private String title;
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private LocalDateTime startTime;
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private LocalDateTime endTime;
     private String filterType;
     private Long filterCategoryId;
@@ -20,6 +24,7 @@ public class EventTopic {
     @TableField(typeHandler = StringListJsonTypeHandler.class)
     private List<String> filterTags;
     private String bannerText;
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private Boolean enabled;
     private Long createdBy;
     @TableField(fill = FieldFill.INSERT)

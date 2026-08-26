@@ -55,7 +55,8 @@ public class AccountSecurityService {
         // 原密码验证也走失败限流，防止已登录会话被借用后暴力猜原密码
         String lockKey = "chpw:" + userId;
         if (loginAttemptService.isLocked(lockKey)) {
-            throw new BusinessException(ResultCode.LOGIN_LOCKED, "原密码错误次数过多，请稍后再试");
+            throw new BusinessException(ResultCode.LOGIN_LOCKED, "原密码错误次数过多，请稍后再试")
+                    .withRetryAfterSeconds(loginAttemptService.remainingLockSeconds(lockKey));
         }
 
         SysUser user = userMapper.selectById(userId);

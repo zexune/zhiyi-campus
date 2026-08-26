@@ -597,6 +597,14 @@ ol {
   background: var(--blue-bg);
   color: var(--blue);
 }
+.badge--swap {
+  background: var(--green-bg);
+  color: var(--green-deep);
+}
+.badge--errand {
+  background: var(--yellow-bg);
+  color: #8a5a00;
+}
 .badge--ok {
   background: var(--green-bg);
   color: var(--green-deep);

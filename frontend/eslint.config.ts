@@ -11,7 +11,8 @@ import globals from 'globals'
  */
 export default defineConfigWithVueTs(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'auto-imports.d.ts', 'components.d.ts']
+    // src/types/api.gen.d.ts 由 openapi-typescript 生成，不参与 lint
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'auto-imports.d.ts', 'components.d.ts', 'src/types/api.gen.d.ts']
   },
   js.configs.recommended,
   pluginVue.configs['flat/recommended'],
@@ -38,7 +39,7 @@ export default defineConfigWithVueTs(
     }
   },
   {
-    files: ['vite.config.ts', 'vitest.config.ts', 'playwright.config.ts', 'eslint.config.ts', 'tests/**'],
+    files: ['vite.config.ts', 'vitest.config.ts', 'playwright.config.ts', 'eslint.config.ts', 'scripts/**', 'tests/**'],
     languageOptions: {
       globals: {
         ...globals.node
@@ -56,6 +57,45 @@ export default defineConfigWithVueTs(
         page: 'readonly',
         request: 'readonly'
       }
+    }
+  },
+  {
+    // P6：业务 API 模块的传输契约只经 contracts.ts——禁止直接导入生成文件
+    // 或借底层 request.get<T> 手写响应类型（mappers 仅允许类型导入 ApiResult）
+    files: ['src/api/**/*.ts'],
+    ignores: ['src/api/mappers.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/api.gen', '**/api.gen.*', '@/types/api.gen'],
+              message: 'API 模块不得直接导入生成契约：生成 schema 统一经 @/types/contracts 再导出（Schemas/QueryOf）'
+            },
+            {
+              group: ['@/utils/request'],
+              message: 'API 模块不得直接调用底层 request.*：请求与响应类型必须来自 @/types/contracts 的 operation 契约'
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ['src/api/mappers.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/api.gen', '**/api.gen.*', '@/types/api.gen'],
+              message: 'mapper 只消费 ApiResult 信封，不感知生成 schema'
+            }
+          ]
+        }
+      ]
     }
   }
 )

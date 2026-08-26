@@ -1,6 +1,7 @@
 package com.zhiyi.module.user.controller;
 
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.module.user.service.SchoolService;
 import com.zhiyi.module.user.vo.SchoolVO;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,8 @@ public class SchoolController {
     private final SchoolService schoolService;
 
     @GetMapping("/list")
-    public Result<List<SchoolVO>> list() {
-        return Result.ok(schoolService.listActiveSchools());
+    @BusinessErrors
+    public ApiSuccess<List<SchoolVO>> list() {
+        return ApiSuccess.ok(schoolService.listActiveSchools());
     }
 }

@@ -72,7 +72,7 @@ beforeEach(() => {
   router.replace.mockClear()
   vi.mocked(getConversations).mockResolvedValue({ code: 200, message: 'ok', data: [conversation()] } as unknown as ApiResult<Conversation[]>)
   vi.mocked(getChatMessages).mockResolvedValue({ code: 200, message: 'ok', data: thread() } as unknown as ApiResult<ChatThread>)
-  vi.mocked(ackChatRead).mockResolvedValue({ code: 200, message: 'ok', data: undefined })
+  vi.mocked(ackChatRead).mockResolvedValue({ code: 200, message: 'ok', data: null })
 })
 
 test('会话列表渲染昵称、最近消息与未读角标', async () => {

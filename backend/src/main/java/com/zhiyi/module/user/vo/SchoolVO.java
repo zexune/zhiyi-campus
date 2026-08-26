@@ -1,6 +1,7 @@
 package com.zhiyi.module.user.vo;
 
 import com.zhiyi.module.user.entity.School;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -10,7 +11,9 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class SchoolVO {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private Long id;
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private String name;
     private String code;
     /** 邮箱后缀（前端提示及提交前校验用） */

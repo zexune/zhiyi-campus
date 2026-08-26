@@ -1,6 +1,8 @@
 package com.zhiyi.module.social.controller;
 
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.module.social.dto.ChatSendDTO;
 import com.zhiyi.module.social.dto.ChatStartDTO;
 import com.zhiyi.module.social.service.ChatService;
@@ -28,34 +30,40 @@ public class ChatController {
     private final ChatService chatService;
 
     @PostMapping("/start")
-    public Result<ChatStartVO> start(@RequestAttribute("userId") Long userId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.USER_NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<ChatStartVO> start(@RequestAttribute("userId") Long userId,
                                      @Valid @RequestBody ChatStartDTO dto) {
-        return Result.ok(chatService.startItemConversation(userId, dto));
+        return ApiSuccess.ok(chatService.startItemConversation(userId, dto));
     }
 
+    /** 客服会话：客服账号缺失/配置异常（500）或客服被跨校限制（403）都属于显式契约。 */
     @PostMapping("/customer-service")
-    public Result<ChatStartVO> customerService(@RequestAttribute("userId") Long userId) {
-        return Result.ok(chatService.startCustomerService(userId));
+    @BusinessErrors({ResultCode.SERVER_ERROR, ResultCode.FORBIDDEN})
+    public ApiSuccess<ChatStartVO> customerService(@RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(chatService.startCustomerService(userId));
     }
 
     @GetMapping("/conversations")
-    public Result<List<ConversationVO>> conversations(@RequestAttribute("userId") Long userId) {
-        return Result.ok(chatService.conversations(userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<List<ConversationVO>> conversations(@RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(chatService.conversations(userId));
     }
 
     @GetMapping("/messages")
-    public Result<ChatThreadVO> messages(@RequestAttribute("userId") Long userId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<ChatThreadVO> messages(@RequestAttribute("userId") Long userId,
                                          @RequestParam String conversationId,
                                          @RequestParam(required = false) Long peerId,
                                          @RequestParam(required = false) Long relatedItemId,
                                          @RequestParam(required = false) Long beforeId) {
-        return Result.ok(chatService.messages(userId, conversationId, peerId, relatedItemId, beforeId));
+        return ApiSuccess.ok(chatService.messages(userId, conversationId, peerId, relatedItemId, beforeId));
     }
 
     @PostMapping("/send")
-    public Result<ChatMessageVO> send(@RequestAttribute("userId") Long userId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<ChatMessageVO> send(@RequestAttribute("userId") Long userId,
                                       @Valid @RequestBody ChatSendDTO dto) {
-        return Result.ok(chatService.send(userId, dto));
+        return ApiSuccess.ok(chatService.send(userId, dto));
     }
 
     /**
@@ -63,21 +71,24 @@ public class ChatController {
      * lastSeenMessageId 为当前视口最后一条可见的"接收"消息 ID。
      */
     @PostMapping("/ack")
-    public Result<Void> ack(@RequestAttribute("userId") Long userId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> ack(@RequestAttribute("userId") Long userId,
                             @RequestParam String conversationId,
                             @RequestParam Long lastSeenMessageId) {
         chatService.ackRead(userId, conversationId, lastSeenMessageId);
-        return Result.ok(null);
+        return ApiSuccess.ok(null);
     }
 
     @GetMapping("/unread-count")
-    public Result<Long> unreadCount(@RequestAttribute("userId") Long userId) {
-        return Result.ok(chatService.unreadCount(userId));
+    @BusinessErrors(ResultCode.USER_NOT_FOUND)
+    public ApiSuccess<Long> unreadCount(@RequestAttribute("userId") Long userId) {
+        return ApiSuccess.ok(chatService.unreadCount(userId));
     }
 
     @GetMapping("/unread")
-    public Result<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long userId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long userId,
                                               @RequestParam(required = false) String conversationId) {
-        return Result.ok(chatService.unreadMessages(userId, conversationId));
+        return ApiSuccess.ok(chatService.unreadMessages(userId, conversationId));
     }
 }

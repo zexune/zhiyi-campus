@@ -99,9 +99,15 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
+      # 声明文件卫生门禁：测试不得改写已提交的 auto-imports.d.ts / components.d.ts
+      # （vitest 模式已关闭插件 d.ts 写入，此处兜底验证）
+      - name: Assert clean declaration files before tests
+        run: git diff --exit-code -- frontend/auto-imports.d.ts frontend/components.d.ts
       - name: Run component tests with coverage
         working-directory: frontend
         run: npm run test:coverage
+      - name: Assert tests left declaration files untouched
+        run: git diff --exit-code -- frontend/auto-imports.d.ts frontend/components.d.ts
       - name: Build production frontend
         working-directory: frontend
         run: npm run build
@@ -121,6 +127,163 @@ jobs:
             frontend/playwright-report
             frontend/test-results
           if-no-files-found: ignore
+
+  api-contract-drift:
+    name: API contract drift (OpenAPI snapshot audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:9.7
+        env:
+          MYSQL_ROOT_PASSWORD: specroot
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pspecroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      # fetch-depth 0：基线 SHA 提取（PR base / merge-base）需要完整历史
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # ---- 固定版本 oasdiff 安装（无条件执行）：bootstrap 只允许跳过历史快照比较，
+      # 不允许跳过工具安装——校验和不匹配、下载失败、二进制不可用都直接失败 ----
+      - name: Install and verify pinned oasdiff
+        shell: bash
+        env:
+          OASDIFF_VERSION: v1.29.1
+        run: |
+          set -euo pipefail
+
+          oasdiff_asset="oasdiff_${OASDIFF_VERSION#v}_linux_amd64.tar.gz"
+          oasdiff_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/oasdiff.XXXXXX")"
+
+          curl --fail --location --silent --show-error \
+            --output "${oasdiff_dir}/${oasdiff_asset}" \
+            "https://github.com/oasdiff/oasdiff/releases/download/${OASDIFF_VERSION}/${oasdiff_asset}"
+
+          curl --fail --location --silent --show-error \
+            --output "${oasdiff_dir}/checksums.txt" \
+            "https://github.com/oasdiff/oasdiff/releases/download/${OASDIFF_VERSION}/checksums.txt"
+
+          (
+            cd "${oasdiff_dir}"
+
+            awk -v file="${oasdiff_asset}" \
+              '$2 == file || $2 == "*" file { print }' \
+              checksums.txt > oasdiff.sha256
+
+            test -s oasdiff.sha256
+            sha256sum --check oasdiff.sha256
+
+            tar -xzf "${oasdiff_asset}" oasdiff
+            chmod +x oasdiff
+            ./oasdiff --version
+          )
+
+          echo "${oasdiff_dir}" >> "${GITHUB_PATH}"
+
+      # ---- 基线与 breaking 检查：对比 PR base（或上一次 push）的历史快照 ----
+      - name: Resolve baseline SHA
+        id: baseline
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=$(git merge-base "${{ github.event.pull_request.base.sha }}" HEAD || true)
+          elif git cat-file -e "${{ github.event.before }}" 2>/dev/null; then
+            BASE=$(git merge-base "${{ github.event.before }}" HEAD || true)
+          else
+            BASE=$(git rev-parse HEAD~1 2>/dev/null || true)
+          fi
+          if [ -z "$BASE" ]; then
+            echo "sha=none" >> "$GITHUB_OUTPUT"
+            echo "无法解析基线提交（仓库首提交？），跳过 breaking 检查" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "sha=$BASE" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Breaking-change audit against baseline snapshot (pinned oasdiff)
+        if: steps.baseline.outputs.sha != 'none'
+        env:
+          BASE_SHA: ${{ steps.baseline.outputs.sha }}
+        run: |
+          if ! git cat-file -e "${BASE_SHA}:openapi.json" 2>/dev/null; then
+            if [ -f openapi.json ]; then
+              echo "::warning::baseline unavailable：基线提交 ${BASE_SHA} 没有 openapi.json——本次为 bootstrap 快照（见 .github/OPENAPI_BASELINE.md），跳过 breaking 检查。"
+            else
+              echo "::warning::baseline unavailable：基线与本提交都没有 openapi.json，无契约可比。"
+            fi
+            exit 0
+          fi
+          git show "${BASE_SHA}:openapi.json" > /tmp/openapi-base.json
+          if oasdiff breaking /tmp/openapi-base.json openapi.json --format text; then
+            exit 0
+          fi
+          # 批准记录按规格内容指纹匹配：<base-spec-sha256> <new-spec-sha256> <ADR/审批说明>。
+          # 只绑 base 提交 SHA 时，两个不同 PR 基于同一基线会互相放行彼此的破坏性规格。
+          BASE_SPEC_SHA=$(sha256sum /tmp/openapi-base.json | cut -d' ' -f1)
+          NEW_SPEC_SHA=$(sha256sum openapi.json | cut -d' ' -f1)
+          if grep -Eq "^${BASE_SPEC_SHA} ${NEW_SPEC_SHA} " .github/openapi-breaking-approvals.txt 2>/dev/null; then
+            echo "::notice::存在破坏性契约变更，且规格指纹对（base=${BASE_SPEC_SHA:0:12}… new=${NEW_SPEC_SHA:0:12}…）已在 .github/openapi-breaking-approvals.txt 显式批准。"
+          else
+            echo "::error::检测到未批准的破坏性契约变更。如已评审通过，请在 .github/openapi-breaking-approvals.txt 登记："
+            echo "::error::${BASE_SPEC_SHA} ${NEW_SPEC_SHA} <PR 编号/ADR 链接>"
+            exit 1
+          fi
+
+      # ---- 快速检查：提交的快照与提交的类型文件是否成对 ----
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Regenerate types from committed snapshot and diff
+        run: |
+          cd frontend
+          npm run gen:api
+          if ! git diff --exit-code -- src/types/api.gen.d.ts; then
+            echo "::error::src/types/api.gen.d.ts 与 openapi.json 快照不一致——请运行 npm run gen:api 后一并提交。"
+            exit 1
+          fi
+
+      # ---- 重检查：后端实时规格与提交的快照是否一致 ----
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Initialize database schema
+        run: docker exec -i "${{ job.services.mysql.id }}" mysql --user=root --password=specroot --default-character-set=utf8mb4 < zhiyi_campus_init.sql
+      - name: Package backend
+        working-directory: backend
+        run: mvn -B -q clean package -DskipTests
+      - name: Export live OpenAPI document from running backend
+        env:
+          MYSQL_USERNAME: root
+          MYSQL_PASSWORD: specroot
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3307/zhiyi_campus?characterEncoding=UTF-8&connectionTimeZone=Asia/Shanghai&rewriteBatchedStatements=true
+        run: |
+          export JWT_SECRET="$(openssl rand -base64 32)"
+          java -jar backend/target/zhiyi-campus-1.0.0.jar > /tmp/backend-contract.log 2>&1 &
+          echo $! > /tmp/backend-contract.pid
+          for attempt in {1..60}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/v3/api-docs || true)
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          if ! curl --fail --silent http://127.0.0.1:8080/v3/api-docs -o /tmp/openapi-live.json; then
+            echo "::error::后端未能提供 /v3/api-docs"
+            tail -50 /tmp/backend-contract.log
+            exit 1
+          fi
+          kill "$(cat /tmp/backend-contract.pid)" || true
+      - name: Audit live contract against committed snapshot
+        run: node .github/scripts/compare-openapi.mjs /tmp/openapi-live.json openapi.json
 
   full-system-e2e:
     name: Full Vue + Spring + MySQL journey

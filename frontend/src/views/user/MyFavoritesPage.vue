@@ -16,7 +16,7 @@
               <div class="fav-card__title">{{ item.title }}</div>
               <TagList :tags="item.tags" :limit="3" @select="goTag" />
               <div class="fav-card__foot">
-                <PriceTag :value="item.price" />
+                <ItemPrice :type="item.type" :price="item.price" />
                 <button class="fav-remove" :disabled="acting" title="取消收藏" aria-label="取消收藏" @click.stop="handleUnfavorite(item)">
                   <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
                     <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
@@ -50,7 +50,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import TagList from '@/components/common/TagList.vue'
-import PriceTag from '@/components/common/PriceTag.vue'
+import ItemPrice from '@/components/common/ItemPrice.vue'
 import { getMyFavorites, toggleFavorite } from '@/api/item'
 import { ITEM_STATUS, MODERATION_STATUS } from '@/constants/domain'
 import type { Item } from '@/types/models'

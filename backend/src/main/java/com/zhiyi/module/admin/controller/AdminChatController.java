@@ -1,6 +1,8 @@
 package com.zhiyi.module.admin.controller;
 
-import com.zhiyi.common.Result;
+import com.zhiyi.common.ApiSuccess;
+import com.zhiyi.common.ResultCode;
+import com.zhiyi.common.annotation.BusinessErrors;
 import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminChatService;
 import com.zhiyi.module.social.dto.ChatSendDTO;
@@ -34,39 +36,45 @@ public class AdminChatController {
     private final AdminChatService adminChatService;
     private final ChatService chatService;
 
+    /** 客服账号缺失/配置异常（500）与客服被跨校限制（403）都是显式契约。 */
     @GetMapping("/chat/sessions")
-    public Result<List<ConversationVO>> sessions() {
-        return Result.ok(adminChatService.getSessions());
+    @BusinessErrors({ResultCode.SERVER_ERROR, ResultCode.FORBIDDEN})
+    public ApiSuccess<List<ConversationVO>> sessions() {
+        return ApiSuccess.ok(adminChatService.getSessions());
     }
 
     @GetMapping("/chat/messages")
-    public Result<ChatThreadVO> messages(@RequestAttribute("userId") Long adminId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<ChatThreadVO> messages(@RequestAttribute("userId") Long adminId,
                                          @RequestParam String conversationId,
                                          @RequestParam(required = false) Long peerId,
                                          @RequestParam(required = false) Long relatedItemId,
                                          @RequestParam(required = false) Long beforeId) {
-        return Result.ok(chatService.messagesAsAdmin(
+        return ApiSuccess.ok(chatService.messagesAsAdmin(
                 adminId, conversationId, peerId, relatedItemId, beforeId));
     }
 
     @PostMapping("/chat/send")
-    public Result<ChatMessageVO> send(@RequestAttribute("userId") Long adminId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
+    public ApiSuccess<ChatMessageVO> send(@RequestAttribute("userId") Long adminId,
                                       @Valid @RequestBody ChatSendDTO dto) {
-        return Result.ok(chatService.sendAsAdmin(adminId, dto));
+        return ApiSuccess.ok(chatService.sendAsAdmin(adminId, dto));
     }
 
     /** 管理端同模式显式已读确认（GET messages 只读）。 */
     @PostMapping("/chat/ack")
-    public Result<Void> ack(@RequestAttribute("userId") Long adminId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<Void> ack(@RequestAttribute("userId") Long adminId,
                             @RequestParam String conversationId,
                             @RequestParam Long lastSeenMessageId) {
         chatService.ackRead(adminId, conversationId, lastSeenMessageId);
-        return Result.ok(null);
+        return ApiSuccess.ok(null);
     }
 
     @GetMapping("/chat/unread")
-    public Result<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long adminId,
+    @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
+    public ApiSuccess<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long adminId,
                                               @RequestParam(required = false) String conversationId) {
-        return Result.ok(chatService.unreadMessagesAsAdmin(adminId, conversationId));
+        return ApiSuccess.ok(chatService.unreadMessagesAsAdmin(adminId, conversationId));
     }
 }

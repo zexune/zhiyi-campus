@@ -9,3 +9,4 @@ package-lock.json
 # unplugin 自动生成物，内容随依赖变化重新生成，不参与格式化门禁
 auto-imports.d.ts
 components.d.ts
+src/types/api.gen.d.ts
