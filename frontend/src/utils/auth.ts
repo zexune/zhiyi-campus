@@ -19,6 +19,7 @@ import { ref } from 'vue'
 const ROLE_KEY = 'role'
 const USER_ID_KEY = 'userId'
 const NICKNAME_KEY = 'nickname'
+const AVATAR_KEY = 'avatar'
 // 旧版本遗留的 token 键，清理以免残留过期凭证
 const LEGACY_TOKEN_KEY = 'token'
 const LEGACY_PERSISTED_USER_KEY = 'zhiyi-user'
@@ -28,6 +29,8 @@ export interface StoredUser {
   id: number
   nickname: string
   role: string
+  /** 非敏感展示字段：头像相对路径；未设置/已恢复默认为 null */
+  avatar?: string | null
 }
 
 /** 鉴权上下文快照：跨周期校验的最小四元组 */
@@ -91,16 +94,29 @@ export function getStoredUser(): StoredUser | null {
   return {
     id,
     nickname: getNickname() || '',
-    role: getRole() || 'USER'
+    role: getRole() || 'USER',
+    avatar: localStorage.getItem(AVATAR_KEY)
   }
 }
 
-/** 登录/注册成功后写入用户摘要并置为已登录；token 由 httpOnly Cookie 承载，此处忽略。 */
-export function setLoginUser(user: { id: number | string; nickname?: string | null; role?: string | null }): void {
+/**
+ * 登录/注册成功后写入用户摘要并置为已登录；token 由 httpOnly Cookie 承载，此处忽略。
+ * avatar 为相对路径（如 /uploads/avatars/xxx.png），非敏感展示字段可安全落 localStorage；
+ * 显式存储 avatar（含清除），保证刷新后导航栏立即还原头像。
+ */
+export function setLoginUser(user: {
+  id: number | string
+  nickname?: string | null
+  role?: string | null
+  avatar?: string | null
+}): void {
   if (!user) return
   localStorage.setItem(USER_ID_KEY, String(user.id))
   localStorage.setItem(NICKNAME_KEY, user.nickname || '')
   localStorage.setItem(ROLE_KEY, user.role || 'USER')
+  const avatar = user.avatar
+  if (avatar) localStorage.setItem(AVATAR_KEY, avatar)
+  else localStorage.removeItem(AVATAR_KEY)
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   localStorage.removeItem(LEGACY_PERSISTED_USER_KEY)
   authEpoch.value += 1
@@ -111,6 +127,7 @@ export function clearAuth(): void {
   localStorage.removeItem(ROLE_KEY)
   localStorage.removeItem(USER_ID_KEY)
   localStorage.removeItem(NICKNAME_KEY)
+  localStorage.removeItem(AVATAR_KEY)
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   localStorage.removeItem(LEGACY_PERSISTED_USER_KEY)
   authEpoch.value += 1

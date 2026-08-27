@@ -65,6 +65,7 @@ public class BanService {
                 new Page<>(page, Math.min(size, 50)),
                 Wrappers.<SysUser>lambdaQuery()
                         .select(SysUser::getId, SysUser::getStudentId, SysUser::getNickname,
+                                SysUser::getAvatar,
                                 SysUser::getSchoolId, SysUser::getSchoolEmail, SysUser::getPhone,
                                 SysUser::getRole, SysUser::getStatus, SysUser::getBanUntilTime,
                                 SysUser::getLevel, SysUser::getExp, SysUser::getCreatedAt)

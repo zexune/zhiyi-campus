@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.SchoolScopeGuard;
+import com.zhiyi.common.storage.LocalImageStorage;
 import com.zhiyi.module.user.dto.UpdateProfileDTO;
 import com.zhiyi.module.user.entity.ExpLog;
 import com.zhiyi.module.user.entity.School;
@@ -19,6 +20,7 @@ import com.zhiyi.module.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +33,12 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final long MAX_AVATAR_BYTES = 2L * 1024 * 1024;
+
     private final SysUserMapper userMapper;
     private final ExpLogMapper expLogMapper;
     private final SchoolService schoolService;
+    private final LocalImageStorage imageStorage;
 
     /** 当前用户信息 */
     public UserVO getProfile(Long userId) {
@@ -148,6 +153,31 @@ public class UserService {
     }
 
     /**
+     * 上传并更新自定义头像。图片经 LocalImageStorage 校验落盘（2MB 上限，
+     * 与商品图一致的魔数校验），返回的公开 URL 直接写入 avatar 列——不接受
+     * 客户端提交任意 URL 字符串，避免外链注入。头像属于资料数据：与资料
+     * 编辑一致推进 profile_version，使进行中的 Feed 游标按既有语义从首屏重启。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public UserVO updateAvatar(Long userId, MultipartFile file) {
+        SysUser current = userMapper.selectById(userId);
+        if (current == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        String avatarUrl = imageStorage.store(file, "avatars", MAX_AVATAR_BYTES);
+        int affected = userMapper.update(null, Wrappers.<SysUser>lambdaUpdate()
+                .eq(SysUser::getId, userId)
+                .eq(SysUser::getProfileVersion, current.getProfileVersion())
+                .set(SysUser::getAvatar, avatarUrl)
+                .setSql("profile_version = profile_version + 1"));
+        if (affected == 0) {
+            // 与资料编辑并发：另一提交已推进版本，按既有乐观并发语义显式冲突
+            throw profileConflict(userId);
+        }
+        return getProfile(userId);
+    }
+
+    /**
      * 伪熟人信任标签（A5）：比对访客与目标的学院/年级/校区/宿舍楼。
      * 关键约束：仅当双方该字段都非空才比对；只返回关系文案，不暴露具体值。
      * 看自己不生成标签。
@@ -210,14 +240,15 @@ public class UserService {
      */
     public PublicUserCardVO getPublicProfile(Long userId) {
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
-                .select(SysUser::getId, SysUser::getNickname, SysUser::getLevel,
+                .select(SysUser::getId, SysUser::getNickname, SysUser::getAvatar, SysUser::getLevel,
                         SysUser::getSchoolId)
                 .eq(SysUser::getId, userId));
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
         return new PublicUserCardVO(
-                user.getId(), user.getNickname(), user.getLevel(), LevelRule.titleOf(user.getLevel()),
+                user.getId(), user.getNickname(), user.getAvatar(), user.getLevel(),
+                LevelRule.titleOf(user.getLevel()),
                 schoolService.schoolNameOf(user.getSchoolId()));
     }
 
@@ -230,7 +261,7 @@ public class UserService {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
-                .select(SysUser::getId, SysUser::getNickname, SysUser::getLevel,
+                .select(SysUser::getId, SysUser::getNickname, SysUser::getAvatar, SysUser::getLevel,
                         SysUser::getSchoolId, SysUser::getPhone, SysUser::getSchoolEmail,
                         SysUser::getCampus, SysUser::getCollege,
                         SysUser::getGrade, SysUser::getDormitory)
@@ -243,6 +274,7 @@ public class UserService {
         return new SellerDetailVO(
                 user.getId(),
                 user.getNickname(),
+                user.getAvatar(),
                 user.getLevel(),
                 LevelRule.titleOf(user.getLevel()),
                 schoolService.schoolNameOf(user.getSchoolId()),

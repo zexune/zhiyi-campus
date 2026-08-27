@@ -55,7 +55,7 @@
             </router-link>
             <el-dropdown trigger="click" popper-class="app-dropdown">
               <span class="user-entry">
-                <UserAvatar :nickname="nickname" :user-id="userId" size="s" />
+                <UserAvatar :nickname="nickname" :user-id="userId" size="s" :src="avatar" />
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -207,6 +207,8 @@ const userStore = useUserStore()
 const loggedIn = computed(() => isLoggedIn())
 const nickname = computed(() => userStore.user?.nickname || getNickname() || '?')
 const userId = computed(() => userStore.user?.id || getUserId() || 0)
+// 头像兜底链：完整 UserProfile（fetchProfile 后）→ 登录摘要（localStorage，refresh 即刻可见）
+const avatar = computed(() => userStore.user?.avatar || null)
 
 const unreadCount = ref(0)
 const mobileNavOpen = ref(false)

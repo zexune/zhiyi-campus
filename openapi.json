@@ -1652,6 +1652,12 @@
       },
       "ChatUserVO": {
         "properties": {
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -1668,6 +1674,7 @@
           }
         },
         "required": [
+          "avatar",
           "id",
           "nickname"
         ],
@@ -2116,6 +2123,12 @@
               "null"
             ]
           },
+          "publisherAvatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "publisherId": {
             "format": "int64",
             "type": "integer"
@@ -2167,6 +2180,7 @@
           "coverImage",
           "id",
           "price",
+          "publisherAvatar",
           "status",
           "title",
           "type"
@@ -2905,6 +2919,12 @@
       },
       "PublicUserCardVO": {
         "properties": {
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -2920,9 +2940,20 @@
             "type": "string"
           },
           "schoolName": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
+        "required": [
+          "avatar",
+          "id",
+          "level",
+          "levelTitle",
+          "nickname",
+          "schoolName"
+        ],
         "type": "object"
       },
       "PublishItemDTO": {
@@ -3295,6 +3326,12 @@
       },
       "SellerDetailVO": {
         "properties": {
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "campus": {
             "type": "string"
           },
@@ -3331,6 +3368,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "avatar"
+        ],
         "type": "object"
       },
       "SubmitAppealDTO": {
@@ -3526,6 +3566,12 @@
       },
       "UserVO": {
         "properties": {
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "banUntilTime": {
             "format": "date-time",
             "type": [
@@ -3621,6 +3667,7 @@
           }
         },
         "required": [
+          "avatar",
           "banUntilTime",
           "createdAt",
           "id",
@@ -16648,6 +16695,182 @@
         "security": [],
         "tags": [
           "school-controller"
+        ]
+      }
+    },
+    "/api/user/avatar": {
+      "post": {
+        "operationId": "uploadAvatar",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiSuccessUserVO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "参数校验失败",
+            "x-business-codes": [
+              "400"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "认证失败：Token 缺失/无效/过期或会话失效（响应已清除会话 Cookie）",
+            "x-business-codes": [
+              "1401",
+              "401"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "权限不足或账户被拒绝",
+            "x-business-codes": [
+              "1003",
+              "403"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "1006：用户不存在",
+            "x-business-codes": [
+              "1006"
+            ]
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求方法不受支持",
+            "x-business-codes": [
+              "405"
+            ]
+          },
+          "406": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "无法生成 Accept 指定的响应格式",
+            "x-business-codes": [
+              "406"
+            ]
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "1010：资料已被修改，请刷新后重试",
+            "x-business-codes": [
+              "1010"
+            ]
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求体或上传文件超过服务端限制",
+            "x-business-codes": [
+              "413"
+            ]
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求 Content-Type 与 endpoint 契约不匹配",
+            "x-business-codes": [
+              "415"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "服务器内部错误（幂等处置 UNKNOWN）；500：服务器内部错误",
+            "x-business-codes": [
+              "500"
+            ]
+          }
+        },
+        "tags": [
+          "user-controller"
+        ],
+        "x-business-codes": [
+          "1006",
+          "1010",
+          "500"
         ]
       }
     },

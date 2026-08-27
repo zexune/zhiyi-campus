@@ -16,6 +16,8 @@ public class SysUser {
     private String studentId;
     private String password;
     private String nickname;
+    /** 自定义头像 URL（/uploads/avatars/…；null 表示未设置，前端回退文字头像） */
+    private String avatar;
     private String phone;
     // ---- 模块一创新功能：学校归属 + 学校邮箱 ----
     private Long schoolId;          // 所属学校（普通功能按学校隔离；管理员默认上海大学）

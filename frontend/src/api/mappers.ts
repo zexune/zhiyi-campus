@@ -42,6 +42,7 @@ interface LoginUserWire {
   role?: unknown
   studentId?: unknown
   username?: unknown
+  avatar?: unknown
 }
 
 interface LoginPayloadWire {
@@ -72,13 +73,16 @@ export function mapLoginData<Wire extends LoginPayloadWire>(res: ApiResult<Wire 
     if (typeof identity !== 'string' || identity.length === 0) {
       throw new ProtocolViolationError(`${operation} 的登录用户 ${identityField} 缺失或为空`)
     }
+    // avatar 是相对路径字符串或显式 null（UserVO 恒有该字段）；登录后导航栏可见
+    const avatar = user.avatar === undefined ? null : user.avatar
     return {
       token: wire.token,
       user: {
         id: user.id,
         studentId: identity,
         nickname: user.nickname,
-        role: user.role
+        role: user.role,
+        avatar: avatar === null || typeof avatar === 'string' ? avatar : null
       }
     }
   })

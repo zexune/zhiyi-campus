@@ -79,7 +79,7 @@ public class AdminChatService {
             }
             ConversationVO vo = new ConversationVO();
             vo.setConversationId(aggregate.getConversationId());
-            vo.setPeer(new ChatUserVO(peer.getId(), peer.getNickname(),
+            vo.setPeer(new ChatUserVO(peer.getId(), peer.getNickname(), peer.getAvatar(),
                     peer.getLevel(), LevelRule.titleOf(peer.getLevel())));
             vo.setLastMessage(latest.getContent());
             vo.setLastMessageTime(latest.getCreatedAt());

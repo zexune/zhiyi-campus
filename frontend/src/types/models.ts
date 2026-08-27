@@ -115,6 +115,12 @@ export interface UserSummary {
   studentId?: string
   nickname: string
   role: string
+  /**
+   * 登录摘要头像（登录响应 user 为完整 UserVO，携带 avatar）。
+   * 存进 localStorage 后，导航栏无需等待 fetchProfile 即可展示头像；
+   * fetchProfile 升级为完整 UserProfile 后恒有 avatar。
+   */
+  avatar?: string | null
 }
 
 /** 登录/注册响应 */

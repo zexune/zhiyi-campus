@@ -1,6 +1,6 @@
 <template>
   <button class="conv-item" :class="{ active }" @click="emit('select')">
-    <UserAvatar :nickname="conversation.peer?.nickname || '同学'" :user-id="conversation.peer?.id || 0" size="m" />
+    <UserAvatar :nickname="conversation.peer?.nickname || '同学'" :user-id="conversation.peer?.id || 0" size="m" :src="conversation.peer?.avatar || null" />
     <span class="conv-item__body">
       <span class="conv-item__top">
         <span class="conv-item__name">

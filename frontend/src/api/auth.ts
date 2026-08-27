@@ -98,6 +98,16 @@ export function updateProfile(data: UpdateProfilePayload) {
   return contracts.put('/api/user/profile', { body: { ...data, schoolEmail: data.schoolEmail ?? undefined } }).then((res) => mapRequiredData(res, '/api/user/profile', (wire) => wire as UserProfile))
 }
 
+/**
+ * 上传用户头像（单文件替换语义，非多图列表）。
+ * 走受控 postFile：multipart 契约（必填 file 字段）由生成类型推导；
+ * 服务端校验类型（jpg/jpeg/png/webp）与 ≤2MB，客户端预校验在页面侧完成。
+ * 返回的最新资料会推进 profileVersion，调用方须用它同步表单版本，否则后续 PUT /profile 会 409。
+ */
+export function uploadUserAvatar(file: File) {
+  return contracts.postFile('/api/user/avatar', file).then((res) => mapRequiredData(res, '/api/user/avatar', (wire) => wire as UserProfile))
+}
+
 export function getExpLog(params: PageQuery) {
   return contracts.get('/api/user/exp-log', { query: params }).then((res) => mapPageData(res, '/api/user/exp-log', (row): ExpLog => row))
 }

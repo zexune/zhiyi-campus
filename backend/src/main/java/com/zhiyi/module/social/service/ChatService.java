@@ -567,6 +567,7 @@ public class ChatService {
         return new ChatUserVO(
                 user.getId(),
                 user.getNickname(),
+                user.getAvatar(),
                 user.getLevel(),
                 LevelRule.titleOf(user.getLevel())
         );

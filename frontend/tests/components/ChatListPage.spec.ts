@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, test, vi } from 'vitest'
+import { createPinia } from 'pinia'
 
 import ChatListPage from '@/views/chat/ChatListPage.vue'
 import { ackChatRead, getChatMessages, getConversations } from '@/api/chat'
@@ -24,6 +25,7 @@ vi.mock('vue-router', () => ({
 }))
 
 const global = {
+  plugins: [createPinia()],
   stubs: {
     DefaultLayout: { template: '<main><slot /></main>' },
     RouterLink: {

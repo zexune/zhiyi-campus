@@ -8,7 +8,34 @@
         <div class="left-col">
           <section class="card id-card">
             <div class="id-card__head">
-              <UserAvatar :nickname="user.nickname" :user-id="user.id" size="l" />
+              <div class="id-card__avatar">
+                <UserAvatar :nickname="user.nickname" :user-id="user.id" size="l" :src="user.avatar" />
+                <!-- 更换头像：点击弹出文件选择，单文件替换语义（非多图列表）；客户端先预校验再上传。
+                     触发器用 role="button" 而非 label：避免原生 label→input 转发与 openAvatarPicker 的
+                     input.click() 叠加导致文件选择器被触发两次。 -->
+                <div
+                  class="avatar-edit"
+                  role="button"
+                  tabindex="0"
+                  aria-label="更换头像"
+                  :aria-disabled="avatarUploading"
+                  @click="openAvatarPicker"
+                  @keydown.enter.prevent="openAvatarPicker"
+                  @keydown.space.prevent="openAvatarPicker"
+                >
+                  <template v-if="avatarUploading">
+                    <span class="avatar-edit__loading" aria-label="上传中">上传中…</span>
+                  </template>
+                  <template v-else>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                    更换
+                  </template>
+                </div>
+                <input ref="avatarInput" class="avatar-file" type="file" accept="image/jpeg,image/png,image/webp" :disabled="avatarUploading" tabindex="-1" @change="onAvatarChange" />
+              </div>
               <div>
                 <div class="id-card__name">
                   {{ user.nickname }}
@@ -226,7 +253,7 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import PriceTag from '@/components/common/PriceTag.vue'
 import ReputationRadar from '@/components/common/ReputationRadar.vue'
-import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools } from '@/api/auth'
+import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools, uploadUserAvatar } from '@/api/auth'
 import { ApiError } from '@/utils/request'
 import { useUserStore } from '@/stores/user'
 import { ROUTE_PATH } from '@/constants/routes'
@@ -429,6 +456,110 @@ function fillEditForm(profile: UserProfile | null) {
   }
 }
 
+// —— 头像上传 / 恢复默认 ——
+// 单文件替换语义：隐藏 file input + 客户端预校验（类型/大小），符合后端契约（jpg/jpeg/png/webp，≤2MB）
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarUploading = ref(false)
+
+/** 后端魔数校验的类型白名单（客户端先按 MIME + 扩展名拦截，魔数以服务端为准） */
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const AVATAR_MAX_SIZE = 2 * 1024 * 1024
+
+function openAvatarPicker() {
+  if (avatarUploading.value) return
+  avatarInput.value?.click()
+}
+
+async function onAvatarChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // 同一文件重复选择不触发 change：重置 input 以便再次选择同一文件
+  input.value = ''
+  if (!file || avatarUploading.value) return
+
+  // 预校验：文件大小超限直接拒绝，避免无谓的上传往返
+  if (file.size > AVATAR_MAX_SIZE) {
+    ElMessage.error('头像图片不能超过 2MB')
+    return
+  }
+  if (!AVATAR_TYPES.includes(file.type)) {
+    ElMessage.error('头像仅支持 JPG / PNG / WebP 格式')
+    return
+  }
+  // 魔数二次校验：MIME 可能被伪造（如 .jpeg 改名 .png），用文件头字节确认真实类型
+  if (!(await hasAllowedMagic(file))) {
+    ElMessage.error('头像文件内容与图片格式不符')
+    return
+  }
+  // 可解码性校验：仅有合法文件头的残缺图片（如截断的 PNG）能过后端魔数校验，
+  // 但浏览器无法解码渲染，上传后所有访问者只能看到文字头像回退——在源头拦截
+  if (!(await canBrowserDecode(file))) {
+    ElMessage.error('头像图片文件已损坏，无法显示，请换一张试试')
+    return
+  }
+
+  avatarUploading.value = true
+  try {
+    const res = await uploadUserAvatar(file)
+    applyAvatarProfile(res.data)
+    ElMessage.success('头像已更新')
+  } catch {
+    // 其余错误提示由 request.ts 统一处理
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+/** 读取文件头部幻数字节，确认是 JPEG/PNG/WebP 之一 */
+function hasAllowedMagic(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const bytes = new Uint8Array(reader.result as ArrayBuffer)
+      // JPEG: FF D8 FF；PNG: 89 50 4E 47 0D 0A 1A 0A；WebP: RIFF....WEBP
+      const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+      const isPng =
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47 &&
+        bytes[4] === 0x0d &&
+        bytes[5] === 0x0a &&
+        bytes[6] === 0x1a &&
+        bytes[7] === 0x0a
+      const isWebp = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+      resolve(isJpeg || isPng || isWebp)
+    }
+    reader.onerror = () => resolve(false)
+    reader.readAsArrayBuffer(file.slice(0, 12))
+  })
+}
+
+/** 让浏览器实际解码一次图片：截断/损坏文件（合法魔数但无完整图像数据）会触发 onerror */
+function canBrowserDecode(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve(img.naturalWidth > 0 && img.naturalHeight > 0)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(false)
+    }
+    img.src = url
+  })
+}
+
+/** 头像上传成功后：同步 store 与编辑表单，推进 profileVersion，避免后续保存资料 409 */
+function applyAvatarProfile(profile: UserProfile | null) {
+  if (!profile) return
+  userStore.user = profile
+  // 上传会推进 profileVersion：必须用返回的最新资料刷新表单中的版本，否则 PUT /profile 触发 1010 冲突
+  if (profile.profileVersion !== undefined) profileVersion.value = profile.profileVersion
+}
+
 onMounted(async () => {
   const [profile] = await Promise.all([
     userStore.fetchProfile(),
@@ -499,6 +630,55 @@ onMounted(async () => {
   display: flex;
   gap: 16px;
   align-items: center;
+}
+
+/* —— 头像卡片：图片/文字头像 + 更换/恢复默认 —— */
+.id-card__avatar {
+  position: relative;
+  flex-shrink: 0;
+}
+.avatar-file {
+  /* 隐藏的文件选择器，由 label 触发；保留可访问的焦点与键盘触发 */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.avatar-edit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border-radius: 50%;
+  background: rgba(38, 34, 28, 0.5);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.1;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+.avatar-edit svg {
+  width: 18px;
+  height: 18px;
+}
+.id-card__avatar:hover .avatar-edit,
+.avatar-edit:focus-visible {
+  opacity: 1;
+}
+.avatar-edit__loading {
+  padding: 0 4px;
+  font-size: 12px;
+}
+.avatar-edit:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 .id-card__name {
   font-family: var(--font-display);

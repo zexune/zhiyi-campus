@@ -1172,6 +1172,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["uploadAvatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/user/cancel-account": {
         parameters: {
             query?: never;
@@ -1962,6 +1978,7 @@ export interface components {
             relatedItem: components["schemas"]["ChatItemSummaryVO"] | null;
         };
         ChatUserVO: {
+            avatar: string | null;
             /** Format: int64 */
             id: number;
             /** Format: int32 */
@@ -2113,6 +2130,7 @@ export interface components {
             moderationStatus?: string;
             pickupLocation?: string;
             price: number | null;
+            publisherAvatar: string | null;
             /** Format: int64 */
             publisherId?: number;
             /** Format: int32 */
@@ -2462,13 +2480,14 @@ export interface components {
             warningCount: number;
         };
         PublicUserCardVO: {
+            avatar: string | null;
             /** Format: int64 */
-            id?: number;
+            id: number;
             /** Format: int32 */
-            level?: number;
-            levelTitle?: string;
-            nickname?: string;
-            schoolName?: string;
+            level: number;
+            levelTitle: string;
+            nickname: string;
+            schoolName: string | null;
         };
         PublishItemDTO: {
             /** Format: int64 */
@@ -2571,6 +2590,7 @@ export interface components {
             question: string;
         };
         SellerDetailVO: {
+            avatar: string | null;
             campus?: string;
             college?: string;
             dormitory?: string;
@@ -2641,6 +2661,7 @@ export interface components {
             url?: string;
         };
         UserVO: {
+            avatar: string | null;
             /** Format: date-time */
             banUntilTime: string | null;
             campus?: string;
@@ -11093,6 +11114,123 @@ export interface operations {
                 };
             };
             /** @description 服务器内部错误（幂等处置 UNKNOWN） */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    uploadAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiSuccessUserVO"];
+                };
+            };
+            /** @description 参数校验失败 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 认证失败：Token 缺失/无效/过期或会话失效（响应已清除会话 Cookie） */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 权限不足或账户被拒绝 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 1006：用户不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 请求方法不受支持 */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 无法生成 Accept 指定的响应格式 */
+            406: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 1010：资料已被修改，请刷新后重试 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 请求体或上传文件超过服务端限制 */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 请求 Content-Type 与 endpoint 契约不匹配 */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description 服务器内部错误（幂等处置 UNKNOWN）；500：服务器内部错误 */
             500: {
                 headers: {
                     [name: string]: unknown;

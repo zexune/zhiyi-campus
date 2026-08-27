@@ -16,7 +16,9 @@ import com.zhiyi.module.user.vo.ReputationVO;
 import com.zhiyi.module.user.vo.SellerDetailVO;
 import com.zhiyi.module.user.vo.UserVO;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -34,6 +38,7 @@ import java.util.List;
  *
  * GET  /api/user/profile           当前用户信息
  * PUT  /api/user/profile           更新个人信息
+ * POST /api/user/avatar            上传自定义头像（multipart）
  * GET  /api/user/exp-log           经验值变动记录
  * GET  /api/user/{id}/card         公开名片（昵称+等级，供商品详情/聊天展示）
  * PUT  /api/user/change-password   修改密码（验证原密码，新旧不得相同）
@@ -59,6 +64,19 @@ public class UserController {
     public ApiSuccess<UserVO> updateProfile(@RequestAttribute("userId") Long userId,
                                             @Valid @RequestBody UpdateProfileDTO dto) {
         return ApiSuccess.ok("保存成功", userService.updateProfile(userId, dto));
+    }
+
+    /**
+     * 上传自定义头像（multipart 契约）：显式声明 consumes 使 springdoc 生成
+     * required requestBody + multipart/form-data + file(binary)（与商品图上传
+     * 同一约定）。头像 URL 由服务端落盘生成后写入 avatar 列并推进
+     * profile_version，返回最新资料。
+     */
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.PROFILE_CONFLICT, ResultCode.SERVER_ERROR})
+    public ApiSuccess<UserVO> uploadAvatar(@RequestAttribute("userId") Long userId,
+                                           @RequestPart("file") @NotNull MultipartFile file) {
+        return ApiSuccess.ok("头像已更新", userService.updateAvatar(userId, file));
     }
 
     @GetMapping("/exp-log")

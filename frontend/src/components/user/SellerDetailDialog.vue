@@ -9,7 +9,7 @@
           <button ref="closeButton" class="seller-dialog__close" type="button" aria-label="关闭卖家详情" @click="emit('close')">×</button>
 
           <header class="seller-dialog__header">
-            <UserAvatar :nickname="seller?.nickname || '同学'" :user-id="seller?.id || 0" size="l" />
+            <UserAvatar :nickname="seller?.nickname || '同学'" :user-id="seller?.id || 0" size="l" :src="seller?.avatar || null" />
             <div class="seller-dialog__identity">
               <span class="seller-dialog__eyebrow">校园卖家档案</span>
               <div class="seller-dialog__name-row">
@@ -82,6 +82,8 @@ interface SellerDetail {
   dormitory?: string
   phone?: string
   schoolEmail?: string
+  /** 卖家头像相对路径（getSellerDetail 的 SellerDetailVO 新增字段） */
+  avatar?: string | null
 }
 
 const props = defineProps({

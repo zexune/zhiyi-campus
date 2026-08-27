@@ -71,7 +71,7 @@
             </div>
 
             <div class="seller-card">
-              <UserAvatar :nickname="item.publisherNickname || '同学'" :user-id="item.publisherId || 0" size="l" />
+              <UserAvatar :nickname="item.publisherNickname || '同学'" :user-id="item.publisherId || 0" size="l" :src="item.publisherAvatar || null" />
               <div class="seller-card__info">
                 <div class="seller-card__name">
                   {{ item.publisherNickname || '同学' }}
@@ -191,6 +191,8 @@ interface SellerDetail {
   nickname?: string
   level?: number
   schoolName?: string
+  /** 卖家头像（SellerDetailVO 新增字段），弹窗展示用 */
+  avatar?: string | null
   [key: string]: unknown
 }
 

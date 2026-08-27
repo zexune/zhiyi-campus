@@ -62,6 +62,7 @@ CREATE TABLE sys_user (
     student_id      VARCHAR(20)     NOT NULL                 COMMENT '学号（登录凭证）',
     password        VARCHAR(255)    NOT NULL                 COMMENT 'BCrypt加密密码',
     nickname        VARCHAR(50)     NOT NULL                 COMMENT '昵称',
+    avatar          VARCHAR(255)    DEFAULT NULL             COMMENT '自定义头像URL（本地存储 /uploads/avatars/…；NULL 回退文字头像）',
     phone           VARCHAR(20)     DEFAULT NULL             COMMENT '手机号',
     school_id       BIGINT          NOT NULL                 COMMENT '所属学校ID（普通功能按学校隔离；管理员仅为关系约束保留）',
     school_email    VARCHAR(100)    DEFAULT NULL             COMMENT '学校邮箱（可选，后缀须与所属学校匹配）',

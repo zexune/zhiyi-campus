@@ -22,6 +22,7 @@ public class ItemSnapshot {
     private Long id;
     private Long publisherId;
     private String publisherNickname;
+    private String publisherAvatar;
     private Integer publisherLevel;
     private String publisherLevelTitle;
     private Boolean publisherVerified;
@@ -117,6 +118,7 @@ public class ItemSnapshot {
         vo.setId(id);
         vo.setPublisherId(publisherId);
         vo.setPublisherNickname(publisherNickname);
+        vo.setPublisherAvatar(publisherAvatar);
         vo.setPublisherLevel(publisherLevel);
         vo.setPublisherLevelTitle(publisherLevelTitle);
         vo.setPublisherVerified(publisherVerified);

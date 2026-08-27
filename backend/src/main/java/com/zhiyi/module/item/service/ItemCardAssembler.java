@@ -104,6 +104,7 @@ public class ItemCardAssembler {
         vo.setPublisherId(item.getPublisherId());
         if (publisher != null) {
             vo.setPublisherNickname(publisher.getNickname());
+            vo.setPublisherAvatar(publisher.getAvatar());
             vo.setPublisherLevel(publisher.getLevel());
             vo.setPublisherLevelTitle(LevelRule.titleOf(publisher.getLevel()));
             vo.setPublisherVerified(StringUtils.hasText(publisher.getSchoolEmail()));

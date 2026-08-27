@@ -1,5 +1,7 @@
 package com.zhiyi.module.user.vo;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -14,6 +16,10 @@ import lombok.Data;
 public class SellerDetailVO {
     private Long id;
     private String nickname;
+    /** 未上传自定义头像时序列化为显式 null */
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    private String avatar;
     private Integer level;
     private String levelTitle;
     private String schoolName;

@@ -20,6 +20,10 @@ public class ItemDetailResponse {
     private Long id;
     private Long publisherId;
     private String publisherNickname;
+    /** 发布者自定义头像；未上传时序列化为显式 null（前端回退文字头像） */
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    private String publisherAvatar;
     private Integer publisherLevel;
     private String publisherLevelTitle;
     private Boolean publisherVerified;

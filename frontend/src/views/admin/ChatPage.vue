@@ -22,7 +22,7 @@
           <div v-else-if="sessions.length === 0" class="sidebar-state muted">暂无客服会话</div>
           <div v-else class="session-list">
             <div v-for="s in sessions" :key="s.conversationId" class="session-item" :class="{ active: activeConv === s.conversationId }" @click="openSession(s)">
-              <UserAvatar :nickname="s.peer?.nickname || '?'" :user-id="s.peer?.id || 0" size="m" />
+              <UserAvatar :nickname="s.peer?.nickname || '?'" :user-id="s.peer?.id || 0" size="m" :src="s.peer?.avatar || null" />
               <div class="session-item__info">
                 <div class="session-item__top">
                   <span class="session-item__name">{{ s.peer?.nickname || '未知用户' }}</span>
@@ -53,7 +53,7 @@
           <template v-else>
             <!-- 顶部：对方信息 -->
             <div class="chat-header">
-              <UserAvatar :nickname="activePeer?.nickname || '?'" :user-id="activePeer?.id || 0" size="m" />
+              <UserAvatar :nickname="activePeer?.nickname || '?'" :user-id="activePeer?.id || 0" size="m" :src="activePeer?.avatar || null" />
               <div class="chat-header__info">
                 <span class="chat-header__name">{{ activePeer?.nickname || '未知用户' }}</span>
                 <LevelBadge v-if="activePeer?.level" :level="activePeer.level" />

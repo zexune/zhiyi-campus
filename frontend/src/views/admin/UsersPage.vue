@@ -63,7 +63,7 @@
             <tr v-for="user in records" :key="user.id">
               <td>
                 <div class="user-cell__user">
-                  <span class="avatar avatar--s" :class="avatarColorClass(user.id)">{{ (user.nickname || '?')[0] }}</span>
+                  <UserAvatar :nickname="user.nickname || '?'" :user-id="user.id" size="s" :src="user.avatar" />
                   <div class="user-cell__who">
                     <div class="user-cell__name">{{ user.nickname }}</div>
                     <div class="muted user-cell__id">{{ user.studentId }}</div>
@@ -129,11 +129,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
+import UserAvatar from '@/components/common/UserAvatar.vue'
 import { banUser, resetUserPassword, searchAdminUsers, unbanUser } from '@/api/admin'
 import type { AdminUser } from '@/types/models'
 import { BAN_ACTION, USER_STATUS, USER_STATUS_LABELS } from '@/constants/domain'
 import type { UserStatus } from '@/constants/domain'
-import { avatarColorClass, formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import { usePagedList } from '@/composables/usePagedList'
 import { useSchoolOptions } from '@/composables/useSchoolOptions'
 

@@ -32,7 +32,7 @@
 
         <section v-if="selectedConversationId" class="chat-pane" :aria-label="`与${thread?.peer?.nickname || '同学'}的对话`">
           <header class="chat-pane__head">
-            <UserAvatar :nickname="thread?.peer?.nickname || selectedConversation?.peer?.nickname || '同学'" :user-id="thread?.peer?.id || selectedConversation?.peer?.id || 0" size="m" />
+            <UserAvatar :nickname="thread?.peer?.nickname || selectedConversation?.peer?.nickname || '同学'" :user-id="thread?.peer?.id || selectedConversation?.peer?.id || 0" size="m" :src="thread?.peer?.avatar || selectedConversation?.peer?.avatar || null" />
             <div>
               <div class="nm">
                 {{ thread?.peer?.nickname || selectedConversation?.peer?.nickname || '会话' }}
@@ -50,7 +50,7 @@
                 {{ earlierLoading ? '加载中…' : '加载更早的消息' }}
               </button>
               <div v-for="message in messages" :key="message.id" class="msg" :class="message.mine ? 'msg--out' : 'msg--in'">
-                <UserAvatar :nickname="message.mine ? '我' : thread?.peer?.nickname || '同学'" :user-id="message.mine ? 0 : thread?.peer?.id || 0" size="s" />
+                <UserAvatar :nickname="message.mine ? '我' : thread?.peer?.nickname || '同学'" :user-id="message.mine ? 0 : thread?.peer?.id || 0" size="s" :src="message.mine ? userStore.user?.avatar || null : thread?.peer?.avatar || null" />
                 <div>
                   <div class="msg__bubble">{{ message.content }}</div>
                   <div class="msg__time">{{ formatChatTime(message.createdAt) }}</div>
@@ -106,6 +106,7 @@ import LevelBadge from '@/components/common/LevelBadge.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { ackChatRead, getChatMessages, getConversations, sendChatMessage, startCustomerService } from '@/api/chat'
 import type { ChatMessagesQuery } from '@/api/chat'
+import { useUserStore } from '@/stores/user'
 import type { ChatMessage, ChatThread, Conversation } from '@/types/models'
 import ConversationListItem from './components/ConversationListItem.vue'
 import RelatedItemCard from './components/RelatedItemCard.vue'
@@ -133,6 +134,7 @@ const NEAR_BOTTOM_PX = 40
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const conversations = ref<Conversation[]>([])
 const selectedConversationId = ref('')
 const thread = ref<ChatThread | null>(null)

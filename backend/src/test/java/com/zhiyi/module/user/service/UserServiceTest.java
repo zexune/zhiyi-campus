@@ -9,6 +9,7 @@ import com.zhiyi.module.user.entity.School;
 import com.zhiyi.common.enums.SchoolStatus;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.common.enums.UserStatus;
+import com.zhiyi.common.storage.LocalImageStorage;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SchoolMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
@@ -28,7 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +42,12 @@ class UserServiceTest {
     @BeforeAll
     static void initializeMyBatisMetadata() {
         initialize(SysUser.class, SysUserMapper.class);
+    }
+
+    private final LocalImageStorage imageStorage = mock(LocalImageStorage.class);
+
+    private UserService service(SysUserMapper userMapper, SchoolService schoolService) {
+        return new UserService(userMapper, null, schoolService, imageStorage);
     }
 
     /** 真实 SchoolService 包一个 mock 的 SchoolMapper，避免把服务内部行为一并 mock 掉。 */
@@ -58,6 +68,7 @@ class UserServiceTest {
         user.setId(42L);
         user.setProfileVersion(0L);
         user.setNickname("测试同学");
+        user.setAvatar("/uploads/avatars/20260827/abc.png");
         user.setLevel(3);
         user.setSchoolId(1L);
         user.setPhone("13800138000");
@@ -71,17 +82,21 @@ class UserServiceTest {
         return user;
     }
 
+    private UserService serviceWithShuSchool(SysUserMapper userMapper) {
+        return service(userMapper, schoolServiceReturning(1L, "上海大学"));
+    }
+
     @Test
     void publicProfileExposesCardFieldsAndSchool() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectOne(any())).thenReturn(cardUser());
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
+        UserService service = serviceWithShuSchool(userMapper);
 
         JsonNode json = JsonMapper.builder().build().valueToTree(service.getPublicProfile(42L));
         Set<String> fieldNames = new HashSet<>(json.propertyNames());
 
         assertEquals(
-                Set.of("id", "nickname", "level", "levelTitle", "schoolName"),
+                Set.of("id", "nickname", "avatar", "level", "levelTitle", "schoolName"),
                 fieldNames);
         assertEquals("上海大学", json.get("schoolName").asString());
     }
@@ -93,12 +108,13 @@ class UserServiceTest {
         viewer.setId(7L);
         when(userMapper.selectById(7L)).thenReturn(viewer);
         when(userMapper.selectOne(any())).thenReturn(cardUser());
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
+        UserService service = serviceWithShuSchool(userMapper);
 
         SellerDetailVO detail = service.getSellerDetail(7L, 42L);
 
         assertEquals(42L, detail.getId());
         assertEquals("测试同学", detail.getNickname());
+        assertEquals("/uploads/avatars/20260827/abc.png", detail.getAvatar());
         assertEquals(3, detail.getLevel());
         assertEquals("上海大学", detail.getSchoolName());
         assertEquals("13800138000", detail.getPhone());
@@ -117,8 +133,7 @@ class UserServiceTest {
         viewer.setSchoolId(2L);
         when(userMapper.selectById(7L)).thenReturn(viewer);
         when(userMapper.selectOne(any())).thenReturn(cardUser());
-        UserService service = new UserService(
-                userMapper, null, schoolServiceReturning(1L, "上海大学"));
+        UserService service = serviceWithShuSchool(userMapper);
 
         BusinessException error = assertThrows(
                 BusinessException.class, () -> service.getSellerDetail(7L, 42L));
@@ -130,7 +145,7 @@ class UserServiceTest {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectById(42L)).thenReturn(cardUser());
         when(userMapper.update(any(SysUser.class), any())).thenReturn(1);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
+        UserService service = serviceWithShuSchool(userMapper);
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
         dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
@@ -153,7 +168,7 @@ class UserServiceTest {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectById(42L)).thenReturn(cardUser());
         when(userMapper.update(any(SysUser.class), any())).thenReturn(1);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
+        UserService service = serviceWithShuSchool(userMapper);
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
         dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
@@ -186,7 +201,7 @@ class UserServiceTest {
 
         SchoolMapper schoolMapper = mock(SchoolMapper.class);
         when(schoolMapper.selectById(2L)).thenReturn(school(2L, "东华大学", "@dhu.edu.cn"));
-        UserService service = new UserService(userMapper, null, new SchoolService(schoolMapper));
+        UserService service = service(userMapper, new SchoolService(schoolMapper));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
         dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
@@ -209,7 +224,7 @@ class UserServiceTest {
 
         SchoolMapper schoolMapper = mock(SchoolMapper.class);
         when(schoolMapper.selectById(2L)).thenReturn(school(2L, "东华大学", "@dhu.edu.cn"));
-        UserService service = new UserService(userMapper, null, new SchoolService(schoolMapper));
+        UserService service = service(userMapper, new SchoolService(schoolMapper));
 
         UpdateProfileDTO dto = new UpdateProfileDTO();
         dto.setProfileVersion(0L); // 乐观并发：携带读取时的版本
@@ -223,7 +238,7 @@ class UserServiceTest {
     void getProfileFillsSchoolName() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
         when(userMapper.selectById(42L)).thenReturn(cardUser());
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(1L, "上海大学"));
+        UserService service = serviceWithShuSchool(userMapper);
 
         UserVO vo = service.getProfile(42L);
         assertEquals("上海大学", vo.getSchoolName());
@@ -232,7 +247,7 @@ class UserServiceTest {
     @Test
     void relationTagsCompareOnlyBothNonBlankFields() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(null, null));
+        UserService service = service(userMapper, schoolServiceReturning(null, null));
 
         SysUser viewer = new SysUser();
         viewer.setId(1L);
@@ -257,7 +272,7 @@ class UserServiceTest {
     @Test
     void relationTagsDoNotCrossSchoolBoundary() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(null, null));
+        UserService service = service(userMapper, schoolServiceReturning(null, null));
 
         SysUser viewer = cardUser();
         viewer.setId(1L);
@@ -274,7 +289,7 @@ class UserServiceTest {
     @Test
     void relationTagsRejectMissingTarget() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(null, null));
+        UserService service = service(userMapper, schoolServiceReturning(null, null));
         SysUser viewer = cardUser();
         viewer.setId(1L);
         when(userMapper.selectById(1L)).thenReturn(viewer);
@@ -288,7 +303,7 @@ class UserServiceTest {
     @Test
     void relationTagsEmptyWhenViewingSelf() {
         SysUserMapper userMapper = mock(SysUserMapper.class);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(null, null));
+        UserService service = service(userMapper, schoolServiceReturning(null, null));
         assertTrue(service.getRelationTags(5L, 5L).isEmpty());
     }
 
@@ -298,9 +313,60 @@ class UserServiceTest {
         SysUser user = cardUser();
         user.setSchoolId(null);
         when(userMapper.selectById(42L)).thenReturn(user);
-        UserService service = new UserService(userMapper, null, schoolServiceReturning(null, null));
+        UserService service = service(userMapper, schoolServiceReturning(null, null));
 
         assertNull(service.getProfile(42L).getSchoolName());
+    }
+
+    @Test
+    void uploadAvatarStoresImageUnderAvatarsBucketAndReturnsFreshProfile() {
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysUser current = cardUser();
+        SysUser updated = cardUser();
+        updated.setAvatar("/uploads/avatars/20260827/new.png");
+        updated.setProfileVersion(1L);
+        when(userMapper.selectById(42L)).thenReturn(current, updated);
+        when(userMapper.update(any(), any())).thenReturn(1);
+        when(imageStorage.store(any(), eq("avatars"), anyLong()))
+                .thenReturn("/uploads/avatars/20260827/new.png");
+
+        UserVO vo = serviceWithShuSchool(userMapper)
+                .updateAvatar(42L, new org.springframework.mock.web.MockMultipartFile(
+                        "file", "new.png", "image/png", new byte[]{1}));
+
+        assertEquals("/uploads/avatars/20260827/new.png", vo.getAvatar());
+        // 头像写入与 profile_version 推进在同一条件 UPDATE 中完成
+        verify(userMapper).update(isNull(), argThat(wrapper -> {
+            assertTrue(wrapper instanceof LambdaUpdateWrapper<?>);
+            String sqlSet = ((LambdaUpdateWrapper<?>) wrapper).getSqlSet();
+            assertTrue(sqlSet.contains("avatar="));
+            assertTrue(sqlSet.contains("profile_version"));
+            return true;
+        }));
+    }
+
+    @Test
+    void uploadAvatarSurfacesProfileConflictOnConcurrentEdit() {
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(42L)).thenReturn(cardUser());
+        when(userMapper.update(any(), any())).thenReturn(0); // 版本已被并发推进
+        when(imageStorage.store(any(), eq("avatars"), anyLong()))
+                .thenReturn("/uploads/avatars/20260827/new.png");
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> serviceWithShuSchool(userMapper).updateAvatar(42L,
+                        new org.springframework.mock.web.MockMultipartFile(
+                                "file", "new.png", "image/png", new byte[]{1})));
+        assertEquals(com.zhiyi.common.ResultCode.PROFILE_CONFLICT.getCode(), error.getCode());
+    }
+
+    @Test
+    void uploadAvatarRejectsMissingUser() {
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        when(userMapper.selectById(99L)).thenReturn(null);
+
+        UserService service = serviceWithShuSchool(userMapper);
+        assertThrows(BusinessException.class, () -> service.updateAvatar(99L, null));
     }
 
     private School school(Long id, String name, String emailDomain) {

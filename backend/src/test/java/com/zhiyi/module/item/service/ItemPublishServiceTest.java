@@ -72,39 +72,28 @@ class ItemPublishServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 图片校验/落盘已抽取到 LocalImageStorage（与头像上传共用），
+        // 上传契约测试见 LocalImageStorageTest；此处注入真实组件保持委托可用
+        com.zhiyi.common.storage.LocalImageStorage imageStorage =
+                new com.zhiyi.common.storage.LocalImageStorage();
+        ReflectionTestUtils.setField(imageStorage, "uploadPath", uploadDirectory.toString());
         service = new ItemPublishService(itemMapper, categoryMapper, violationReportMapper,
-                marketplaceService, userMapper, contentAnalyzer, itemTagService, viewStatMapper);
-        ReflectionTestUtils.setField(service, "uploadPath", uploadDirectory.toString());
+                marketplaceService, userMapper, contentAnalyzer, itemTagService, viewStatMapper,
+                imageStorage);
     }
 
     @Test
-    void acceptsImagesWhenMagicNumbersMatchDeclaredFormats() throws IOException {
+    void uploadImageDelegatesToSharedStorageWithItemBucket() {
         byte[] png = {
                 (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
                 0x00, 0x00, 0x00, 0x0d
         };
-        byte[] jpeg = {
-                (byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe0,
-                0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01
-        };
-        byte[] webp = {
-                0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00,
-                0x57, 0x45, 0x42, 0x50
-        };
 
-        UploadImageVO uploadedPng = service.uploadImage(
+        UploadImageVO uploaded = service.uploadImage(
                 new MockMultipartFile("file", "campus.png", "image/png", png));
-        UploadImageVO uploadedJpeg = service.uploadImage(
-                new MockMultipartFile("file", "campus.jpeg", "image/jpeg", jpeg));
-        UploadImageVO uploadedWebp = service.uploadImage(
-                new MockMultipartFile("file", "campus.webp", "image/webp", webp));
 
-        assertTrue(uploadedPng.getUrl().endsWith(".png"));
-        assertTrue(uploadedJpeg.getUrl().endsWith(".jpg"));
-        assertTrue(uploadedWebp.getUrl().endsWith(".webp"));
-        try (var files = Files.walk(uploadDirectory)) {
-            assertEquals(3L, files.filter(Files::isRegularFile).count());
-        }
+        assertTrue(uploaded.getUrl().startsWith("/uploads/items/"));
+        assertTrue(uploaded.getUrl().endsWith(".png"));
     }
 
     @Test
@@ -117,28 +106,6 @@ class ItemPublishServiceTest {
         try (var files = Files.walk(uploadDirectory)) {
             assertEquals(0L, files.filter(Files::isRegularFile).count());
         }
-    }
-
-    @Test
-    void rejectsWhenMagicNumberConflictsWithFilenameAndContentType() {
-        byte[] jpeg = {
-                (byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe0,
-                0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01
-        };
-        MockMultipartFile file = new MockMultipartFile("file", "avatar.png", "image/png", jpeg);
-
-        assertThrows(BusinessException.class, () -> service.uploadImage(file));
-    }
-
-    @Test
-    void rejectsWhenFilenameExtensionConflictsWithContentType() {
-        byte[] png = {
-                (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-                0x00, 0x00, 0x00, 0x0d
-        };
-        MockMultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/png", png);
-
-        assertThrows(BusinessException.class, () -> service.uploadImage(file));
     }
 
     @Test

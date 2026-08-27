@@ -23,6 +23,10 @@ public class UserVO {
     private String studentId;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private String nickname;
+    /** 未上传自定义头像时序列化为显式 null（前端回退文字头像） */
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    private String avatar;
     /** 未绑定时序列化为显式 null */
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
     @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -78,6 +82,7 @@ public class UserVO {
         vo.setId(u.getId());
         vo.setStudentId(u.getStudentId());
         vo.setNickname(u.getNickname());
+        vo.setAvatar(u.getAvatar());
         vo.setPhone(u.getPhone());
         vo.setRole(u.getRole().code());
         vo.setStatus(u.getStatus().code());
