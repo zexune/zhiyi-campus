@@ -45,7 +45,7 @@ mvn verify -Pintegration
 
 该 profile 启动一次性 MySQL 9.7 LTS 容器，直接运行根目录的 `zhiyi_campus_init.sql`，并使用真实 SQL、索引、约束和事务语义。套件通过 `SELECT VERSION()` 校验数据库环境为 9.7.x。
 
-`TradingConcurrencyIT` 在同一容器上以 CyclicBarrier 屏障交错执行双事务竞态验收（fix-v3.1.md §7.1）：双下单同商品、下单 vs 编辑/删除、充值同键并发、封禁 vs 确认收货、违规确认 vs 确认收货/编辑；交易请求统一走生产入口 `TradingEntryService`（事务外准入闸门参与验收）。断言针对串行顺序无关的数据库不变量（I1-I3、I6/I7、I10-I13、I24），任何交错下都必须成立。
+`TradingConcurrencyIT` 在同一容器上以 CyclicBarrier 屏障交错执行双事务竞态验收：双下单同商品、下单 vs 编辑/删除、充值同键并发、封禁 vs 确认收货、违规确认 vs 确认收货/编辑；交易请求统一走生产入口 `TradingEntryService`（事务外准入闸门参与验收）。断言针对串行顺序无关的数据库不变量（I1-I3、I6/I7、I10-I13、I24），任何交错下都必须成立。
 
 ### 完整系统 E2E
 
@@ -90,7 +90,7 @@ npm run test:system
 
 ## CI 门禁
 
-`.github/workflows/test.yml` 在 push 和 pull request 上执行五条独立流水线：
+`.github/workflows/test.yml` 在 push 和 pull request 上执行六条独立流水线：
 
 | 作业 | 阻断内容 |
 | --- | --- |
@@ -98,6 +98,7 @@ npm run test:system
 | Backend unit + MVC contract | 编译、快速测试套件、JaCoCo 门禁 |
 | Backend real MySQL integration | Testcontainers 全链路与事务回滚 |
 | Frontend component + mocked browser | Vitest 覆盖率门禁、生产构建、Playwright 烟测 |
+| API contract drift（OpenAPI 快照审计） | 固定版本 oasdiff breaking 审计、后端实时 OpenAPI 规格与 `openapi.json` 快照比对、契约类型重新生成一致性 |
 | Full Vue + Spring + MySQL journey | 真实浏览器、真实后端和真实 MySQL 的关键交易闭环 |
 
 失败诊断会以 GitHub Actions artifact 保存：后端 Surefire/Failsafe 报告、JaCoCo、前端覆盖率、Playwright report、trace、截图和视频。

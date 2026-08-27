@@ -220,7 +220,7 @@ zhiyi-campus/
 │   │   ├── api/                       # 按业务模块封装的 API 请求
 │   │   ├── assets/                    # 全局样式等静态资源
 │   │   ├── components/                # 通用、布局、用户和交易组件
-│   │   ├── constants/                 # API 领域状态码与统一展示映射
+│   │   ├── constants/                 # API 领域状态码、统一展示映射与路由路径常量
 │   │   ├── router/                    # 页面路由与访问守卫
 │   │   ├── stores/                    # Pinia 状态管理
 │   │   ├── utils/                     # 请求、鉴权、信誉与交易工具
@@ -229,7 +229,7 @@ zhiyi-campus/
 │   ├── package.json                   # npm 脚本与依赖
 │   └── vite.config.ts                 # Vite 配置与开发代理
 ├── zhiyi_campus_init.sql              # MySQL 初始化脚本
-├── .github/workflows/test.yml         # 四层 CI 测试门禁
+├── .github/workflows/test.yml         # 六条 CI 测试与契约审计流水线
 ├── TESTING.md                         # 测试策略、命令与质量规范
 ├── LICENSE                            # MIT 开源许可证
 └── README.md
@@ -326,7 +326,7 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 - 资金事务遵循统一锁序“协调行（幂等记录）→ 用户行（ID 升序）→ 商品行 → 订单行 → 流水/Outbox 插入”（允许跳过，禁止反向），用户行与下单商品行以 `NOWAIT` 加锁，锁繁忙映射为可重试的 `TRADE_BUSY`；`@RetryOnDeadlock` 只重试真正的死锁/锁等待超时（见 `RetryConfig`）。新增资金方法时应保持该锁序。
 - 资金请求统一经生产入口 `TradingEntryService` 编排：先过事务外准入闸门（下单按商品单飞准入，所有资金操作受全局并发上限约束），等待预算耗尽即返回可重试的 `TRADE_BUSY`，此时不获取数据库连接也不创建幂等记录；死锁重试耗尽的锁冲突同样在该层统一转为 `TRADE_BUSY`。
 - 数据库分别建模商品、内容审核、订单和资金流水，商品状态是可交易性的唯一权威来源，交易约束由对应业务表管理。
-- 商品持久化状态只有 `ON_SALE`、`SOLD`、`OFF_SHELF`；内容审核为 `PASSED`、`PENDING`、`REJECTED`；订单为 `WAITING_MEET`、`COMPLETED`、`CANCELLED`。前端的“审核中”由审核状态派生。
+- 商品持久化状态只有 `ON_SALE`、`RESERVED`、`SOLD`、`OFF_SHELF`；内容审核为 `PASSED`、`PENDING`、`REJECTED`；订单为 `WAITING_MEET`、`COMPLETED`、`CANCELLED`。前端的“审核中”由审核状态派生。
 - 聊天会话列表与未读数使用 SQL `GROUP BY` 聚合（每会话一行），消息历史按 `id` 倒序 keyset 分页（`beforeId` 向前翻页）；新增查询必须保持有界，不得全量加载消息明细。
 - 站内系统通知走事务 Outbox：业务数据与通知事件在同一事务写入 `outbox_event`（提交前不可见，回滚随之消失），后台调度逐条消费且单事件失败不阻塞队列；新增通知按业务唯一性构造确定性 `event_id`，重复追加幂等跳过。
 - 内容违规只执行可配置的固定合规扣分，商品下架统一由内容审核工作台裁决执行；账号封禁和解封只能在用户管理中独立执行。
