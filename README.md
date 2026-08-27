@@ -258,8 +258,7 @@ zhiyi-campus/
 - **认证错误唯一映射（P0-1）**：业务层的 `USER_CANCELLED(1008)` 是 403（注销账户登录/资金操作被明确拒绝，不触发前端登出）；`JwtInterceptor` 发现 Token 无效/过期、账户注销后的旧 Token 时直写通用 `401 + UNAUTHORIZED(401)`，改密/改角色后的旧 Token 直写 `401 + SESSION_INVALIDATED(1401)`——拦截器不返回业务码 1008，且任何 401 都同时清除 httpOnly 会话 Cookie。前端只以**真实 HTTP 401** 作为清理登录态的依据。
 - **失败信封元数据（P1-3）**：失败响应携带必填 `meta.requestOutcome`（`REJECTED`=明确拒绝可清幂等键 / `PROCESSING`=服务端处理中 / `UNKNOWN`=结果不明保留幂等键），前端在信封完整性校验通过后以它为权威；完整旧信封（`code/message/data` 齐备且 `meta` 自有属性完全不存在）按业务码白名单 fallback；残缺形态（缺 code/message/data、`meta` 为 null/缺字段/非法枚举、非 JSON、代理 HTML）不信任 body 的业务码与 message，按传输层错误保守处理（RETAIN）；允许退避的失败（如 429 交易繁忙）附标准 `Retry-After` 头。
 - **`@BusinessErrors` 声明纪律**：每个 Controller operation 都必须显式声明 `@BusinessErrors`（空注解=已审计且无特有业务错误）；只有 `BAD_REQUEST` 隐式允许，`FORBIDDEN`/`SERVER_ERROR`/`USER_NOT_FOUND`/`CONFLICT` 等显式业务错误必须逐 operation 声明，否则 strict 模式契约测试（`BusinessErrorContractVerifier`）直接失败。
-- **契约治理**：仓库根目录的 `openapi.json` 是从运行中后端导出的规范化快照（可空 `$ref` 统一为 anyOf、键序与 required/enum/x-business-codes 集合排序），`frontend/src/types/api.gen.d.ts` 由快照生成、禁止手改；CI 以固定版本 oasdiff（v1.29.1，下载进入 Runner 临时目录 + sha256 校验 + `--version` 冒烟，任一失败即任务失败）对 PR 基线做 breaking 审计（基线无快照时明确报告 `baseline unavailable`，不静默通过；bootstrap 只跳过历史快照比较，不跳过工具安装），破坏性变更必须在 `.github/openapi-breaking-approvals.txt` 登记批准，见 `.github/OPENAPI_BASELINE.md`。
-- **全局 HTTP 状态迁移与消费者登记**：业务失败从"HTTP 200 + body 业务码"迁移到"真实 4xx/5xx + 完整 `ApiFailure`"。发布顺序：先发布兼容新旧信封的前端，再发布新后端；旧信封 fallback 的兼容窗口、回滚方案与仓库外消费者确认门栏记录在 `.github/OPENAPI_BASELINE.md` 的 breaking migration 一节——无法确认消费者身份时不得上线全局状态迁移。
+- **契约治理**：仓库根目录的 `openapi.json` 是从运行中后端导出的规范化快照（可空 `$ref` 统一为 anyOf、键序与 required/enum/x-business-codes 集合排序），`frontend/src/types/api.gen.d.ts` 由快照生成、禁止手改；CI 强制比对实时规格、快照与前端类型，任一漂移即失败。
 
 公开接口包括：
 
