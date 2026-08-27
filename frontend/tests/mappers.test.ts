@@ -4,7 +4,11 @@ import { test } from 'vitest'
 import { mapLoginData, mapPageData, ProtocolViolationError } from '@/api/mappers'
 
 test('mapLoginData 校验核心字段并统一登录用户标识', () => {
-  const result = mapLoginData({ code: 200, message: 'ok', data: { token: 'jwt', user: { id: 7, username: 'admin', nickname: '管理员', role: 'ADMIN', avatar: '/uploads/avatars/a.png' } } }, '/api/admin/auth/login', 'username')
+  const result = mapLoginData(
+    { code: 200, message: 'ok', data: { token: 'jwt', user: { id: 7, username: 'admin', nickname: '管理员', role: 'ADMIN', avatar: '/uploads/avatars/a.png' } } },
+    '/api/admin/auth/login',
+    'username'
+  )
 
   assert.deepEqual(result.data, {
     token: 'jwt',

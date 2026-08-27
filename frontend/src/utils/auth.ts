@@ -104,12 +104,7 @@ export function getStoredUser(): StoredUser | null {
  * avatar 为相对路径（如 /uploads/avatars/xxx.png），非敏感展示字段可安全落 localStorage；
  * 显式存储 avatar（含清除），保证刷新后导航栏立即还原头像。
  */
-export function setLoginUser(user: {
-  id: number | string
-  nickname?: string | null
-  role?: string | null
-  avatar?: string | null
-}): void {
+export function setLoginUser(user: { id: number | string; nickname?: string | null; role?: string | null; avatar?: string | null }): void {
   if (!user) return
   localStorage.setItem(USER_ID_KEY, String(user.id))
   localStorage.setItem(NICKNAME_KEY, user.nickname || '')
