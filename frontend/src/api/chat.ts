@@ -46,7 +46,3 @@ export function ackChatRead(conversationId: string, lastSeenMessageId: number) {
 export function getUnreadCount(transport?: TransportOptions) {
   return contracts.get('/api/chat/unread-count', { transport }).then((res) => mapRequiredData(res, '/api/chat/unread-count', (wire) => wire as number))
 }
-
-export function getUnreadMessages(params: { conversationId?: string }) {
-  return contracts.get('/api/chat/unread', { query: params }).then((res) => mapRequiredData(res, '/api/chat/unread', (wire) => wire as ChatMessage[]))
-}

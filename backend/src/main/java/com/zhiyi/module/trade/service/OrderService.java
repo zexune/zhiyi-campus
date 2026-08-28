@@ -33,7 +33,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Objects;
 
 /**
  * 担保交易核心服务 —— 下单、确认收货、取消订单。
@@ -393,9 +392,4 @@ public class OrderService {
     // 方法匹配对多方法/代理场景存在版本怪癖）；耗尽的 ConcurrencyFailureException
     // 由编排层 TradingEntryService 统一转 TRADE_BUSY。当前事务虽已回滚，但仍无法
     // 排除同一幂等键的另一请求正在等待或执行，因此结果为 UNKNOWN。
-
-    /** 供编排层校验订单参与者（无锁读，仅用于权限预检）。 */
-    public boolean isBuyerOf(TradeOrder order, Long userId) {
-        return order != null && Objects.equals(order.getBuyerId(), userId);
-    }
 }

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test, vi } from 'vitest'
-import { createApp, h, nextTick } from 'vue'
+import { createApp, h } from 'vue'
 
-import { formatDate, formatDateTime, formatPrice, formatTimeShort, placeholderClass, avatarColorClass } from '@/utils/format'
+import { formatDate, formatDateTime, formatPrice, formatTimeShort, placeholderClass } from '@/utils/format'
 import { usePagedList } from '@/composables/usePagedList'
 
 // ---- format ----
@@ -28,14 +28,12 @@ test('formatPrice 统一两位小数并兜底空值', () => {
   assert.equal(formatPrice(undefined), '0.00')
 })
 
-test('placeholderClass / avatarColorClass 按 ID 稳定取色', () => {
+test('placeholderClass 按 ID 稳定取色', () => {
   assert.equal(placeholderClass(7), 'ph-b')
   assert.equal(placeholderClass(13), 'ph-b')
   assert.equal(placeholderClass(null), 'ph-a')
   assert.equal(placeholderClass(6), 'ph-a')
   assert.equal(placeholderClass(3), 'ph-d')
-  assert.equal(avatarColorClass(2), 'avatar--blue')
-  assert.equal(avatarColorClass(0), 'avatar--orange')
 })
 
 // ---- usePagedList ----
@@ -76,20 +74,12 @@ test('usePagedList 组装分页参数并落到 records/total', async () => {
   assert.equal(list.loadError.value, false)
 })
 
-test('usePagedList 失败置 loadError 且不抛出，裸数组响应也可用', async () => {
+test('usePagedList 失败置 loadError 且不抛出', async () => {
   const failing = vi.fn().mockRejectedValue(new Error('network'))
   const failed = withSetup(() => usePagedList(failing))
   await failed.fetchList()
   assert.equal(failed.loadError.value, true)
   assert.deepEqual(failed.records.value, [])
-
-  const bare = vi.fn().mockResolvedValue({ data: [{ id: 9 }, { id: 10 }] })
-  const list = withSetup(() => usePagedList(bare))
-  await list.fetchList()
-  assert.deepEqual(list.records.value, [{ id: 9 }, { id: 10 }])
-  assert.equal(list.total.value, 2)
-
-  await nextTick()
 })
 
 // ---- routes 契约 ----
@@ -151,22 +141,6 @@ test('formatChatTime 同日仅时分、跨日带日期，非法输入返回空�
   assert.match(formatChatTime('2020-01-02T08:30:00'), /^1\/2 08:30$/)
   assert.equal(formatChatTime('not-a-date'), '')
   assert.equal(formatChatTime(null), '')
-})
-
-test('usePagedList 对 params 返回空值与缺失 total 的载荷兜底', async () => {
-  const loader = vi.fn().mockResolvedValue({ data: { records: [{ id: 3 }] } })
-  const list = withSetup(() => usePagedList(loader, { params: () => null }))
-  await list.fetchList()
-  assert.deepEqual(list.records.value, [{ id: 3 }])
-  assert.equal(list.total.value, 0)
-})
-
-test('usePagedList 对缺 records 的分页载荷兜底为空列表', async () => {
-  const loader = vi.fn().mockResolvedValue({ data: {} })
-  const list = withSetup(() => usePagedList(loader))
-  await list.fetchList()
-  assert.deepEqual(list.records.value, [])
-  assert.equal(list.total.value, 0)
 })
 
 test('usePagedList 乱序返回的旧代成功响应被丢弃，不覆盖新结果', async () => {

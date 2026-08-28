@@ -2286,23 +2286,8 @@ export interface components {
             status: string;
         };
         PageResponseAppealVO: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["AppealVO"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2310,23 +2295,8 @@ export interface components {
             total: number;
         };
         PageResponseExpLogResponse: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["ExpLogResponse"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2334,23 +2304,8 @@ export interface components {
             total: number;
         };
         PageResponseItemCardVO: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["ItemCardVO"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2358,23 +2313,8 @@ export interface components {
             total: number;
         };
         PageResponseItemDetailResponse: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["ItemDetailResponse"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2382,23 +2322,8 @@ export interface components {
             total: number;
         };
         PageResponseOrderVO: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["OrderVO"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2406,23 +2331,8 @@ export interface components {
             total: number;
         };
         PageResponseUserVO: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["UserVO"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2430,23 +2340,8 @@ export interface components {
             total: number;
         };
         PageResponseViolationLogRowResponse: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["ViolationLogRowResponse"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2454,23 +2349,8 @@ export interface components {
             total: number;
         };
         PageResponseViolationVO: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["ViolationVO"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数
@@ -2478,23 +2358,8 @@ export interface components {
             total: number;
         };
         PageResponseWalletLogResponse: {
-            /**
-             * Format: int64
-             * @description 当前页码（从 1 开始）
-             */
-            current: number;
-            /**
-             * Format: int64
-             * @description 总页数
-             */
-            pages: number;
             /** @description 当前页数据 */
             records: components["schemas"]["WalletLogResponse"][];
-            /**
-             * Format: int64
-             * @description 每页条数
-             */
-            size: number;
             /**
              * Format: int64
              * @description 总记录数

@@ -13,8 +13,9 @@ import java.util.List;
  * 商品内部快照（P2）：装配器批量填充的唯一中间表示。
  *
  * 禁止直接出现在 Controller 返回类型 / OpenAPI 边界——对外形状必须经
- * toSummary()/toDetail()/toCard() 投影为语义响应；ItemCardVO 是兼容适配层，
- * 仅供尚未迁移的 endpoint 家族（发布/编辑/重新上架/收藏列表）使用。
+ * toSummary()/toDetail()/toCard() 投影为语义响应；toCard() 是发布/编辑/
+ * 重新上架/收藏列表族的既定响应形状（与 toDetail() 仅差 publisherAvatar），
+ * 属长期共存的项目决定，不是待迁移的兼容层。
  */
 @Data
 public class ItemSnapshot {
@@ -51,7 +52,7 @@ public class ItemSnapshot {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    /** 兼容适配层：旧 ItemCardVO 全量投影（发布/编辑/重新上架/收藏列表族）。 */
+    /** 卡片投影（发布/编辑/重新上架/收藏列表族）：与 toDetail() 仅差 publisherAvatar。 */
     public ItemCardVO toCard() {
         ItemCardVO vo = new ItemCardVO();
         vo.setId(id);

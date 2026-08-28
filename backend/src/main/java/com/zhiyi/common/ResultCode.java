@@ -23,7 +23,6 @@ import java.util.Set;
  * - 405/406/413/415：MVC 传输协议拒绝（方法、Accept、载荷大小、Content-Type），
  *   保留真实 HTTP 状态并统一输出 ApiFailure；
  * - 429：限流与背压（登录失败锁定、交易准入繁忙），可退避时附 Retry-After；
- * - 422：内容语义不可受理（发布内容转人工审核）；
  * - 400：参数与凭证内容错误（密码/密保答案错误刻意用 400 而非 401：
  *   401 保留给会话失效，不能被"密码输错"触发）。
  *
@@ -75,8 +74,6 @@ public enum ResultCode {
     /** 幂等键格式非法 */
     IDEMPOTENCY_KEY_INVALID(3007, HttpStatus.BAD_REQUEST, "幂等键缺失或格式非法，请刷新页面后重试"),
     ITEM_NOT_ON_SALE(2001, HttpStatus.CONFLICT, "商品已下架或已售出"),
-    CONTENT_REVIEW_REQUIRED(2002, HttpStatus.UNPROCESSABLE_CONTENT, "内容涉嫌违规，已转入人工审核"),
-    DUPLICATE_FAVORITE(2003, HttpStatus.CONFLICT, "已收藏过该商品"),
     /** Feed 游标过期/签名不匹配：客户端需从首屏重新开始 */
     FEED_CURSOR_INVALID(2004, HttpStatus.BAD_REQUEST, "列表游标已过期，请重新加载");
 

@@ -29,14 +29,14 @@
 
 ## 技术栈
 
-| 层级 | 技术 |
-| --- | --- |
-| 前端 | TypeScript 5.9（strict）、Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components、openapi-typescript（契约类型生成） |
-| 后端 | Java 25、Spring Boot 4.1.1、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.16 |
-| 基础库 | Lombok 1.18.46、JJWT 0.13.0、Jackson 3 |
-| 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion，httpOnly Cookie 下发 + Bearer 双通道）、BCrypt、来源白名单 CORS |
-| 文件存储 | 本地文件系统，通过 `/uploads/**` 提供访问 |
-| 接口风格 | RESTful JSON，统一返回 `{ code, message, data }` |
+| 层级       | 技术                                                                                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 前端       | TypeScript 5.9（strict）、Vue 3.5.41、Vue Router 5.2.0、Pinia 4.0.2、Element Plus 2.14.4、Axios 1.19.0、Vite 8.2.1、`@vitejs/plugin-vue` 6.0.8、Auto Import / Components、openapi-typescript（契约类型生成） |
+| 后端       | Java 25、Spring Boot 4.1.1、Spring MVC、MyBatis-Plus 3.5.17（Boot 4 Starter）、Maven 3.9.16                                                                                                                  |
+| 基础库     | Lombok 1.18.46、JJWT 0.13.0、Jackson 3                                                                                                                                                                       |
+| 数据与安全 | MySQL 9.7 LTS、Connector/J 9.7.0、JWT（HS256 + issuer/audience/tokenVersion，httpOnly Cookie 下发 + Bearer 双通道）、BCrypt、来源白名单 CORS                                                                 |
+| 文件存储   | 本地文件系统，通过 `/uploads/**` 提供访问                                                                                                                                                                    |
+| 接口风格   | RESTful JSON，统一返回 `{ code, message, data }`                                                                                                                                                             |
 
 ## 性能与数据模型
 
@@ -102,33 +102,33 @@ export JWT_SECRET="$(openssl rand -base64 32)"
 mvn spring-boot:run
 ```
 
-| 环境变量 | 说明 | 默认值 |
-| --- | --- | --- |
-| `MYSQL_USERNAME` | MySQL 用户名 | `root` |
-| `MYSQL_PASSWORD` | MySQL 密码 | 无 |
-| `JWT_SECRET` | 必填；Base64 编码、解码后至少 32 字节的 JWT 签名密钥 | 无 |
-| `JWT_EXPIRATION` | Token 有效期，Spring Duration 格式 | `24h` |
-| `CORS_ALLOWED_ORIGINS` | 允许访问 API 的前端来源，多个值用逗号分隔 | `http://localhost:3000,http://127.0.0.1:3000` |
-| `MODERATION_RULE_VERSION` | 本地违规规则集版本，写入每条系统检测记录 | `2026.1` |
-| `CONTENT_WARNING_POINTS` | 管理员确认内容违规时固定扣除的合规分 | `5` |
-| `APPEAL_WINDOW_DAYS` | 已确认违规允许申诉的天数 | `7` |
-| `AUTH_COOKIE_NAME` | 登录会话 Cookie 名 | `zhiyi_token` |
-| `AUTH_COOKIE_SECURE` | 生产 HTTPS 部署置 `true`，Cookie 仅经加密通道传输 | `false` |
-| `LOGIN_FAIL_LIMIT` | 登录/密保失败限流在计数窗口内允许的失败次数 | `5` |
-| `LOGIN_FAIL_WINDOW_SECONDS` | 失败计数的固定窗口时长（秒） | `900` |
-| `LOGIN_FAIL_LOCK_SECONDS` | 达到阈值后的锁定时长（秒） | `300` |
-| `LOGIN_ATTEMPT_PURGE_RETENTION_SECONDS` | 已结束登录尝试记录的保留时长（秒，过期由后台任务清理） | `86400` |
-| `TRADE_ADMISSION_GLOBAL_SLOTS` | 交易事务外全局并发准入上限，须小于连接池并预留非交易请求空间 | `30` |
-| `TRADE_ADMISSION_WAIT_MILLIS` | 交易准入等待预算（毫秒），耗尽返回可重试的 `TRADE_BUSY` | `200` |
-| `VIEW_FLUSH_INTERVAL_MS` | 浏览量缓冲批量刷新间隔（毫秒） | `5000` |
-| `VIEW_BUFFER_MAX_KEYS` | 浏览量缓冲最大键数，达到后新键丢弃 | `50000` |
-| `OUTBOX_POLL_INTERVAL_MS` | Outbox 通知事件的轮询间隔（毫秒） | `1000` |
-| `OUTBOX_BATCH_SIZE` | 每轮最多消费的 Outbox 事件数 | `20` |
-| `OUTBOX_MAX_ATTEMPTS` | 单个 Outbox 事件的最大处理尝试次数 | `8` |
-| `SSE_TIMEOUT_MS` | 聊天事件 SSE 单连接生命周期上限（毫秒），到期断开由浏览器自动重连 | `1800000` |
-| `SSE_HEARTBEAT_INTERVAL_MS` | 聊天事件 SSE 心跳间隔（毫秒），具名 ping 事件：服务端保活 + 客户端探活断流 | `20000` |
-| `FEED_CURSOR_TTL_SECONDS` | 大厅 Feed 签名游标的有效期（秒） | `900` |
-| `FEED_CURSOR_SECRET` | 游标 HMAC 签名密钥；未设置时复用 `JWT_SECRET` | 无 |
+| 环境变量                                | 说明                                                                       | 默认值                                        |
+| --------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| `MYSQL_USERNAME`                        | MySQL 用户名                                                               | `root`                                        |
+| `MYSQL_PASSWORD`                        | MySQL 密码                                                                 | 无                                            |
+| `JWT_SECRET`                            | 必填；Base64 编码、解码后至少 32 字节的 JWT 签名密钥                       | 无                                            |
+| `JWT_EXPIRATION`                        | Token 有效期，Spring Duration 格式                                         | `24h`                                         |
+| `CORS_ALLOWED_ORIGINS`                  | 允许访问 API 的前端来源，多个值用逗号分隔                                  | `http://localhost:3000,http://127.0.0.1:3000` |
+| `MODERATION_RULE_VERSION`               | 本地违规规则集版本，写入每条系统检测记录                                   | `2026.1`                                      |
+| `CONTENT_WARNING_POINTS`                | 管理员确认内容违规时固定扣除的合规分                                       | `5`                                           |
+| `APPEAL_WINDOW_DAYS`                    | 已确认违规允许申诉的天数                                                   | `7`                                           |
+| `AUTH_COOKIE_NAME`                      | 登录会话 Cookie 名                                                         | `zhiyi_token`                                 |
+| `AUTH_COOKIE_SECURE`                    | 生产 HTTPS 部署置 `true`，Cookie 仅经加密通道传输                          | `false`                                       |
+| `LOGIN_FAIL_LIMIT`                      | 登录/密保失败限流在计数窗口内允许的失败次数                                | `5`                                           |
+| `LOGIN_FAIL_WINDOW_SECONDS`             | 失败计数的固定窗口时长（秒）                                               | `900`                                         |
+| `LOGIN_FAIL_LOCK_SECONDS`               | 达到阈值后的锁定时长（秒）                                                 | `300`                                         |
+| `LOGIN_ATTEMPT_PURGE_RETENTION_SECONDS` | 已结束登录尝试记录的保留时长（秒，过期由后台任务清理）                     | `86400`                                       |
+| `TRADE_ADMISSION_GLOBAL_SLOTS`          | 交易事务外全局并发准入上限，须小于连接池并预留非交易请求空间               | `30`                                          |
+| `TRADE_ADMISSION_WAIT_MILLIS`           | 交易准入等待预算（毫秒），耗尽返回可重试的 `TRADE_BUSY`                    | `200`                                         |
+| `VIEW_FLUSH_INTERVAL_MS`                | 浏览量缓冲批量刷新间隔（毫秒）                                             | `5000`                                        |
+| `VIEW_BUFFER_MAX_KEYS`                  | 浏览量缓冲最大键数，达到后新键丢弃                                         | `50000`                                       |
+| `OUTBOX_POLL_INTERVAL_MS`               | Outbox 通知事件的轮询间隔（毫秒）                                          | `1000`                                        |
+| `OUTBOX_BATCH_SIZE`                     | 每轮最多消费的 Outbox 事件数                                               | `20`                                          |
+| `OUTBOX_MAX_ATTEMPTS`                   | 单个 Outbox 事件的最大处理尝试次数                                         | `8`                                           |
+| `SSE_TIMEOUT_MS`                        | 聊天事件 SSE 单连接生命周期上限（毫秒），到期断开由浏览器自动重连          | `1800000`                                     |
+| `SSE_HEARTBEAT_INTERVAL_MS`             | 聊天事件 SSE 心跳间隔（毫秒），具名 ping 事件：服务端保活 + 客户端探活断流 | `20000`                                       |
+| `FEED_CURSOR_TTL_SECONDS`               | 大厅 Feed 签名游标的有效期（秒）                                           | `900`                                         |
+| `FEED_CURSOR_SECRET`                    | 游标 HMAC 签名密钥；未设置时复用 `JWT_SECRET`                              | 无                                            |
 
 如果 MySQL 不在 `localhost:3306`，请修改 [`backend/src/main/resources/application.yml`](backend/src/main/resources/application.yml) 中的数据源 URL。后端默认监听 `http://localhost:8080`。
 
@@ -256,9 +256,9 @@ zhiyi-campus/
 }
 ```
 
-- 错误语义采用双层契约：**HTTP 状态码负责粗分类，body 的 `code` 负责细粒度业务原因**。成功为 `HTTP 200 + code 200`；业务失败返回真实 4xx/5xx（400 参数、403 权限、404 不存在、409 状态/并发冲突、422 内容待审、429 限流与交易背压、500 系统），映射表见 `ResultCode`。凭证类失败（密码/密保错误）刻意用 400 而非 401——HTTP 401 保留给会话失效，前端收到即清除登录态并跳转登录页。
+- 错误语义采用双层契约：**HTTP 状态码负责粗分类，body 的 `code` 负责细粒度业务原因**。成功为 `HTTP 200 + code 200`；业务失败返回真实 4xx/5xx（400 参数、403 权限、404 不存在、409 状态/并发冲突、429 限流与交易背压、500 系统），映射表见 `ResultCode`。凭证类失败（密码/密保错误）刻意用 400 而非 401——HTTP 401 保留给会话失效，前端收到即清除登录态并跳转登录页。
 - **认证错误唯一映射（P0-1）**：业务层的 `USER_CANCELLED(1008)` 是 403（注销账户登录/资金操作被明确拒绝，不触发前端登出）；`JwtInterceptor` 发现 Token 无效/过期、账户注销后的旧 Token 时直写通用 `401 + UNAUTHORIZED(401)`，改密/改角色后的旧 Token 直写 `401 + SESSION_INVALIDATED(1401)`——拦截器不返回业务码 1008，且任何 401 都同时清除 httpOnly 会话 Cookie。前端只以**真实 HTTP 401** 作为清理登录态的依据。
-- **失败信封元数据（P1-3）**：失败响应携带必填 `meta.requestOutcome`（`REJECTED`=明确拒绝可清幂等键 / `PROCESSING`=服务端处理中 / `UNKNOWN`=结果不明保留幂等键），前端在信封完整性校验通过后以它为权威；完整旧信封（`code/message/data` 齐备且 `meta` 自有属性完全不存在）按业务码白名单 fallback；残缺形态（缺 code/message/data、`meta` 为 null/缺字段/非法枚举、非 JSON、代理 HTML）不信任 body 的业务码与 message，按传输层错误保守处理（RETAIN）；允许退避的失败（如 429 交易繁忙）附标准 `Retry-After` 头。
+- **失败信封元数据（P1-3）**：失败响应携带必填 `meta.requestOutcome`（`REJECTED`=明确拒绝可清幂等键 / `PROCESSING`=服务端处理中 / `UNKNOWN`=结果不明保留幂等键），前端在信封完整性校验通过后以它为唯一权威判据；残缺形态（缺 code/message/data、`meta` 不存在或为 null/缺字段/非法枚举、非 JSON、代理 HTML）不信任 body 的业务码与 message，按传输层错误保守处理（RETAIN）；允许退避的失败（如 429 交易繁忙）附标准 `Retry-After` 头。
 - **`@BusinessErrors` 声明纪律**：每个 Controller operation 都必须显式声明 `@BusinessErrors`（空注解=已审计且无特有业务错误）；只有 `BAD_REQUEST` 隐式允许，`FORBIDDEN`/`SERVER_ERROR`/`USER_NOT_FOUND`/`CONFLICT` 等显式业务错误必须逐 operation 声明，否则 strict 模式契约测试（`BusinessErrorContractVerifier`）直接失败。
 - **契约治理**：仓库根目录的 `openapi.json` 是从运行中后端导出的规范化快照（可空 `$ref` 统一为 anyOf、键序与 required/enum/x-business-codes 集合排序），`frontend/src/types/api.gen.d.ts` 由快照生成、禁止手改；CI 强制比对实时规格、快照与前端类型，任一漂移即失败。
 
@@ -285,16 +285,16 @@ curl http://localhost:8080/api/user/profile -H "Authorization: Bearer <JWT>"
 
 ### 接口分组
 
-| 路径前缀 | 主要能力 | 后端入口 |
-| --- | --- | --- |
-| `/api/auth` | 注册、登录、密保与密码重置 | [`AuthController`](backend/src/main/java/com/zhiyi/module/user/controller/AuthController.java) |
-| `/api/school`、`/api/category` | 学校与商品分类字典 | [`SchoolController`](backend/src/main/java/com/zhiyi/module/user/controller/SchoolController.java)、[`CategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/CategoryController.java) |
-| `/api/user` | 个人资料、经验、关系标签、信誉与账号安全 | [`UserController`](backend/src/main/java/com/zhiyi/module/user/controller/UserController.java) |
-| `/api/item` | 商品发布、搜索、收藏、榜单、举报、申诉、换物与跑腿 | [`ItemController`](backend/src/main/java/com/zhiyi/module/item/controller/ItemController.java) |
-| `/api/chat` | 会话、消息、客服与未读统计 | [`ChatController`](backend/src/main/java/com/zhiyi/module/social/controller/ChatController.java) |
-| `/api/wallet` | 余额、充值与资金流水 | [`WalletController`](backend/src/main/java/com/zhiyi/module/trade/controller/WalletController.java) |
-| `/api/order` | 下单、确认、取消、买卖订单与评价 | [`OrderController`](backend/src/main/java/com/zhiyi/module/trade/controller/OrderController.java) |
-| `/api/admin` | 独立管理员认证、看板、用户列表（学校精确 + 学号/昵称/邮箱/手机号模糊）、封禁与强制重置密码、内容/申诉治理、学校、分类、活动与客服管理 | [`后台控制器`](backend/src/main/java/com/zhiyi/module/admin/controller/)、[`BanController`](backend/src/main/java/com/zhiyi/module/user/controller/BanController.java)、[`AdminCategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/AdminCategoryController.java)、[`EventTopicController`](backend/src/main/java/com/zhiyi/module/item/controller/EventTopicController.java) |
+| 路径前缀                       | 主要能力                                                                                                                              | 后端入口                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/auth`                    | 注册、登录、密保与密码重置                                                                                                            | [`AuthController`](backend/src/main/java/com/zhiyi/module/user/controller/AuthController.java)                                                                                                                                                                                                                                                                                                       |
+| `/api/school`、`/api/category` | 学校与商品分类字典                                                                                                                    | [`SchoolController`](backend/src/main/java/com/zhiyi/module/user/controller/SchoolController.java)、[`CategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/CategoryController.java)                                                                                                                                                                                           |
+| `/api/user`                    | 个人资料、经验、关系标签、信誉与账号安全                                                                                              | [`UserController`](backend/src/main/java/com/zhiyi/module/user/controller/UserController.java)                                                                                                                                                                                                                                                                                                       |
+| `/api/item`                    | 商品发布、搜索、收藏、榜单、举报、申诉、换物与跑腿                                                                                    | [`ItemController`](backend/src/main/java/com/zhiyi/module/item/controller/ItemController.java)                                                                                                                                                                                                                                                                                                       |
+| `/api/chat`                    | 会话、消息、客服与未读统计                                                                                                            | [`ChatController`](backend/src/main/java/com/zhiyi/module/social/controller/ChatController.java)                                                                                                                                                                                                                                                                                                     |
+| `/api/wallet`                  | 余额、充值与资金流水                                                                                                                  | [`WalletController`](backend/src/main/java/com/zhiyi/module/trade/controller/WalletController.java)                                                                                                                                                                                                                                                                                                  |
+| `/api/order`                   | 下单、确认、取消、买卖订单与评价                                                                                                      | [`OrderController`](backend/src/main/java/com/zhiyi/module/trade/controller/OrderController.java)                                                                                                                                                                                                                                                                                                    |
+| `/api/admin`                   | 独立管理员认证、看板、用户列表（学校精确 + 学号/昵称/邮箱/手机号模糊）、封禁与强制重置密码、内容/申诉治理、学校、分类、活动与客服管理 | [`后台控制器`](backend/src/main/java/com/zhiyi/module/admin/controller/)、[`BanController`](backend/src/main/java/com/zhiyi/module/user/controller/BanController.java)、[`AdminCategoryController`](backend/src/main/java/com/zhiyi/module/item/controller/AdminCategoryController.java)、[`EventTopicController`](backend/src/main/java/com/zhiyi/module/item/controller/EventTopicController.java) |
 
 ### Swagger / OpenAPI
 

@@ -38,8 +38,8 @@ export type School = Api['SchoolVO']
 /** 经验流水 */
 export type ExpLog = Api['ExpLogResponse']
 /**
- * 商品卡片（兼容适配层，P2）：收藏列表与发布/编辑/重新上架写接口仍返回
- * ItemCardVO 全量卡；feed/榜单走 ItemSummary，详情/我的发布走 ItemDetail。
+ * 商品卡片：收藏列表与发布/编辑/重新上架写接口的既定响应（与 ItemDetail 仅差
+ * publisherAvatar）；feed/榜单走 ItemSummary，详情/我的发布走 ItemDetail。
  */
 export type Item = Api['ItemCardVO']
 /** 商品摘要（feed 游标 / 榜单 / swap / errand 族） */
@@ -92,17 +92,11 @@ export type ChatThread = Api['ChatThreadVO']
 /** 管理端用户列表行 & 个人中心完整资料共用 UserVO */
 export type AdminUser = Api['UserVO']
 export type UserProfile = Api['UserVO']
-/** 处罚评分统计（D4） */
-export type PenaltyStats = Api['PenaltyStatsVO']
 /** 管理后台数据大盘 */
 export type DashboardStats = Api['AdminDashboardVO']
-export type TrendPoint = Api['TradeTrendPoint']
-export type RecentViolationRow = Api['RecentViolation']
 export type TradeHeatEntry = Api['TradeHeatmapVO']
 /** 申诉复核行 */
 export type ViolationAppeal = Api['AppealVO']
-/** 处罚记录行（P0-4 命名 DTO）：banDays 永久封禁为 null；用户已删除时学号/昵称为 null */
-export type ViolationLogRow = Api['ViolationLogRowResponse']
 
 // ==================== 手写区：客户端组装视图（非 VO 镜像） ====================
 

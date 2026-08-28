@@ -11,12 +11,10 @@ import {
   ITEM_TYPE,
   ORDER_STATUS_BADGES,
   ORDER_STATUS_LABELS,
-  VIOLATION_STATUS_LABELS,
   WALLET_LOG_TYPE_LABELS,
   type ItemStatus,
   type ItemType,
   type OrderStatus,
-  type ViolationStatus,
   type WalletLogType
 } from '../constants/domain'
 
@@ -55,11 +53,6 @@ const ITEM_TYPE_BADGES: Record<ItemType, string> = Object.freeze({
 /** 商品类型 → 徽标样式类（与 itemTypeLabel 成对使用，四种类型全覆盖） */
 export function typeBadgeClass(type: string): string {
   return ITEM_TYPE_BADGES[type as ItemType] || 'badge--muted'
-}
-
-/** 违规状态 → 中文标签 */
-export function violationStatusLabel(status: string): string {
-  return VIOLATION_STATUS_LABELS[status as ViolationStatus] || status || '未知'
 }
 
 /** 钱包流水类型 → 中文标签 */

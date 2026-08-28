@@ -87,7 +87,7 @@ public class ItemPublishService {
         stat.setItemId(item.getId());
         stat.setViewCount(0L);
         viewStatMapper.insert(stat);
-        itemTagService.replaceTags(item.getId(), item.getSchoolId(), check.tags());
+        itemTagService.replaceTags(item.getId(), check.tags());
         if (check.risky()) {
             saveReview(publisherId, null, item.getId(), dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     check.reason(), check.matchedRules(), check.ruleVersion());
@@ -155,7 +155,7 @@ public class ItemPublishService {
             saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     check.reason(), check.matchedRules(), check.ruleVersion());
         }
-        itemTagService.replaceTags(itemId, item.getSchoolId(), check.tags());
+        itemTagService.replaceTags(itemId, check.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 
@@ -208,7 +208,7 @@ public class ItemPublishService {
             saveReview(publisherId, null, itemId, dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     check.reason(), check.matchedRules(), check.ruleVersion());
         }
-        itemTagService.replaceTags(itemId, item.getSchoolId(), check.tags());
+        itemTagService.replaceTags(itemId, check.tags());
         return marketplaceService.getSnapshot(itemId, publisherId);
     }
 

@@ -2536,16 +2536,6 @@
       },
       "PageResponseAppealVO": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2553,11 +2543,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2565,26 +2550,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseExpLogResponse": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2592,11 +2564,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2604,26 +2571,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseItemCardVO": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2631,11 +2585,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2643,26 +2592,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseItemDetailResponse": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2670,11 +2606,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2682,26 +2613,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseOrderVO": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2709,11 +2627,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2721,26 +2634,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseUserVO": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2748,11 +2648,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2760,26 +2655,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseViolationLogRowResponse": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2787,11 +2669,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2799,26 +2676,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseViolationVO": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2826,11 +2690,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2838,26 +2697,13 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"
       },
       "PageResponseWalletLogResponse": {
         "properties": {
-          "current": {
-            "description": "当前页码（从 1 开始）",
-            "format": "int64",
-            "type": "integer"
-          },
-          "pages": {
-            "description": "总页数",
-            "format": "int64",
-            "type": "integer"
-          },
           "records": {
             "description": "当前页数据",
             "items": {
@@ -2865,11 +2711,6 @@
             },
             "type": "array"
           },
-          "size": {
-            "description": "每页条数",
-            "format": "int64",
-            "type": "integer"
-          },
           "total": {
             "description": "总记录数",
             "format": "int64",
@@ -2877,10 +2718,7 @@
           }
         },
         "required": [
-          "current",
-          "pages",
           "records",
-          "size",
           "total"
         ],
         "type": "object"

@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 /**
  * 商品卡片批量装配器（P2：产出内部 {@link ItemSnapshot}）。
  * 每批数据按表执行固定次数查询，避免逐行回表；对外形状由快照投影为
- * ItemSummaryResponse / ItemDetailResponse / ItemCardVO（兼容适配层）。
+ * ItemSummaryResponse / ItemDetailResponse / ItemCardVO。
  *
  * RESERVED（交易中）由 item.status 派生（item_reservation 已淘汰）；
  * 浏览量来自独立的 item_view_stat 统计表。
@@ -137,11 +137,8 @@ public class ItemCardAssembler {
                 && !now.isAfter(latestViolation.getHandledAt().plusDays(Math.max(1, appealWindowDays)));
         vo.setAppealable(Objects.equals(currentUserId, item.getPublisherId())
                 && latestViolation != null && appeal == null && withinWindow);
-        // 浏览量来自独立统计表（item 业务行不再承载浏览计数）
-        Long statCount = viewCounts.get(item.getId());
-        vo.setViewCount(item.getViewCount() != null
-                ? item.getViewCount() + (statCount == null ? 0 : statCount)
-                : (statCount == null ? 0 : statCount));
+        // 浏览量来自独立统计表（item 业务行不再承载浏览计数）；无统计行的商品按 0
+        vo.setViewCount(viewCounts.getOrDefault(item.getId(), 0L));
         vo.setFavoriteCount(favoriteCounts.getOrDefault(item.getId(), 0L));
         vo.setFavoriteByCurrentUser(myFavorites.contains(item.getId()));
         vo.setCreatedAt(item.getCreatedAt());

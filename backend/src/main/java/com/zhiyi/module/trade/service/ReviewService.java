@@ -46,7 +46,7 @@ public class ReviewService {
 
         Long existing = reviewMapper.selectCount(
                 new LambdaQueryWrapper<TradeReview>().eq(TradeReview::getOrderId, orderId));
-        if (existing != null && existing > 0) {
+        if (existing > 0) {
             throw new BusinessException(ResultCode.ORDER_ALREADY_REVIEWED);
         }
 

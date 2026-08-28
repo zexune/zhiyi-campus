@@ -1,22 +1,7 @@
 import { contracts } from '@/types/contracts'
-import type { ApiResult, Schemas } from '@/types/contracts'
+import type { Schemas } from '@/types/contracts'
 import { mapLoginData, mapPageData, mapRequiredData, mapVoidData, ProtocolViolationError } from '@/api/mappers'
-import type {
-  AdminUser,
-  Category,
-  ChatMessage,
-  ChatThread,
-  Conversation,
-  DashboardStats,
-  EventTopic,
-  ItemLineage,
-  PageQuery,
-  PenaltyStats,
-  School,
-  TradeHeatEntry,
-  ViolationAppeal,
-  ViolationReview
-} from '@/types/models'
+import type { AdminUser, Category, ChatMessage, ChatThread, Conversation, DashboardStats, EventTopic, PageQuery, School, TradeHeatEntry, ViolationAppeal, ViolationReview } from '@/types/models'
 
 /** 超管控制台接口（D 负责） */
 
@@ -172,11 +157,6 @@ export function banUser(data: BanUserPayload) {
   return contracts.post('/api/admin/ban-user', { body: { ...data, banDays: data.banDays ?? undefined } }).then(mapVoidData)
 }
 
-/** 用户处罚评分统计（D4） */
-export function getPenaltyStats(userId: number): Promise<ApiResult<PenaltyStats>> {
-  return contracts.get('/api/admin/penalty-stats', { query: { userId } }).then((res) => mapRequiredData(res, '/api/admin/penalty-stats', (wire) => wire as PenaltyStats))
-}
-
 /** 解封用户 */
 export function unbanUser(data: { userId: number }) {
   return contracts.post('/api/admin/unban-user', { body: data }).then(mapVoidData)
@@ -185,16 +165,6 @@ export function unbanUser(data: { userId: number }) {
 /** 交易热力图（D5） */
 export function getTradeHeatmap(schoolId?: number | null) {
   return contracts.get('/api/admin/trade-heatmap', { query: schoolId != null ? { schoolId } : {} }).then((res) => mapRequiredData(res, '/api/admin/trade-heatmap', (wire) => wire as TradeHeatEntry[]))
-}
-
-/** 商品传承链（D3） */
-export function getItemLineage(itemId: number, schoolId?: number | null) {
-  return contracts
-    .get('/api/admin/item/{id}/lineage', {
-      path: { id: itemId },
-      query: schoolId != null ? { schoolId } : {}
-    })
-    .then((res) => mapRequiredData(res, '/api/admin/item/{id}/lineage', (wire) => wire as ItemLineage))
 }
 
 /** 标签建议（管理端）：按专题名称生成候选，仅供选择，不落库 */
@@ -225,10 +195,6 @@ export function ackAdminChatRead(conversationId: string, lastSeenMessageId: numb
 
 export function sendAdminChatMessage(data: { conversationId: string; receiverId: number; content: string }) {
   return contracts.post('/api/admin/chat/send', { body: data }).then((res) => mapRequiredData(res, '/api/admin/chat/send', (wire) => wire as ChatMessage))
-}
-
-export function getAdminUnreadMessages(params: { conversationId?: string }) {
-  return contracts.get('/api/admin/chat/unread', { query: params }).then((res) => mapRequiredData(res, '/api/admin/chat/unread', (wire) => wire as ChatMessage[]))
 }
 
 /** 学校管理（D1）。传 {status:'ACTIVE'} 仅返回启用学校，不传返回全部 */

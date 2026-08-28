@@ -1,17 +1,25 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test, vi } from 'vitest'
 
+import { ElMessage } from 'element-plus'
+
+// request.ts 的 ElMessage 由 unplugin-auto-import 注入为 element-plus 模块导入，
+// 模块级 mock 才能捕获拦截器 toast（globalThis 桩拦不到）
+vi.mock('element-plus', () => ({
+  ElMessage: { error: vi.fn(), success: vi.fn() }
+}))
+
 /**
  * request.ts 拦截器直测（P0-5 / 信封可信度收紧）：用真实 axios（fetch adapter）
- * + 桩 fetch 覆盖 401/403/409/422/429/网络失败分支，验证：
+ * + 桩 fetch 覆盖 401/403/409/429/网络失败分支，验证：
  * - 只有真实 HTTP 401 触发登录态清理（且同一鉴权周期只清理一次）；
  *   登录态清理与幂等键处置相互独立（残缺信封的 401 清登录但 RETAIN）；
- * - 403/409/422 等业务失败绝不登出；
- * - ApiError.httpStatus、业务码、幂等处置、服务端 outcome 四者正交携带互不覆盖；
- * - 幂等处置矩阵：完整新信封按 meta.requestOutcome；完整旧信封（meta 自有
- *   属性完全不存在）按业务码白名单 fallback；残缺形态（缺 code/message/data、
- *   meta null/缺字段/非法枚举、非 JSON、代理 HTML）不信任 body 的业务码与
- *   message，按传输层错误保守处理（RETAIN）。
+ * - 403/409 等业务失败绝不登出；
+ * - ApiError.httpStatus、业务码、幂等处置三者正交携带互不覆盖；
+ * - 幂等处置矩阵：完整失败信封按 meta.requestOutcome（唯一权威判据）；
+ *   残缺形态（缺 code/message/data、meta 不存在或为 null/缺字段/非法枚举、
+ *   非 JSON、代理 HTML）不信任 body 的业务码与 message，
+ *   按传输层错误保守处理（RETAIN）。
  */
 
 type FreshModules = {
@@ -59,9 +67,9 @@ test('200 成功信封 resolve 为 ApiResult<data>', { timeout: 30000 }, async (
   assert.equal(res.data.amount, '9.9')
 })
 
-// ---- 完整新信封：meta.requestOutcome 为权威处置 ----
+// ---- 完整失败信封：meta.requestOutcome 为权威处置 ----
 
-test('409 + meta REJECTED：业务码/HTTP 状态/处置/outcome 正交携带且不登出', async () => {
+test('409 + meta REJECTED：业务码/HTTP 状态/处置正交携带且不登出', async () => {
   fetchMock.mockResolvedValue(
     jsonResponse(409, {
       code: 3001,
@@ -80,7 +88,6 @@ test('409 + meta REJECTED：业务码/HTTP 状态/处置/outcome 正交携带且
   assert.equal(apiError.httpStatus, 409)
   assert.equal(apiError.code, 3001)
   assert.equal(apiError.idempotencyDisposition, 'CLEAR')
-  assert.equal(apiError.outcome, 'REJECTED')
   // 409 不触发登出
   assert.equal(auth.isLoggedIn(), true)
 })
@@ -94,42 +101,34 @@ test('429 + Retry-After + meta UNKNOWN：保留幂等键并携带退避建议', 
   assert.equal(error.httpStatus, 429)
   assert.equal(error.code, 3004)
   assert.equal(error.idempotencyDisposition, 'RETAIN')
-  assert.equal(error.outcome, 'UNKNOWN')
   assert.equal(error.retryAfterSeconds, 2)
 })
 
-test('完整新信封 meta UNKNOWN：结果不明保留幂等键', async () => {
+test('带 Retry-After 的失败：toast 把"请稍后再试"替换为具体剩余秒数', async () => {
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse(429, { code: 1005, message: '密码错误次数过多，请稍后再试', data: null, meta: { requestOutcome: 'REJECTED' } }, { 'retry-after': '87' }))
+    .mockResolvedValueOnce(jsonResponse(429, { code: 3006, message: '相同请求正在处理中，请稍后查看结果', data: null, meta: { requestOutcome: 'PROCESSING' } }, { 'retry-after': '3' }))
+  const { request } = await importFresh()
+  const toast = vi.mocked(ElMessage.error)
+
+  const locked = (await request.post('/api/auth/login', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
+  const processing = (await request.post('/order/create', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
+
+  assert.equal(locked.retryAfterSeconds, 87)
+  assert.equal(toast.mock.calls.at(-2)?.[0], '密码错误次数过多，请 87 秒后再试')
+  // 文案不以"请稍后再试/重试"结尾时不做替换，保持服务端原文
+  assert.equal(processing.retryAfterSeconds, 3)
+  assert.equal(toast.mock.calls.at(-1)?.[0], '相同请求正在处理中，请稍后查看结果')
+})
+
+test('完整失败信封 meta UNKNOWN：结果不明保留幂等键', async () => {
   fetchMock.mockResolvedValue(jsonResponse(500, { code: 500, message: '服务器内部错误', data: null, meta: { requestOutcome: 'UNKNOWN' } }))
   const { request } = await importFresh()
 
   const error = (await request.get('/wallet/balance').catch((e: unknown) => e)) as import('@/utils/request').ApiError
 
   assert.equal(error.httpStatus, 500)
-  assert.equal(error.outcome, 'UNKNOWN')
   assert.equal(error.idempotencyDisposition, 'RETAIN')
-})
-
-// ---- 完整旧信封（meta 自有属性完全不存在）：业务码白名单 fallback ----
-
-test('完整旧信封（完全没有 meta）：按业务码白名单推断处置，outcome 为 undefined', async () => {
-  fetchMock.mockResolvedValue(jsonResponse(409, { code: 3001, message: '余额不足', data: null }))
-  const { request } = await importFresh()
-
-  const known = (await request.post('/order/create', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
-  assert.equal(known.idempotencyDisposition, 'CLEAR')
-  assert.equal(known.outcome, undefined)
-  assert.equal(known.code, 3001)
-  assert.equal(known.message, '余额不足', '完整旧信封的 message 可信')
-})
-
-test('完整旧信封 + 未知业务码：结果不明保留幂等键', async () => {
-  fetchMock.mockResolvedValue(jsonResponse(400, { code: 3999, message: '未来新增的码', data: null }))
-  const { request } = await importFresh()
-
-  const unknown = (await request.post('/order/create', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
-
-  assert.equal(unknown.idempotencyDisposition, 'RETAIN')
-  assert.equal(unknown.code, 3999)
 })
 
 // ---- 残缺失败形态：不信任 body 业务码/message/detail，传输层保守处理 ----
@@ -145,17 +144,17 @@ test('meta 存在但为 null：不可信，RETAIN 且不携带业务码', async 
   assert.equal(error.message, '网络错误，请稍后再试', '残缺信封的 message 不可信')
 })
 
-test('白名单业务码 + 非法 meta（缺 requestOutcome）：仍为 RETAIN', async () => {
+test('完整信封结构但 meta 缺 requestOutcome：不可信，RETAIN', async () => {
   fetchMock.mockResolvedValue(jsonResponse(409, { code: 3001, message: '余额不足', data: null, meta: {} }))
   const { request } = await importFresh()
 
   const error = (await request.post('/order/create', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
 
-  assert.equal(error.idempotencyDisposition, 'RETAIN', '白名单 code 只有在完整（新或旧）信封下才允许 fallback')
+  assert.equal(error.idempotencyDisposition, 'RETAIN', 'meta 不完整即协议违约，不推断处置')
   assert.equal(error.code, -1)
 })
 
-test('白名单业务码 + 非法 meta 枚举：仍为 RETAIN', async () => {
+test('完整信封结构但 meta 枚举非法：不可信，RETAIN', async () => {
   fetchMock.mockResolvedValue(jsonResponse(409, { code: 3001, message: '余额不足', data: null, meta: { requestOutcome: 'MAYBE' } }))
   const { request } = await importFresh()
 
@@ -246,14 +245,14 @@ test('成功信封缺 data 或 message 为空：按协议违约失败（RETAIN�
 
 // ---- 业务失败绝不登出（真实 401 之外） ----
 
-test('422 内容转审：明确拒绝可清键', async () => {
-  fetchMock.mockResolvedValue(jsonResponse(422, { code: 2002, message: '内容涉嫌违规，已转入人工审核', data: null, meta: { requestOutcome: 'REJECTED' } }))
+test('400 凭证类失败（1004）：明确拒绝可清键且不登出', async () => {
+  fetchMock.mockResolvedValue(jsonResponse(400, { code: 1004, message: '密保答案错误', data: null, meta: { requestOutcome: 'REJECTED' } }))
   const { request } = await importFresh()
 
-  const error = (await request.post('/item/publish', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
+  const error = (await request.post('/user/reset-password', {}).catch((e: unknown) => e)) as import('@/utils/request').ApiError
 
-  assert.equal(error.httpStatus, 422)
-  assert.equal(error.code, 2002)
+  assert.equal(error.httpStatus, 400)
+  assert.equal(error.code, 1004)
   assert.equal(error.idempotencyDisposition, 'CLEAR')
 })
 
@@ -271,7 +270,7 @@ test('403 注销账户（1008）：业务拒绝不清理登录态', async () => 
 })
 
 test('2xx 响应体携带 code=401：不是登录态失效信号，绝不登出（P0-1）', async () => {
-  fetchMock.mockResolvedValue(jsonResponse(200, { code: 401, message: '协议违约', data: null }))
+  fetchMock.mockResolvedValue(jsonResponse(200, { code: 401, message: '协议违约', data: null, meta: { requestOutcome: 'REJECTED' } }))
   const { request, auth } = await importFresh()
   auth.setLoginUser({ id: 7, nickname: 'user', role: 'USER' })
 
@@ -298,18 +297,6 @@ test('真实 HTTP 401（完整新信封 REJECTED）：清理登录态且幂等�
   assert.equal(error.code, 1401)
   assert.equal(auth.isLoggedIn(), false)
   assert.equal(replaceSpy.mock.calls.length, 1)
-})
-
-test('真实 HTTP 401 + 完整旧信封（业务码 401/1401）：清登录态，幂等键 CLEAR', { timeout: 30000 }, async () => {
-  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(401, { code: 401, message: '未登录或 Token 过期', data: null })))
-  const { request, auth } = await importFresh()
-  auth.setLoginUser({ id: 7, nickname: 'user', role: 'USER' })
-
-  const error = (await request.get('/wallet/balance').catch((e: unknown) => e)) as import('@/utils/request').ApiError
-
-  assert.equal(error.code, 401)
-  assert.equal(error.idempotencyDisposition, 'CLEAR', '完整旧信封的业务码 401 是明确拒绝')
-  assert.equal(auth.isLoggedIn(), false)
 })
 
 test('真实 HTTP 401 + 残缺信封（meta null）：清登录态但幂等键 RETAIN（处置独立计算）', { timeout: 30000 }, async () => {
@@ -364,7 +351,7 @@ test('同一鉴权周期的多次真实 401 只清理/跳转一次', { timeout: 
 })
 
 test('skipAuthRedirect 的 401：不提示不跳转，但登录态仍被清理（最终裁决：不能阻止失效）', { timeout: 30000 }, async () => {
-  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(401, { code: 401, message: '未登录', data: null })))
+  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(401, { code: 401, message: '未登录', data: null, meta: { requestOutcome: 'REJECTED' } })))
   const { request, auth } = await importFresh()
   auth.setLoginUser({ id: 7, nickname: 'user', role: 'USER' })
   const replaceSpy = vi.fn()
@@ -374,6 +361,5 @@ test('skipAuthRedirect 的 401：不提示不跳转，但登录态仍被清理�
 
   assert.equal(auth.isLoggedIn(), false, '属于当前鉴权 epoch 的真实 401 必须清理登录态（skipAuthRedirect 只静默提示与跳转）')
   assert.equal(replaceSpy.mock.calls.length, 0)
-  // 完整旧信封（code/message/data 齐备）的业务码 401 是明确拒绝，可清幂等键
-  assert.equal(error.idempotencyDisposition, 'CLEAR')
+  assert.equal(error.idempotencyDisposition, 'CLEAR', '完整信封 meta REJECTED 是明确拒绝，可清幂等键')
 })

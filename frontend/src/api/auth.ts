@@ -51,8 +51,6 @@ export interface ChangePasswordPayload {
   confirmPassword: string
 }
 
-/** 公开名片（生成的命名类型，替代 Record<string, unknown>） */
-export type UserCard = Schemas['PublicUserCardVO']
 /** 卖家档案（生成的命名类型） */
 export type SellerDetail = Schemas['SellerDetailVO']
 
@@ -110,10 +108,6 @@ export function uploadUserAvatar(file: File) {
 
 export function getExpLog(params: PageQuery) {
   return contracts.get('/api/user/exp-log', { query: params }).then((res) => mapPageData(res, '/api/user/exp-log', (row): ExpLog => row))
-}
-
-export function getUserCard(userId: number) {
-  return contracts.get('/api/user/{id}/card', { path: { id: userId } }).then((res) => mapRequiredData(res, '/api/user/{id}/card', (wire) => wire as UserCard))
 }
 
 /** 登录后查看商品发布者的联系与校园资料 */

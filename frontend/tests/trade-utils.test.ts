@@ -1,19 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 
-import {
-  orderStatusLabel,
-  orderStatusBadge,
-  itemStatusLabel,
-  itemStatusBadge,
-  itemTypeLabel,
-  violationStatusLabel,
-  walletLogTypeLabel,
-  formatPriceYuan,
-  isExpense,
-  buildOrderParams,
-  expProgress
-} from '../src/utils/trade'
+import { orderStatusLabel, orderStatusBadge, itemStatusLabel, itemStatusBadge, itemTypeLabel, walletLogTypeLabel, formatPriceYuan, isExpense, buildOrderParams, expProgress } from '../src/utils/trade'
 
 // ================================================================
 // 订单状态
@@ -60,17 +48,6 @@ test('itemTypeLabel maps all types and passes through unknown values', () => {
   assert.equal(itemTypeLabel('SWAP'), '换物')
   assert.equal(itemTypeLabel('ERRAND'), '跑腿')
   assert.equal(itemTypeLabel('BOGUS'), 'BOGUS')
-})
-
-// ================================================================
-// 违规状态
-// ================================================================
-
-test('violationStatusLabel maps all known statuses', () => {
-  assert.equal(violationStatusLabel('PENDING'), '待处理')
-  assert.equal(violationStatusLabel('CONFIRMED'), '已确认')
-  assert.equal(violationStatusLabel('DISMISSED'), '已放行')
-  assert.equal(violationStatusLabel('OVERTURNED'), '申诉撤销')
 })
 
 // ================================================================

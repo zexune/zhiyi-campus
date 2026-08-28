@@ -109,8 +109,7 @@ import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } fr
 import { APPEAL_STATUS, APPEAL_STATUS_LABELS, ITEM_STATUS, ITEM_STATUS_OPTIONS, ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
 import type { AppealStatus } from '@/constants/domain'
 import type { Item } from '@/types/models'
-import { itemStatusBadge, itemStatusLabel, itemTypeLabel } from '@/utils/trade'
-import { buildMyItemsParams } from './myItemsQuery'
+import { buildOrderParams, itemStatusBadge, itemStatusLabel, itemTypeLabel } from '@/utils/trade'
 import { usePagedList } from '@/composables/usePagedList'
 import { formatDateTime, placeholderClass } from '@/utils/format'
 import { ROUTE_PATH } from '@/constants/routes'
@@ -138,7 +137,7 @@ const {
   loadError,
   fetchList: fetchItems,
   goToFirstPage
-} = usePagedList<MyItemRow>(({ page, size }) => getMyItems(buildMyItemsParams(page, size, statusFilter.value)))
+} = usePagedList<MyItemRow>(({ page, size }) => getMyItems(buildOrderParams(page, size, statusFilter.value)))
 const appealForm = reactive<AppealFormState>({ visible: false, item: null, reason: '', submitting: false })
 
 function displayStatus(item: MyItemRow) {

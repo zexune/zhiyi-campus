@@ -38,9 +38,6 @@ public class Item {
     private String publisherCampusKey;
     /** 发布时固化的宿舍楼层级键（小写去空格）。 */
     private String publisherDormitoryKey;
-    /** 展示用浏览量：实际计数在 item_view_stat，由装配器回填，不映射数据库列。 */
-    @TableField(exist = false)
-    private Long viewCount;
     @TableLogic
     private Boolean isDeleted;
 

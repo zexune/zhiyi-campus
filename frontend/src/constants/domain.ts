@@ -55,11 +55,6 @@ export const USER_STATUS = Object.freeze({
   CANCELLED: 'CANCELLED'
 } as const)
 
-export const USER_ROLE = Object.freeze({
-  USER: 'USER',
-  ADMIN: 'ADMIN'
-} as const)
-
 export const BAN_ACTION = Object.freeze({
   TEMPORARY: 'BAN_TEMP',
   PERMANENT: 'BAN_PERM'
@@ -81,8 +76,6 @@ export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS]
 export type ViolationStatus = (typeof VIOLATION_STATUS)[keyof typeof VIOLATION_STATUS]
 export type AppealStatus = (typeof APPEAL_STATUS)[keyof typeof APPEAL_STATUS]
 export type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS]
-export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE]
-export type BanAction = (typeof BAN_ACTION)[keyof typeof BAN_ACTION]
 export type WalletLogType = (typeof WALLET_LOG_TYPE)[keyof typeof WALLET_LOG_TYPE]
 
 /** 下拉选项的通用形状（value 用 string：部分选项的「全部」为空串） */
@@ -124,13 +117,6 @@ export const ORDER_STATUS_BADGES: Record<OrderStatus, string> = Object.freeze({
   [ORDER_STATUS.WAITING_MEET]: 'badge--warn',
   [ORDER_STATUS.COMPLETED]: 'badge--ok',
   [ORDER_STATUS.CANCELLED]: 'badge--muted'
-})
-
-export const VIOLATION_STATUS_LABELS: Record<ViolationStatus, string> = Object.freeze({
-  [VIOLATION_STATUS.PENDING]: '待处理',
-  [VIOLATION_STATUS.CONFIRMED]: '已确认',
-  [VIOLATION_STATUS.DISMISSED]: '已放行',
-  [VIOLATION_STATUS.OVERTURNED]: '申诉撤销'
 })
 
 export const WALLET_LOG_TYPE_LABELS: Record<WalletLogType, string> = Object.freeze({

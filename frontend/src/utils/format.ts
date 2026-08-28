@@ -1,6 +1,7 @@
 /**
- * 展示层格式化工具（无副作用纯函数）—— 时间、价格、占位图与头像配色的唯一实现，
- * 页面不得再各自复制 fmtTime/formatDate/phClass 之类的本地版本。
+ * 展示层格式化工具（无副作用纯函数）—— 时间与价格格式的唯一实现，
+ * 无图占位配色由 placeholderClass 提供；页面不得再各自复制
+ * fmtTime/formatDate/phClass 之类的本地版本。
  *
  * 时间约定：后端 LocalDateTime 序列化为无时区的 ISO 字符串（如 2026-08-13T12:30:00），
  * 按本地时间解析并展示，不做时区换算。
@@ -9,10 +10,8 @@
 type DateLike = string | number | Date | null | undefined
 
 const PLACEHOLDER_CLASSES = ['ph-a', 'ph-b', 'ph-c', 'ph-d', 'ph-e', 'ph-f'] as const
-const AVATAR_CLASSES = ['avatar--orange', 'avatar--green', 'avatar--blue', 'avatar--yellow', 'avatar--ink'] as const
 
 export type PlaceholderClass = (typeof PLACEHOLDER_CLASSES)[number]
-export type AvatarClass = (typeof AVATAR_CLASSES)[number]
 
 function pad(value: number): string {
   return String(value).padStart(2, '0')
@@ -43,8 +42,7 @@ export function formatChatTime(value: DateLike): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  const pad2 = (n: number): string => String(n).padStart(2, '0')
-  const time = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`
   if (date.toDateString() === new Date().toDateString()) return time
   return `${date.getMonth() + 1}/${date.getDate()} ${time}`
 }
@@ -57,9 +55,4 @@ export function formatPrice(value: unknown): string {
 /** 无图占位背景类（ph-a ~ ph-f），按 ID 稳定取色 */
 export function placeholderClass(id: number | string | null | undefined): PlaceholderClass {
   return PLACEHOLDER_CLASSES[Number(id || 0) % PLACEHOLDER_CLASSES.length]
-}
-
-/** 头像配色类（avatar--orange 等），按 ID 稳定取色 */
-export function avatarColorClass(id: number | string | null | undefined): AvatarClass {
-  return AVATAR_CLASSES[Number(id || 0) % AVATAR_CLASSES.length]
 }

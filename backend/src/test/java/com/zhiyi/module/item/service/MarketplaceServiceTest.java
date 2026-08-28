@@ -150,7 +150,7 @@ class MarketplaceServiceTest {
                 BusinessException.class, () -> service.deleteOwnItem(7L, 100L));
 
         assertEquals(409, error.getCode());
-        verify(itemTagService, never()).deleteTags(any(), any());
+        verify(itemTagService, never()).deleteTags(any());
     }
 
     @Test
@@ -177,7 +177,7 @@ class MarketplaceServiceTest {
         service.deleteOwnItem(7L, 100L);
 
         verify(itemMapper).softDeleteEditable(100L, 7L);
-        verify(itemTagService).deleteTags(100L, 1L);
+        verify(itemTagService).deleteTags(100L);
         // 不再走无条件 deleteById（check-then-act 已被条件软删取代）
         verify(itemMapper, never()).deleteById(any(Long.class));
     }

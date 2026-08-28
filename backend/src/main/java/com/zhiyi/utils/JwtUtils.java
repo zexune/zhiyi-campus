@@ -75,14 +75,6 @@ public final class JwtUtils {
                 .compact();
     }
 
-    public Long getUserId(String token) {
-        return Long.parseLong(parseClaims(token).getSubject());
-    }
-
-    public String getRole(String token) {
-        return parseClaims(token).get(ROLE_CLAIM, String.class);
-    }
-
     /**
      * JSON 适配器可能用不同的 {@link Number} 子类承载整数，统一做无损转换和范围校验。
      */
@@ -97,15 +89,6 @@ public final class JwtUtils {
             return null;
         }
         return integerValue;
-    }
-
-    public boolean validate(String token) {
-        try {
-            parseClaims(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException exception) {
-            return false;
-        }
     }
 
     /**

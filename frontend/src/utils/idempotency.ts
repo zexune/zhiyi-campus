@@ -7,7 +7,7 @@ import { getAuthContext } from '@/utils/auth'
  * - 每次资金意图生成唯一 UUID 并持久化（跨会话存活：关闭标签页重开后仍复用原键）；
  * - 网络超时/500/429/处理中/任何结果不确定场景保留原键，重试复用，
  *   服务端按幂等记录复返同一结果，不会重复扣款/退款；
- * - 只有明确的业务拒绝（余额不足、商品已售等 CLEAR 白名单）才清除键；
+ * - 只有明确的业务拒绝（失败信封 meta.requestOutcome=REJECTED）才清除键；
  * - 充值等可能并存的操作使用独立客户端操作 ID（UUID）作为槽位，
  *   不能以用户或金额作为唯一槽位。
  */
@@ -67,28 +67,4 @@ export function getOrCreatePending(operation: IdempotentOperation, entityId: str
 /** 明确结束后清除未决操作 */
 export function clearPending(operation: IdempotentOperation, entityId: string | number): void {
   localStorage.removeItem(storageKey(operation, entityId))
-}
-
-/** 清理当前用户全部未决记录（登出时调用；不清理其他用户的数据） */
-export function clearAllPendingForCurrentUser(): void {
-  const { userId } = getAuthContext()
-  const prefix = `${PREFIX}${userId}:`
-  const keys: string[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key && key.startsWith(prefix)) keys.push(key)
-  }
-  keys.forEach((key) => localStorage.removeItem(key))
-}
-
-/** 当前用户的未决操作数量（用于页面提示"有未完成的充值"） */
-export function countPendingForCurrentUser(): number {
-  const { userId } = getAuthContext()
-  const prefix = `${PREFIX}${userId}:`
-  let count = 0
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key && key.startsWith(prefix)) count++
-  }
-  return count
 }

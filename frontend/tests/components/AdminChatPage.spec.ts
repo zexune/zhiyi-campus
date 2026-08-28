@@ -10,7 +10,6 @@ import type { ChatThread, Conversation } from '@/types/models'
 vi.mock('@/api/admin', () => ({
   getAdminSessions: vi.fn(),
   getAdminChatMessages: vi.fn(),
-  getAdminUnreadMessages: vi.fn(),
   sendAdminChatMessage: vi.fn(),
   ackAdminChatRead: vi.fn()
 }))

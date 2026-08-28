@@ -65,10 +65,7 @@ public class LocalImageStorage {
 
             String filename = UUID.randomUUID().toString().replace("-", "")
                     + "." + imageFormat.extension();
-            Path target = targetDir.resolve(filename).normalize();
-            if (!target.startsWith(targetDir)) {
-                throw new BusinessException(ResultCode.BAD_REQUEST, "文件名非法");
-            }
+            Path target = targetDir.resolve(filename);
             Files.createDirectories(targetDir);
             Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
             return "/uploads/" + category + "/" + day + "/" + filename;
@@ -104,7 +101,7 @@ public class LocalImageStorage {
             return null;
         }
         String filename = StringUtils.getFilename(originalFilename);
-        int dot = filename == null ? -1 : filename.lastIndexOf('.');
+        int dot = filename.lastIndexOf('.');
         if (dot < 0 || dot == filename.length() - 1) {
             return null;
         }

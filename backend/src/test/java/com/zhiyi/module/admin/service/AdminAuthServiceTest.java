@@ -2,8 +2,6 @@ package com.zhiyi.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.zhiyi.common.BusinessException;
-import com.zhiyi.common.ResultCode;
 import com.zhiyi.common.enums.UserRole;
 import com.zhiyi.module.admin.vo.AdminLoginVO;
 import com.zhiyi.module.user.entity.SysUser;
@@ -23,10 +21,8 @@ import java.time.Duration;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,7 +67,8 @@ class AdminAuthServiceTest {
 
         assertEquals("admin", result.user().username());
         assertEquals("ADMIN", result.user().role());
-        assertEquals("ADMIN", jwtUtils.getRole(result.token()));
+        assertEquals("ADMIN",
+                jwtUtils.parse(result.token()).get(JwtUtils.ROLE_CLAIM, String.class));
 
         ArgumentCaptor<Wrapper<SysUser>> query = ArgumentCaptor.forClass(Wrapper.class);
         verify(userMapper).selectOne(query.capture());
@@ -79,19 +76,6 @@ class AdminAuthServiceTest {
         String sql = wrapper.getSqlSegment();
         assertTrue(wrapper.getParamNameValuePairs().containsValue("admin"), () -> "sql=" + sql);
         assertTrue(wrapper.getParamNameValuePairs().containsValue(UserRole.ADMIN), () -> "sql=" + sql);
-    }
-
-    @Test
-    void rejectsNonAdminEvenIfMapperReturnsIt() {
-        SysUser user = adminUser();
-        user.setRole(com.zhiyi.common.enums.UserRole.USER);
-        when(userMapper.selectOne(any())).thenReturn(user);
-
-        BusinessException exception = assertThrows(
-                BusinessException.class, () -> service.login("admin", "secret"));
-
-        assertEquals(ResultCode.PASSWORD_ERROR.getCode(), exception.getCode());
-        verify(passwordEncoder, never()).matches(any(), any());
     }
 
     private SysUser adminUser() {

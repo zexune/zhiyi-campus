@@ -10,8 +10,8 @@ import type { PageQuery, PageResult } from '@/types/models'
  *   const { records, currentPage, pageSize, total, loading, loadError, fetchList, goToFirstPage }
  *     = usePagedList(getBoughtOrders, { params: () => ({ status: currentFilter.value }) })
  *
- * - loader 收到 `{ page, size, ...params() }`，返回统一响应（res.data.records / res.data.total）；
- *   运行时兼容裸数组响应（历史接口未分页时直接返回列表）；
+ * - loader 收到 `{ page, size, ...params() }`，返回经 api/mappers.mapPageData
+ *   校验归一化后的统一响应（res.data.records / res.data.total，二者必有）；
  * - params 必须是函数：切换筛选时先 `goToFirstPage()` 再 `fetchList()`，params() 取到的始终是最新筛选；
  * - 失败只置 loadError，不抛出（错误提示由调用方或 request.ts 决定）；
  * - F1 根因修复：内部维护单调递增代数——快速切筛选/翻页时乱序返回的旧响应
@@ -30,7 +30,7 @@ export interface UsePagedListReturn<T> {
 }
 
 export function usePagedList<T, P extends object = Record<string, never>>(
-  loader: (query: PageQuery & P) => Promise<ApiResult<PageResult<T> | T[]>>,
+  loader: (query: PageQuery & P) => Promise<ApiResult<PageResult<T>>>,
   { size = 10, params = () => ({}) as P }: { size?: number; params?: () => P | null } = {}
 ): UsePagedListReturn<T> {
   const records: Ref<T[]> = ref([])
@@ -49,10 +49,8 @@ export function usePagedList<T, P extends object = Record<string, never>>(
       const extra = params() ?? ({} as P)
       const res = await loader({ page: currentPage.value, size: pageSize.value, ...extra })
       if (gen !== generation) return
-      // 兼容裸数组响应（部分接口未分页时直接返回列表）
-      const payload: PageResult<T> | T[] | undefined = res?.data
-      records.value = Array.isArray(payload) ? payload : payload?.records || []
-      total.value = Array.isArray(payload) ? payload.length : payload?.total || 0
+      records.value = res.data.records
+      total.value = res.data.total
     } catch {
       if (gen !== generation) return
       loadError.value = true

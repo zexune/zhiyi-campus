@@ -132,7 +132,7 @@ class ItemPublishServiceTest {
         // 发布分配 listing_revision 并初始化独立浏览统计行
         assertEquals(41L, inserted.getListingRevision());
         verify(viewStatMapper).insert(any(com.zhiyi.module.item.entity.ItemViewStat.class));
-        verify(itemTagService).replaceTags(91L, 2L, List.of("生活日用", "台灯", "出售"));
+        verify(itemTagService).replaceTags(91L, List.of("生活日用", "台灯", "出售"));
         verify(violationReportMapper, never()).insert(any(ViolationReport.class));
     }
 
@@ -237,7 +237,7 @@ class ItemPublishServiceTest {
         BusinessException error = assertThrows(BusinessException.class, () -> service.relist(7L, 100L));
 
         assertEquals(409, error.getCode());
-        verify(itemTagService, never()).replaceTags(any(), any(), any());
+        verify(itemTagService, never()).replaceTags(any(), any());
     }
 
     @Test
@@ -307,7 +307,7 @@ class ItemPublishServiceTest {
 
         assertEquals(409, error.getCode());
         verify(itemMapper, never()).updateById(any(Item.class));
-        verify(itemTagService, never()).replaceTags(any(), any(), any());
+        verify(itemTagService, never()).replaceTags(any(), any());
     }
 
     @Test
@@ -348,7 +348,7 @@ class ItemPublishServiceTest {
                 () -> "条件 UPDATE 必须重检 moderation_status，实际 WHERE: " + sqlSegment);
         assertTrue(wrapperCaptor.getValue().getParamNameValuePairs().containsValue(ModerationStatus.PASSED),
                 "moderation 重检必须以读取时的值为准");
-        verify(itemTagService, never()).replaceTags(any(), any(), any());
+        verify(itemTagService, never()).replaceTags(any(), any());
     }
 
     @Test
@@ -382,7 +382,7 @@ class ItemPublishServiceTest {
         BusinessException error = assertThrows(BusinessException.class, () -> service.relist(7L, 100L));
 
         assertEquals(409, error.getCode());
-        verify(itemTagService, never()).replaceTags(any(), any(), any());
+        verify(itemTagService, never()).replaceTags(any(), any());
     }
 
     @Test

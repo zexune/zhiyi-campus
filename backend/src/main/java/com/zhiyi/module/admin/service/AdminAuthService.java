@@ -37,8 +37,7 @@ public class AdminAuthService {
         SysUser admin = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getStudentId, canonicalUsername)
                 .eq(SysUser::getRole, UserRole.ADMIN));
-        if (admin == null || admin.getRole() != UserRole.ADMIN
-                || !passwordEncoder.matches(password, admin.getPassword())) {
+        if (admin == null || !passwordEncoder.matches(password, admin.getPassword())) {
             loginAttemptService.recordFailure(loginKey);
             throw new BusinessException(ResultCode.PASSWORD_ERROR, "管理员账号或密码错误");
         }

@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * 商品摘要响应（P2 语义拆分）：feed 游标、榜单、swap/errand 列表族专用。
  *
- * 与 {@link ItemCardVO}（兼容适配层）的字段差异是刻意的：摘要族不暴露
+ * 与 {@link ItemCardVO} 的字段差异是刻意的：摘要族不暴露
  * 描述、分类、地点、审核与申诉等详情/所有者字段——按 endpoint 家族的
  * 字段可见性拆分，不机械复制整卡 JSON。
  */

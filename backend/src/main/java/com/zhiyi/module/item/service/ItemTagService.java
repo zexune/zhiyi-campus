@@ -32,7 +32,7 @@ public class ItemTagService {
 
     /** 标签统计主库直读（TagQueryService 无缓存），无需失效调用。 */
     @Transactional
-    public void replaceTags(Long itemId, Long schoolId, List<String> names) {
+    public void replaceTags(Long itemId, List<String> names) {
         itemTagMapper.delete(new LambdaUpdateWrapper<ItemTag>().eq(ItemTag::getItemId, itemId));
         for (TagName tagName : normalize(names)) {
             Tag tag = findOrCreate(tagName);
@@ -44,7 +44,7 @@ public class ItemTagService {
     }
 
     @Transactional
-    public void deleteTags(Long itemId, Long schoolId) {
+    public void deleteTags(Long itemId) {
         itemTagMapper.delete(new LambdaUpdateWrapper<ItemTag>().eq(ItemTag::getItemId, itemId));
     }
 

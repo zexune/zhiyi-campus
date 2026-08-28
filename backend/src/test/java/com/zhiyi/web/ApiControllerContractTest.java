@@ -419,7 +419,7 @@ class ApiControllerContractTest {
     @DisplayName("P4-7：strict 模式下抛出未声明业务码直接判定契约失败")
     void undeclaredBusinessCodeFailsContractInStrictMode() {
         when(authService.login(any()))
-                .thenThrow(new BusinessException(ResultCode.DUPLICATE_FAVORITE));
+                .thenThrow(new BusinessException(ResultCode.ORDER_STATUS_ERROR));
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 Exception.class,

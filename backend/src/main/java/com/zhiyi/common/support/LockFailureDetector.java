@@ -1,7 +1,5 @@
 package com.zhiyi.common.support;
 
-import org.springframework.dao.DataAccessException;
-
 import java.sql.SQLException;
 
 /**
@@ -34,15 +32,5 @@ public final class LockFailureDetector {
             depth++;
         }
         return false;
-    }
-
-    /** 将 NOWAIT 冲突异常转换为统一的可重试业务异常，其余原样抛出。 */
-    public static RuntimeException translateNowait(DataAccessException exception,
-                                                   Runnable onBusy) {
-        if (isNowaitConflict(exception)) {
-            onBusy.run();
-            return null;
-        }
-        return exception;
     }
 }

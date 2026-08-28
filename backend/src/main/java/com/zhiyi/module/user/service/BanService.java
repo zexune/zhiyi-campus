@@ -26,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -47,8 +46,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class BanService {
-
-    private static final DateTimeFormatter BAN_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final SysUserMapper userMapper;
     private final SchoolMapper schoolMapper;
@@ -187,11 +184,6 @@ public class BanService {
                 OutboxService.AGGREGATE_USER, userId, OutboxService.EVENT_USER_PUNISHED,
                 userId, "你的账号已被管理员解封，可以重新登录使用了。");
         log.info("管理员 {} 解封用户 {}", adminId, userId);
-    }
-
-    /** 封禁剩余时间展示（管理端列表用）。 */
-    public static String describeBanUntil(java.time.LocalDateTime banUntilTime) {
-        return banUntilTime == null ? null : banUntilTime.format(BAN_TIME_FMT);
     }
 
     private BanActionType parseAction(String value) {

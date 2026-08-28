@@ -42,7 +42,6 @@ declare module 'vue' {
     TagInput: typeof import('./src/components/common/TagInput.vue')['default']
     TagList: typeof import('./src/components/common/TagList.vue')['default']
     UserAvatar: typeof import('./src/components/common/UserAvatar.vue')['default']
-    WipPage: typeof import('./src/components/common/WipPage.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

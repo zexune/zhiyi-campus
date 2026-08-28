@@ -20,9 +20,6 @@ const ROLE_KEY = 'role'
 const USER_ID_KEY = 'userId'
 const NICKNAME_KEY = 'nickname'
 const AVATAR_KEY = 'avatar'
-// 旧版本遗留的 token 键，清理以免残留过期凭证
-const LEGACY_TOKEN_KEY = 'token'
-const LEGACY_PERSISTED_USER_KEY = 'zhiyi-user'
 
 /** localStorage 中的用户摘要形状 */
 export interface StoredUser {
@@ -112,8 +109,6 @@ export function setLoginUser(user: { id: number | string; nickname?: string | nu
   const avatar = user.avatar
   if (avatar) localStorage.setItem(AVATAR_KEY, avatar)
   else localStorage.removeItem(AVATAR_KEY)
-  localStorage.removeItem(LEGACY_TOKEN_KEY)
-  localStorage.removeItem(LEGACY_PERSISTED_USER_KEY)
   authEpoch.value += 1
   loggedIn.value = true
 }
@@ -123,8 +118,6 @@ export function clearAuth(): void {
   localStorage.removeItem(USER_ID_KEY)
   localStorage.removeItem(NICKNAME_KEY)
   localStorage.removeItem(AVATAR_KEY)
-  localStorage.removeItem(LEGACY_TOKEN_KEY)
-  localStorage.removeItem(LEGACY_PERSISTED_USER_KEY)
   authEpoch.value += 1
   loggedIn.value = false
 }

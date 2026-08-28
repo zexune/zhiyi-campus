@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class JwtUtilsTest {
 
@@ -42,6 +42,6 @@ class JwtUtilsTest {
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET)), Jwts.SIG.HS256)
                 .compact();
 
-        assertFalse(jwtUtils.validate(previousToken));
+        assertNull(jwtUtils.parse(previousToken));
     }
 }

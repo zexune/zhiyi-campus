@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -83,19 +82,5 @@ public class TradingAdmissionGate {
                 globalSlots.release();
             }
         }
-    }
-
-    /** 可观测性：BUSY 拒绝累计数。 */
-    public int busyRejectCount() {
-        return busyRejects.get();
-    }
-
-    /** 可观测性：当前全局占用。 */
-    public int globalInUse() {
-        return globalSlots.availablePermits();
-    }
-
-    public Duration globalWaitBudget() {
-        return Duration.ofMillis(globalAcquireTimeoutMillis);
     }
 }

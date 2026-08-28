@@ -111,9 +111,7 @@ public class MarketplaceService {
         }
         viewCountBuffer.record(itemId);
         ItemSnapshot snapshot = itemCardAssembler.assemble(List.of(item), currentUserId).getFirst();
-        snapshot.setViewCount(snapshot.getViewCount() == null
-                ? viewCountBuffer.pendingDelta(itemId)
-                : snapshot.getViewCount() + viewCountBuffer.pendingDelta(itemId));
+        snapshot.setViewCount(snapshot.getViewCount() + viewCountBuffer.pendingDelta(itemId));
         return snapshot.toDetail();
     }
 
@@ -278,7 +276,7 @@ public class MarketplaceService {
         if (itemMapper.softDeleteEditable(itemId, userId) == 0) {
             throw new BusinessException(ResultCode.CONFLICT, "商品状态已变化，请刷新后重试");
         }
-        itemTagService.deleteTags(itemId, item.getSchoolId());
+        itemTagService.deleteTags(itemId);
     }
 
     public List<ItemSummaryResponse> ranking(int limit, Long currentUserId) {
