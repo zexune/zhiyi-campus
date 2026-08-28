@@ -216,16 +216,56 @@ router.beforeEach((to) => {
   return true
 })
 
-// ── 懒加载分块失败兜底：路由组件按需加载，网络抖动或发版后旧 chunk 失效时
-//    导航会被静默中止（表现为“点击后停在原页面，再点一次才跳转”）。
-//    此处改为整页直达目标路由，浏览器会重新请求并缓存分块。──
+// ── 懒加载分块失败兜底（分级策略）──
+// 路由组件按需加载，网络抖动、dev 依赖重优化或发版后旧 chunk 失效时导航会静默中止，
+// 表现为"点击后停在原页面，再点一次才跳转"。恢复策略：
+// 1. 应用内重放一次导航：vue-router 在组件加载失败时不会替换路由记录上的加载函数，
+//    直接重放即可重新发起请求。注意浏览器会把失败的动态 import 缓存在模块表里
+//    （连接失败类错误重放不会重新发请求），此级只对超时/中断类未缓存失败有效；
+// 2. 重放仍失败 → 整页直达目标路由：新文档的模块表是空的，浏览器必然重新请求
+//    （发版后旧 chunk 失效也靠这级恢复，拿到新 index.html 的最新分块引用）；
+// 3. 循环防护：首屏（直接打开/刷新目标 URL）时 chunk 持续失效会让整页直达无限
+//    刷新自身（实测 12s 内 47 次），用 sessionStorage 预算限制每次会话至多一次
+//    自动整页直达，仍失败则提示用户手动刷新。
+const CHUNK_ERROR_RE =
+  /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|Loading CSS chunk|Unable to preload CSS|Load failed|NetworkError|ERR_/i
+/** 同一目标的导航重放预算（内存级，成功导航后清零） */
+const CHUNK_REPLAY_BUDGET = 1
+/** 整页直达预算的存储键（sessionStorage 级，跨刷新但随会话结束清空） */
+const CHUNK_RELOAD_KEY = 'zhiyi:chunk-reloaded'
+
+function isChunkLoadError(error: unknown): boolean {
+  return CHUNK_ERROR_RE.test(String((error as Error)?.message || error))
+}
+
+const chunkReplayCounts = new Map<string, number>()
+
 router.onError((error, to) => {
-  const message = String((error as Error)?.message || error)
-  if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading CSS chunk/i.test(message)) {
-    if (to?.fullPath) {
-      window.location.replace(to.fullPath)
-    }
+  if (!to?.fullPath || !isChunkLoadError(error)) return
+
+  const replays = chunkReplayCounts.get(to.fullPath) ?? 0
+  if (replays < CHUNK_REPLAY_BUDGET) {
+    chunkReplayCounts.set(to.fullPath, replays + 1)
+    router.replace(to).catch(() => {})
+    return
   }
+
+  const currentDocPath = window.location.pathname + window.location.search
+  const isInitialLoad = currentDocPath === to.fullPath
+  // 预算按目标路径记录：同一首屏地址每次会话至多自动整页直达一次，不同地址互不影响
+  if (isInitialLoad && sessionStorage.getItem(CHUNK_RELOAD_KEY) === to.fullPath) {
+    ElMessage.error('页面资源加载失败，请刷新页面重试')
+    return
+  }
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, to.fullPath)
+  window.location.replace(to.fullPath)
+})
+
+/** 导航成功后复位该目标的重放预算，后续再次进入仍可享受完整兜底 */
+router.afterEach((to) => {
+  chunkReplayCounts.delete(to.fullPath)
+  // 成功到达即清除整页直达预算（正常导航到此页不再受限）
+  if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === to.fullPath) sessionStorage.removeItem(CHUNK_RELOAD_KEY)
 })
 
 export default router

@@ -265,29 +265,34 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     return error instanceof ApiError && error.code === FEED_CURSOR_INVALID_CODE
   }
 
-  /** 首屏（或游标失效后的重启）：清空列表重取，成功/失败/finally 全代数校验 */
-  async function fetchItems(): Promise<void> {
-    if (!loggedIn) return
+  /** 首屏拉取（单次）：返回结果供外层决定是否重试 */
+  async function fetchFirstScreen(): Promise<'ok' | 'cursor-invalid'> {
+    if (!loggedIn) return 'ok'
     const gen = guard.begin()
     loading.value = true
     nextCursor = null
     hasMore.value = false
     try {
       const response = await getItemList(buildParams(null))
-      if (!guard.isCurrent(gen)) return
+      if (!guard.isCurrent(gen)) return 'ok'
       items.value = response.data?.records || []
       nextCursor = response.data?.nextCursor || null
       hasMore.value = Boolean(response.data?.hasMore && nextCursor)
       estimatedTotal.value = Number(response.data?.estimatedTotal || 0)
     } catch (error) {
-      if (!guard.isCurrent(gen)) return
-      if (isFeedCursorInvalid(error)) {
-        // 游标本应为空仍报失效：极少见，静默重试一次首屏
-        return
-      }
+      if (!guard.isCurrent(gen)) return 'ok'
+      if (isFeedCursorInvalid(error)) return 'cursor-invalid'
       items.value = []
     } finally {
       if (guard.isCurrent(gen)) loading.value = false
+    }
+    return 'ok'
+  }
+
+  /** 首屏（或游标失效后的重启）：清空列表重取；首屏游标本应为空仍报失效时静默重试一次 */
+  async function fetchItems(): Promise<void> {
+    if ((await fetchFirstScreen()) === 'cursor-invalid') {
+      await fetchFirstScreen()
     }
   }
 
