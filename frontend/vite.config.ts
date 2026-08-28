@@ -45,9 +45,7 @@ const elementPlusStyleComponents = [
   'skeleton',
   'upload'
 ]
-const optimizeDepsInclude = writeDts
-  ? ['element-plus/es', ...elementPlusStyleComponents.map((component) => `element-plus/es/components/${component}/style/css`)]
-  : undefined
+const optimizeDepsInclude = writeDts ? ['element-plus/es', ...elementPlusStyleComponents.map((component) => `element-plus/es/components/${component}/style/css`)] : undefined
 const backendProxy = {
   '/api': {
     target: 'http://localhost:8080',
