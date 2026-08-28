@@ -35,6 +35,8 @@ try {
 } finally {
   await new Promise((resolveClose, reject) => {
     server.close((error) => (error ? reject(error) : resolveClose()))
+    // 兜底销毁残余连接（含尚未感知对端关闭的 socket），保证 close 回调必然到达、进程必然退出
+    server.closeAllConnections()
   })
 }
 
@@ -82,6 +84,12 @@ function proxyToBackend(incoming, outgoing, url) {
       outgoing.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' })
     }
     outgoing.end(JSON.stringify({ code: 502, message: `测试后端不可用：${error.message}`, data: null }))
+  })
+  // 浏览器侧中途断开时必须终止上游请求：pipe 只停播不关闭源，
+  // SSE 等长连接会留下 proxy→后端 的常开 socket，进程永远无法退出
+  // （CI full-system 任务 30 分钟超时挂死的根因）。正常完成的响应不受影响。
+  outgoing.on('close', () => {
+    if (!outgoing.writableEnded) proxy.destroy()
   })
   incoming.pipe(proxy)
 }
