@@ -13,8 +13,39 @@ vi.mock('@/api/chat', () => ({
   getChatMessages: vi.fn(),
   sendChatMessage: vi.fn(),
   ackChatRead: vi.fn(),
-  startCustomerService: vi.fn()
+  startCustomerService: vi.fn(),
+  getUnreadCount: vi.fn()
 }))
+
+// ---- SSE 事件流替身：捕获页面注册的监听器，供用例手动派发事件 ----
+const streamMessageHandlers = new Set<(event: { type: 'MESSAGE'; conversationId: string; messageId?: number; senderId?: number }) => void>()
+const streamReadHandlers = new Set<(event: { type: 'READ'; conversationId: string }) => void>()
+const streamResyncHandlers = new Set<() => void>()
+
+vi.mock('@/composables/useChatStream', () => ({
+  useChatStream: () => ({
+    onMessage: (handler: (event: { type: 'MESSAGE'; conversationId: string }) => void) => {
+      streamMessageHandlers.add(handler)
+      return () => streamMessageHandlers.delete(handler)
+    },
+    onRead: (handler: (event: { type: 'READ'; conversationId: string }) => void) => {
+      streamReadHandlers.add(handler)
+      return () => streamReadHandlers.delete(handler)
+    },
+    onResync: (handler: () => void) => {
+      streamResyncHandlers.add(handler)
+      return () => streamResyncHandlers.delete(handler)
+    }
+  })
+}))
+
+function emitStreamMessage(conversationId: string, messageId?: number) {
+  streamMessageHandlers.forEach((handler) => handler({ type: 'MESSAGE', conversationId, messageId }))
+}
+
+function emitStreamRead(conversationId: string) {
+  streamReadHandlers.forEach((handler) => handler({ type: 'READ', conversationId }))
+}
 
 const route = { query: {} as Record<string, string> }
 const router = { push: vi.fn(), replace: vi.fn() }
@@ -72,6 +103,9 @@ beforeEach(() => {
   route.query = {}
   router.push.mockClear()
   router.replace.mockClear()
+  streamMessageHandlers.clear()
+  streamReadHandlers.clear()
+  streamResyncHandlers.clear()
   vi.mocked(getConversations).mockResolvedValue({ code: 200, message: 'ok', data: [conversation()] } as unknown as ApiResult<Conversation[]>)
   vi.mocked(getChatMessages).mockResolvedValue({ code: 200, message: 'ok', data: thread() } as unknown as ApiResult<ChatThread>)
   vi.mocked(ackChatRead).mockResolvedValue({ code: 200, message: 'ok', data: null })
@@ -128,4 +162,90 @@ test('点击会话切换选中态并更新 URL 参数', async () => {
 
   assert.ok(second.classes().includes('active'))
   assert.deepEqual(router.replace.mock.calls[0], [{ path: '/chat', query: { conversationId: 'c2', peerId: 3, relatedItemId: undefined } }])
+})
+
+/** SSE 推送用例公共骨架：URL 直达打开会话 → 派发事件 → 推进合并窗口定时器 */
+async function mountWithOpenConversation() {
+  vi.useFakeTimers()
+  try {
+    route.query = { conversationId: 'c1', peerId: '2', relatedItemId: '5' }
+    const wrapper = mount(ChatListPage, { global })
+    await flushPromises()
+    vi.mocked(getChatMessages).mockClear()
+    vi.mocked(getConversations).mockClear()
+    return { wrapper }
+  } catch (error) {
+    vi.useRealTimers()
+    throw error
+  }
+}
+
+test('SSE MESSAGE 事件（当前会话）静默刷新线程并渲染新消息', async () => {
+  const { wrapper } = await mountWithOpenConversation()
+  try {
+    const withNewMessage = thread({
+      messages: [
+        { id: 10, conversationId: 'c1', senderId: 2, receiverId: 999, content: '你好', mine: false, createdAt: '2026-08-24T09:59:00' },
+        { id: 12, conversationId: 'c1', senderId: 2, receiverId: 999, content: '可以约图书馆', mine: false, createdAt: '2026-08-24T10:01:00' },
+        { id: 13, conversationId: 'c1', senderId: 2, receiverId: 999, content: '到了说一声', mine: false, createdAt: '2026-08-24T10:02:00' }
+      ]
+    })
+    vi.mocked(getChatMessages).mockResolvedValue({ code: 200, message: 'ok', data: withNewMessage } as unknown as ApiResult<ChatThread>)
+
+    emitStreamMessage('c1', 13)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    // 只重拉线程（事件合并后一次），不打扰会话列表
+    assert.equal(vi.mocked(getChatMessages).mock.calls.length, 1)
+    assert.equal(vi.mocked(getConversations).mock.calls.length, 0)
+    assert.equal(wrapper.findAll('.msg').length, 3)
+    assert.match(wrapper.text(), /到了说一声/)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('SSE MESSAGE 事件（其他会话）只刷新会话列表', async () => {
+  await mountWithOpenConversation()
+  try {
+    emitStreamMessage('c9', 99)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    assert.equal(vi.mocked(getConversations).mock.calls.length, 1)
+    assert.equal(vi.mocked(getChatMessages).mock.calls.length, 0)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('SSE READ 事件（当前会话）静默刷新线程，其他会话忽略', async () => {
+  await mountWithOpenConversation()
+  try {
+    streamReadHandlers.forEach((handler) => handler({ type: 'READ', conversationId: 'c8' }))
+    await vi.advanceTimersByTimeAsync(250)
+    assert.equal(vi.mocked(getChatMessages).mock.calls.length, 0)
+
+    emitStreamRead('c1')
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    assert.equal(vi.mocked(getChatMessages).mock.calls.length, 1)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('SSE resync（重连/恢复可见）整段重拉会话与当前线程', async () => {
+  await mountWithOpenConversation()
+  try {
+    streamResyncHandlers.forEach((handler) => handler())
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    assert.equal(vi.mocked(getConversations).mock.calls.length, 1)
+    assert.equal(vi.mocked(getChatMessages).mock.calls.length, 1)
+  } finally {
+    vi.useRealTimers()
+  }
 })

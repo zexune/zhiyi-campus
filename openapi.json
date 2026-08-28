@@ -6265,6 +6265,133 @@
         ]
       }
     },
+    "/api/admin/chat/stream": {
+      "get": {
+        "operationId": "stream_1",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "text/event-stream：event:ready（重连节奏）与 event:chat（MESSAGE/READ 变化信号）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "参数校验失败",
+            "x-business-codes": [
+              "400"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "认证失败：Token 缺失/无效/过期或会话失效（响应已清除会话 Cookie）",
+            "x-business-codes": [
+              "1401",
+              "401"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "权限不足或账户被拒绝",
+            "x-business-codes": [
+              "1003",
+              "403"
+            ]
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求方法不受支持",
+            "x-business-codes": [
+              "405"
+            ]
+          },
+          "406": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "无法生成 Accept 指定的响应格式",
+            "x-business-codes": [
+              "406"
+            ]
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求体或上传文件超过服务端限制",
+            "x-business-codes": [
+              "413"
+            ]
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求 Content-Type 与 endpoint 契约不匹配",
+            "x-business-codes": [
+              "415"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "服务器内部错误（幂等处置 UNKNOWN）",
+            "x-business-codes": [
+              "500"
+            ]
+          }
+        },
+        "summary": "订阅管理端聊天事件流（SSE）",
+        "tags": [
+          "admin-chat-controller"
+        ]
+      }
+    },
     "/api/admin/chat/unread": {
       "get": {
         "operationId": "unread_1",
@@ -11339,6 +11466,133 @@
           "1006",
           "403",
           "404"
+        ]
+      }
+    },
+    "/api/chat/stream": {
+      "get": {
+        "operationId": "stream",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "text/event-stream：event:ready（重连节奏）与 event:chat（MESSAGE/READ 变化信号）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "参数校验失败",
+            "x-business-codes": [
+              "400"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "认证失败：Token 缺失/无效/过期或会话失效（响应已清除会话 Cookie）",
+            "x-business-codes": [
+              "1401",
+              "401"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "权限不足或账户被拒绝",
+            "x-business-codes": [
+              "1003",
+              "403"
+            ]
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求方法不受支持",
+            "x-business-codes": [
+              "405"
+            ]
+          },
+          "406": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "无法生成 Accept 指定的响应格式",
+            "x-business-codes": [
+              "406"
+            ]
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求体或上传文件超过服务端限制",
+            "x-business-codes": [
+              "413"
+            ]
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "请求 Content-Type 与 endpoint 契约不匹配",
+            "x-business-codes": [
+              "415"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "服务器内部错误（幂等处置 UNKNOWN）",
+            "x-business-codes": [
+              "500"
+            ]
+          }
+        },
+        "summary": "订阅聊天事件流（SSE）",
+        "tags": [
+          "chat-controller"
         ]
       }
     },

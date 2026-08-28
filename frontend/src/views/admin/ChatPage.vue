@@ -94,15 +94,15 @@ import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
-import { getAdminSessions, getAdminChatMessages, getAdminUnreadMessages, sendAdminChatMessage, ackAdminChatRead } from '@/api/admin'
+import { getAdminSessions, getAdminChatMessages, sendAdminChatMessage, ackAdminChatRead } from '@/api/admin'
 import type { ChatMessage, ChatUser, Conversation } from '@/types/models'
 import { formatChatTime } from '@/utils/format'
 import { useContextGuard } from '@/composables/useContextGuard'
+import { useChatStream } from '@/composables/useChatStream'
+import type { ChatStreamMessageEvent } from '@/composables/useChatStream'
 
-/** 轮询间隔：正常 3s；连续失败 ≥3 次降频到 10s */
-const POLL_INTERVAL_MS = 3000
-const POLL_INTERVAL_DEGRADED_MS = 10000
-const POLL_FAILURE_THRESHOLD = 3
+/** SSE 事件合并窗口：连续到达的多条事件收敛为一次重拉 */
+const EVENT_MERGE_MS = 200
 const NEAR_BOTTOM_PX = 40
 
 // ---- 会话列表 ----
@@ -249,55 +249,37 @@ function scrollToBottom() {
   })
 }
 
-// ---- 轮询（F7：递归 setTimeout + 在途保护，绝不重叠） ----
-let pollTimer: number | undefined
-let pollInFlight = false
-let pollFailures = 0
+// ---- SSE 推送（替代轮询）：新消息到达即刷新，无需未读探测 ----
+let sessionsRefreshTimer: number | undefined
 
-async function poll() {
+function scheduleSessionsRefresh() {
+  if (sessionsRefreshTimer !== undefined) return
+  sessionsRefreshTimer = window.setTimeout(() => {
+    sessionsRefreshTimer = undefined
+    void fetchSessions()
+  }, EVENT_MERGE_MS)
+}
+
+/** 当前会话新消息：刷新线程（贴底时自动滚底）并更新会话列表 */
+function refreshActiveSession() {
   if (!activeConv.value) return
-  const res = await getAdminUnreadMessages({ conversationId: activeConv.value })
-  const unread = res.data || []
-  if (unread.length > 0) {
-    const nearBottom = isNearBottom()
-    await loadMessages()
+  const nearBottom = isNearBottom()
+  void loadMessages().then(() => {
     if (nearBottom) scrollToBottom()
-    fetchSessions()
-  }
+  })
+  scheduleSessionsRefresh()
 }
 
-function schedulePoll() {
-  const interval = pollFailures >= POLL_FAILURE_THRESHOLD ? POLL_INTERVAL_DEGRADED_MS : POLL_INTERVAL_MS
-  pollTimer = window.setTimeout(pollOnce, interval)
-}
-
-async function pollOnce() {
-  if (document.visibilityState === 'hidden' || !activeConv.value) {
-    schedulePoll()
-    return
-  }
-  if (pollInFlight) {
-    schedulePoll()
-    return
-  }
-  pollInFlight = true
-  try {
-    await poll()
-    pollFailures = 0
-  } catch {
-    pollFailures += 1
-  } finally {
-    pollInFlight = false
-    schedulePoll()
-  }
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearTimeout(pollTimer)
-    pollTimer = undefined
-  }
-}
+const chatStream = useChatStream()
+const offStreamMessage = chatStream.onMessage((event: ChatStreamMessageEvent) => {
+  if (event.conversationId === activeConv.value) refreshActiveSession()
+  else scheduleSessionsRefresh()
+})
+const offStreamResync = chatStream.onResync(() => {
+  // 连接（重）建立/页面恢复可见：整段重拉兜底断线期间的漏推
+  if (activeConv.value) refreshActiveSession()
+  else void fetchSessions()
+})
 
 function truncate(text: string, max: number) {
   if (!text) return ''
@@ -306,11 +288,12 @@ function truncate(text: string, max: number) {
 
 onMounted(() => {
   fetchSessions()
-  schedulePoll()
 })
 
 onUnmounted(() => {
-  stopPolling()
+  offStreamMessage()
+  offStreamResync()
+  if (sessionsRefreshTimer !== undefined) window.clearTimeout(sessionsRefreshTimer)
 })
 </script>
 

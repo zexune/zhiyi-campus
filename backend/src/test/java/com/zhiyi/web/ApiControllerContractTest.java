@@ -21,6 +21,8 @@ import com.zhiyi.module.item.service.MarketplaceService;
 import com.zhiyi.module.item.vo.UploadImageVO;
 import com.zhiyi.module.social.controller.ChatController;
 import com.zhiyi.module.social.service.ChatService;
+import com.zhiyi.module.social.support.ChatEventBroadcaster;
+import com.zhiyi.module.social.vo.ChatEventVO;
 import com.zhiyi.module.trade.controller.OrderController;
 import com.zhiyi.module.trade.service.OrderQueryService;
 import com.zhiyi.module.trade.service.ReviewService;
@@ -52,6 +54,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.math.BigDecimal;
 
@@ -67,6 +70,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -74,6 +78,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -128,6 +133,7 @@ class ApiControllerContractTest {
     @MockitoBean private AdminLineageService lineageService;
     @MockitoBean private ViolationAppealService appealService;
     @MockitoBean private ChatService chatService;
+    @MockitoBean private ChatEventBroadcaster chatEventBroadcaster;
     @MockitoBean private UserService userService;
     @MockitoBean private ReputationService reputationService;
     @MockitoBean private JwtInterceptor jwtInterceptor;
@@ -650,5 +656,28 @@ class ApiControllerContractTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.meta.requestOutcome").value("REJECTED"));
+    }
+
+    @Test
+    @DisplayName("SSE 事件流：为当前登录用户建立 text/event-stream 异步连接并转发 event:chat")
+    void chatStreamEstablishesEventStreamForCurrentUser() throws Exception {
+        SseEmitter emitter = new SseEmitter(0L);
+        when(chatEventBroadcaster.connect(7L)).thenReturn(emitter);
+
+        MvcResult stream = mockMvc.perform(get("/api/chat/stream").requestAttr("userId", 7L))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        emitter.send(SseEmitter.event().name("chat")
+                .data(ChatEventVO.message("1_7", 10L, 1L)));
+        emitter.complete();
+
+        mockMvc.perform(asyncDispatch(stream))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string(containsString("event:chat")))
+                .andExpect(content().string(containsString("\"type\":\"MESSAGE\"")))
+                .andExpect(content().string(containsString("\"conversationId\":\"1_7\"")));
+        verify(chatEventBroadcaster).connect(7L);
     }
 }

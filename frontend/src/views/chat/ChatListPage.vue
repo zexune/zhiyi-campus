@@ -123,6 +123,8 @@ import RelatedItemCard from './components/RelatedItemCard.vue'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatChatTime } from '@/utils/format'
 import { useContextGuard } from '@/composables/useContextGuard'
+import { useChatStream } from '@/composables/useChatStream'
+import type { ChatStreamMessageEvent, ChatStreamReadEvent } from '@/composables/useChatStream'
 
 /**
  * selectConversation 消费的最小会话形状：
@@ -135,10 +137,8 @@ interface ConversationLike {
   relatedItem?: { id?: number | string | string[] | (string | null)[] | null | undefined } | null
 }
 
-/** 轮询间隔：正常 2.5s；连续失败 ≥3 次降频到 10s，成功后恢复 */
-const POLL_INTERVAL_MS = 2500
-const POLL_INTERVAL_DEGRADED_MS = 10000
-const POLL_FAILURE_THRESHOLD = 3
+/** SSE 事件合并窗口：连续到达的多条事件收敛为一次重拉 */
+const EVENT_MERGE_MS = 200
 /** 距底部小于该值视为"贴近底部"，新消息到达时才自动滚底 */
 const NEAR_BOTTOM_PX = 40
 
@@ -160,9 +160,9 @@ const hasEarlier = ref(false)
 const earlierLoading = ref(false)
 /** 是否已向前翻页（组件内状态，随会话切换代数作废——M11 修复） */
 let earlierLoaded = false
-let pollTimer: number | undefined
-let pollInFlight = false
-let pollFailures = 0
+/** 事件合并定时器（线程/当前会话线程刷新） */
+let threadRefreshTimer: number | undefined
+let conversationsRefreshTimer: number | undefined
 /** 已确认读到的最后一条接收消息 ID（避免重复 ack） */
 let lastAckedMessageId: number | null = null
 
@@ -329,32 +329,38 @@ async function contactService() {
   }
 }
 
-/** F7 根因修复：递归 setTimeout 轮询——在途请求未完成则跳过本拍，绝不重叠 */
-function schedulePoll() {
-  const interval = pollFailures >= POLL_FAILURE_THRESHOLD ? POLL_INTERVAL_DEGRADED_MS : POLL_INTERVAL_MS
-  pollTimer = window.setTimeout(pollOnce, interval)
+/** SSE 推送驱动：新消息到达当前会话时静默刷新线程（合并事件风暴） */
+function scheduleThreadRefresh() {
+  if (threadRefreshTimer !== undefined) return
+  threadRefreshTimer = window.setTimeout(() => {
+    threadRefreshTimer = undefined
+    void fetchThread({ silent: true })
+  }, EVENT_MERGE_MS)
 }
 
-async function pollOnce() {
-  if (document.visibilityState === 'hidden' || !selectedConversationId.value) {
-    schedulePoll()
-    return
-  }
-  if (pollInFlight) {
-    schedulePoll()
-    return
-  }
-  pollInFlight = true
-  try {
-    await fetchThread({ silent: true })
-    pollFailures = 0
-  } catch {
-    pollFailures += 1
-  } finally {
-    pollInFlight = false
-    schedulePoll()
-  }
+/** 其他会话有新消息：刷新会话列表（最近消息与未读角标） */
+function scheduleConversationsRefresh() {
+  if (conversationsRefreshTimer !== undefined) return
+  conversationsRefreshTimer = window.setTimeout(() => {
+    conversationsRefreshTimer = undefined
+    void fetchConversations()
+  }, EVENT_MERGE_MS)
 }
+
+const chatStream = useChatStream()
+const offStreamMessage = chatStream.onMessage((event: ChatStreamMessageEvent) => {
+  if (event.conversationId === selectedConversationId.value) scheduleThreadRefresh()
+  else scheduleConversationsRefresh()
+})
+const offStreamRead = chatStream.onRead((event: ChatStreamReadEvent) => {
+  // 自己发出的消息被对方读：当前会话刷新已读状态（无重复 ACK 时不会回弹）
+  if (event.conversationId === selectedConversationId.value) scheduleThreadRefresh()
+})
+const offStreamResync = chatStream.onResync(() => {
+  // 连接（重）建立/页面恢复可见：整段重拉兜底断线期间的漏推
+  void fetchConversations()
+  if (selectedConversationId.value) scheduleThreadRefresh()
+})
 
 onMounted(async () => {
   await fetchConversations()
@@ -369,11 +375,13 @@ onMounted(async () => {
     const conversation = conversations.value.find((item) => String(item.conversationId) === String(queryId)) || fallback
     await selectConversation(conversation, false)
   }
-  schedulePoll()
 })
 onUnmounted(() => {
-  if (pollTimer) window.clearTimeout(pollTimer)
-  pollTimer = undefined
+  offStreamMessage()
+  offStreamRead()
+  offStreamResync()
+  if (threadRefreshTimer !== undefined) window.clearTimeout(threadRefreshTimer)
+  if (conversationsRefreshTimer !== undefined) window.clearTimeout(conversationsRefreshTimer)
 })
 </script>
 

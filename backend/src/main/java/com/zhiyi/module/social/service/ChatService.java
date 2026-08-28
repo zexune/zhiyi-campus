@@ -13,6 +13,8 @@ import com.zhiyi.module.social.dto.ChatSendDTO;
 import com.zhiyi.module.social.dto.ChatStartDTO;
 import com.zhiyi.module.social.dto.ConversationAggregate;
 import com.zhiyi.module.social.entity.ChatMessage;
+import com.zhiyi.module.social.event.ChatMessageSentEvent;
+import com.zhiyi.module.social.event.ChatReadAckedEvent;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.mapper.ChatResponseSampleMapper;
 import com.zhiyi.module.social.vo.ChatItemSummaryVO;
@@ -27,6 +29,7 @@ import com.zhiyi.module.user.mapper.UserReputationMetricMapper;
 import com.zhiyi.module.user.support.LevelRule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -62,6 +65,7 @@ public class ChatService {
     private final SysUserMapper userMapper;
     private final ChatResponseSampleMapper responseSampleMapper;
     private final UserReputationMetricMapper reputationMetricMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ChatStartVO startItemConversation(Long userId, ChatStartDTO dto) {
         Item item = itemMapper.selectById(dto.getItemId());
@@ -129,6 +133,9 @@ public class ChatService {
         message.setIsRead(false);
         chatMessageMapper.insert(message);
         recordResponseSample(message, relatedItem, senderId);
+        // SSE 推送经 AFTER_COMMIT 消费：客户端收到事件重拉时消息必定已可见
+        eventPublisher.publishEvent(new ChatMessageSentEvent(
+                receiverId, senderId, message.getConversationId(), message.getId()));
         return toMessageVO(message, senderId);
     }
 
@@ -310,12 +317,16 @@ public class ChatService {
         if (!valid) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "消息 ID 与会话不匹配");
         }
-        chatMessageMapper.update(null, new LambdaUpdateWrapper<ChatMessage>()
+        int updated = chatMessageMapper.update(null, new LambdaUpdateWrapper<ChatMessage>()
                 .eq(ChatMessage::getConversationId, conversationId)
                 .eq(ChatMessage::getReceiverId, userId)
                 .eq(ChatMessage::getIsRead, false)
                 .le(ChatMessage::getId, lastSeenMessageId)
                 .set(ChatMessage::getIsRead, true));
+        // 只有真实改变未读状态才通知对端（重复 ACK 不产生事件噪声）
+        if (updated > 0) {
+            eventPublisher.publishEvent(new ChatReadAckedEvent(userId, conversationId));
+        }
     }
 
     /** 会话快照：聚合行 + 批量回填的最近消息 / 对端用户 / 关联商品，并已套用普通入口的可见性过滤。 */

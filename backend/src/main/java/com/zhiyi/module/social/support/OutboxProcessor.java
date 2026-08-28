@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyi.module.social.entity.ChatMessage;
 import com.zhiyi.module.social.entity.OutboxEvent;
+import com.zhiyi.module.social.event.ChatMessageSentEvent;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.mapper.OutboxEventMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public class OutboxProcessor {
     private final OutboxEventMapper outboxMapper;
     private final ChatMessageMapper chatMessageMapper;
     private final SysUserMapper sysUserMapper;
+    private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 处理一条到期事件；无事件返回 false。任何事件级失败抛 {@link OutboxProcessException}。 */
@@ -73,27 +76,33 @@ public class OutboxProcessor {
         message.setContent(content);
         message.setIsRead(false);
         message.setSourceEventId(event.getEventId());
+        Long messageId;
         try {
             chatMessageMapper.insert(message);
+            messageId = message.getId();
         } catch (DuplicateKeyException duplicated) {
-            verifyDuplicateBelongsToEvent(event, message);
+            // 已投递过：既有消息承载同一事件，推送事件复用其 ID
+            messageId = verifyDuplicateBelongsToEvent(event, message);
         }
 
         int updated = outboxMapper.markSent(event.getId());
         if (updated != 1) {
             throw new OutboxProcessException(event.getId(), "SENT 条件更新未生效", null);
         }
+        eventPublisher.publishEvent(new ChatMessageSentEvent(
+                receiverId, system.getId(), message.getConversationId(), messageId));
         log.debug("Outbox 事件已投递 eventId={} receiver={}", event.getEventId(), receiverId);
     }
 
     /** source_event_id 撞库：仅当既有消息接收者一致才视为已投递，否则进入失败通道。 */
-    private void verifyDuplicateBelongsToEvent(OutboxEvent event, ChatMessage expected) {
+    private Long verifyDuplicateBelongsToEvent(OutboxEvent event, ChatMessage expected) {
         ChatMessage existing = chatMessageMapper.selectOne(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatMessage>()
                         .eq(ChatMessage::getSourceEventId, event.getEventId()));
         if (existing == null || !existing.getReceiverId().equals(expected.getReceiverId())) {
             throw new OutboxProcessException(event.getId(), "source_event_id 归属不一致", null);
         }
+        return existing.getId();
     }
 
     private JsonNode parsePayload(OutboxEvent event) {

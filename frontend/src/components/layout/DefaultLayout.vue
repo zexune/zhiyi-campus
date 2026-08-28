@@ -199,6 +199,7 @@ import { useUserStore } from '@/stores/user'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { getUnreadCount } from '@/api/chat'
 import { ROUTE_PATH } from '@/constants/routes'
+import { useChatStream } from '@/composables/useChatStream'
 
 const route = useRoute()
 const router = useRouter()
@@ -212,7 +213,7 @@ const avatar = computed(() => userStore.user?.avatar || null)
 
 const unreadCount = ref(0)
 const mobileNavOpen = ref(false)
-let unreadTimer: number | undefined
+let unreadRefreshTimer: number | undefined
 
 function isActive(prefix: string) {
   if (prefix === '/') return route.path === '/'
@@ -252,7 +253,7 @@ watch(
   }
 )
 
-/** M12 根因修复：递归 setTimeout 轮询——在途请求未完成则跳过本拍，绝不重叠 */
+/** 未读角标：SSE 推送驱动刷新（新消息到达/连接重建立），替代定时轮询 */
 let unreadInFlight = false
 
 async function fetchUnreadCount() {
@@ -260,32 +261,44 @@ async function fetchUnreadCount() {
   if (unreadInFlight) return
   unreadInFlight = true
   try {
-    // 后台静默轮询：401 时不触发全局登录跳转，避免打断用户正在进行的导航
+    // 后台静默请求：401 时不触发全局登录跳转，避免打断用户正在进行的导航
     const res = await getUnreadCount({ skipAuthRedirect: true })
     unreadCount.value = Number(res.data || 0)
   } catch {
-    // 失败静默（不打断页面），下一拍继续
+    // 失败静默（不打断页面），重连/下一事件后重试
   } finally {
     unreadInFlight = false
   }
 }
 
-function scheduleUnreadPoll() {
-  // 低频轮询；页面不可见时 fetchUnreadCount 自行跳过但仍保持节奏，恢复可见即恢复拉取
-  unreadTimer = window.setTimeout(async () => {
-    await fetchUnreadCount()
-    scheduleUnreadPoll()
-  }, 15000)
+/** 事件风暴（连续多条消息）合并为一次未读数重拉 */
+function scheduleUnreadRefresh() {
+  if (unreadRefreshTimer !== undefined) return
+  unreadRefreshTimer = window.setTimeout(() => {
+    unreadRefreshTimer = undefined
+    void fetchUnreadCount()
+  }, 300)
 }
+
+const chatStream = useChatStream()
+const offStreamMessage = chatStream.onMessage(() => {
+  // 新消息到达：只有"我收到的消息"会推送，未读数必然变化
+  scheduleUnreadRefresh()
+})
+const offStreamResync = chatStream.onResync(() => {
+  // 连接（重）建立/页面恢复可见：整段重拉兜底断线期间的漏推
+  scheduleUnreadRefresh()
+})
 
 onMounted(() => {
   fetchUnreadCount()
-  scheduleUnreadPoll()
   window.addEventListener('keydown', onKeydown)
 })
 
 onUnmounted(() => {
-  if (unreadTimer) window.clearTimeout(unreadTimer)
+  offStreamMessage()
+  offStreamResync()
+  if (unreadRefreshTimer !== undefined) window.clearTimeout(unreadRefreshTimer)
   window.removeEventListener('keydown', onKeydown)
 })
 </script>

@@ -125,6 +125,8 @@ mvn spring-boot:run
 | `OUTBOX_POLL_INTERVAL_MS` | Outbox 通知事件的轮询间隔（毫秒） | `1000` |
 | `OUTBOX_BATCH_SIZE` | 每轮最多消费的 Outbox 事件数 | `20` |
 | `OUTBOX_MAX_ATTEMPTS` | 单个 Outbox 事件的最大处理尝试次数 | `8` |
+| `SSE_TIMEOUT_MS` | 聊天事件 SSE 单连接生命周期上限（毫秒），到期断开由浏览器自动重连 | `1800000` |
+| `SSE_HEARTBEAT_INTERVAL_MS` | 聊天事件 SSE 心跳间隔（毫秒），具名 ping 事件：服务端保活 + 客户端探活断流 | `20000` |
 | `FEED_CURSOR_TTL_SECONDS` | 大厅 Feed 签名游标的有效期（秒） | `900` |
 | `FEED_CURSOR_SECRET` | 游标 HMAC 签名密钥；未设置时复用 `JWT_SECRET` | 无 |
 

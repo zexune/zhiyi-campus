@@ -7,9 +7,14 @@ import com.zhiyi.common.annotation.RoleRequired;
 import com.zhiyi.module.admin.service.AdminChatService;
 import com.zhiyi.module.social.dto.ChatSendDTO;
 import com.zhiyi.module.social.service.ChatService;
+import com.zhiyi.module.social.support.ChatEventBroadcaster;
 import com.zhiyi.module.social.vo.ChatMessageVO;
 import com.zhiyi.module.social.vo.ChatThreadVO;
 import com.zhiyi.module.social.vo.ConversationVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -35,6 +41,7 @@ public class AdminChatController {
 
     private final AdminChatService adminChatService;
     private final ChatService chatService;
+    private final ChatEventBroadcaster chatEventBroadcaster;
 
     /** 客服账号缺失/配置异常（500）与客服被跨校限制（403）都是显式契约。 */
     @GetMapping("/chat/sessions")
@@ -76,5 +83,18 @@ public class AdminChatController {
     public ApiSuccess<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long adminId,
                                               @RequestParam(required = false) String conversationId) {
         return ApiSuccess.ok(chatService.unreadMessagesAsAdmin(adminId, conversationId));
+    }
+
+    /**
+     * 管理端 SSE 事件流（text/event-stream）：与 /api/chat/stream 共享同一广播器；
+     * 管理员只能访问 /api/admin/**（RoleInterceptor 命名空间隔离），故独立暴露。
+     */
+    @GetMapping("/chat/stream")
+    @BusinessErrors
+    @Operation(summary = "订阅管理端聊天事件流（SSE）")
+    @ApiResponse(responseCode = "200", description = "text/event-stream：event:ready（重连节奏）与 event:chat（MESSAGE/READ 变化信号）",
+            content = @Content(mediaType = "text/event-stream", schema = @Schema(type = "object")))
+    public SseEmitter stream(@RequestAttribute("userId") Long adminId) {
+        return chatEventBroadcaster.connect(adminId);
     }
 }

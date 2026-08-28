@@ -89,6 +89,10 @@ zhiyi:
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
     batch-size: ${OUTBOX_BATCH_SIZE:20}
     max-attempts: ${OUTBOX_MAX_ATTEMPTS:8}
+  sse:
+    # 聊天事件 SSE：单连接生命周期上限（到期由容器断开，浏览器自动重连）与心跳间隔
+    timeout-ms: ${SSE_TIMEOUT_MS:1800000}
+    heartbeat-interval-ms: ${SSE_HEARTBEAT_INTERVAL_MS:20000}
   feed:
     # 签名游标有效期与签名密钥（默认复用 JWT 密钥属性；解析顺序：环境 FEED_CURSOR_SECRET → zhiyi.jwt.secret）
     cursor-ttl-seconds: ${FEED_CURSOR_TTL_SECONDS:900}

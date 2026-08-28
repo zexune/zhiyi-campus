@@ -11,6 +11,8 @@ import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.social.dto.ChatSendDTO;
 import com.zhiyi.module.social.dto.ChatStartDTO;
 import com.zhiyi.module.social.entity.ChatMessage;
+import com.zhiyi.module.social.event.ChatMessageSentEvent;
+import com.zhiyi.module.social.event.ChatReadAckedEvent;
 import com.zhiyi.module.social.mapper.ChatMessageMapper;
 import com.zhiyi.module.social.mapper.ChatResponseSampleMapper;
 import com.zhiyi.module.social.vo.ChatItemSummaryVO;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,6 +60,8 @@ class ChatServiceTest {
     private ChatResponseSampleMapper responseSampleMapper;
     @Mock
     private UserReputationMetricMapper reputationMetricMapper;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private ChatService service;
 
@@ -67,7 +73,7 @@ class ChatServiceTest {
     @BeforeEach
     void setUp() {
         service = new ChatService(chatMessageMapper, itemMapper, userMapper,
-                responseSampleMapper, reputationMetricMapper);
+                responseSampleMapper, reputationMetricMapper, eventPublisher);
     }
 
     @Test
@@ -277,12 +283,52 @@ class ChatServiceTest {
     }
 
     @Test
+    void sendMessagePublishesPushEventForReceiver() {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 1L, "USER"));
+        when(chatMessageMapper.insert(any(ChatMessage.class))).thenAnswer(invocation -> {
+            ChatMessage saved = invocation.getArgument(0);
+            saved.setId(10L);
+            saved.setCreatedAt(LocalDateTime.now());
+            return 1;
+        });
+
+        service.send(1L, messageTo(2L));
+
+        verify(eventPublisher).publishEvent(new ChatMessageSentEvent(2L, 1L, "1_2", 10L));
+    }
+
+    @Test
     void ackReadMarksOnlyUpToLastSeenMessage() {
         when(chatMessageMapper.exists(any())).thenReturn(true);
 
         service.ackRead(1L, "1_2", 7L);
 
         verify(chatMessageMapper).update(any(), any());
+    }
+
+    @Test
+    void ackReadPublishesReadEventOnlyWhenUnreadStateChanged() {
+        when(chatMessageMapper.exists(any())).thenReturn(true);
+        when(chatMessageMapper.update(any(), any())).thenReturn(2);
+
+        service.ackRead(1L, "1_2", 7L);
+        verify(eventPublisher).publishEvent(new ChatReadAckedEvent(1L, "1_2"));
+
+        // 重复 ACK：没有未读状态变化，不产生推送噪声
+        when(chatMessageMapper.update(any(), any())).thenReturn(0);
+        service.ackRead(1L, "1_2", 7L);
+        verify(eventPublisher, times(1)).publishEvent(any(ChatReadAckedEvent.class));
+    }
+
+    @Test
+    void rejectedMessageDoesNotPublishPushEvent() {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, 1L, "USER"));
+        when(userMapper.selectById(2L)).thenReturn(user(2L, 2L, "USER"));
+
+        assertThrows(BusinessException.class, () -> service.send(1L, messageTo(2L)));
+
+        verify(eventPublisher, never()).publishEvent(any(ChatMessageSentEvent.class));
     }
 
     @Test
