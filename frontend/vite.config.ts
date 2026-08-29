@@ -7,8 +7,11 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 const elementPlusResolver = ElementPlusResolver({ importStyle: 'css' })
 // Vitest 并行 worker 会同时运行多个插件实例：测试模式关闭 d.ts 写入，
-// 只读取已提交的声明文件，消除竞争写导致的抖动与脏工作区
-const writeDts = !process.env.VITEST
+// 只读取已提交的声明文件，消除竞争写导致的抖动与脏工作区。
+// 容器 dev 同理（VITE_DTS_WRITE=0）：dev server 启动初期只按已访问页面
+// 生成 d.ts，会把提交版里尚未访问到的条目（如 ElMessageBox）摘掉，
+// 造成 CI 卫生门禁必挂的脏 diff——容器内只读不写，主机默认行为不变。
+const writeDts = !process.env.VITEST && process.env.VITE_DTS_WRITE !== '0'
 
 /**
  * 依赖预构建清单（仅 dev server 生效，Vitest 走自己的 deps.inline 管线）。
@@ -45,7 +48,10 @@ const elementPlusStyleComponents = [
   'skeleton',
   'upload'
 ]
-const optimizeDepsInclude = writeDts ? ['element-plus/es', ...elementPlusStyleComponents.map((component) => `element-plus/es/components/${component}/style/css`)] : undefined
+// 预构建清单与 d.ts 写入是两件互相独立的事，只取决于"是否测试模式"：
+// 容器 dev 关掉 d.ts 写入时仍必须预构建，否则首个访问新页面的导航会被运行时
+// 依赖发现打断（表现为"第一次点击停在原页面，再点一次才跳转"）。
+const optimizeDepsInclude = process.env.VITEST ? undefined : ['element-plus/es', ...elementPlusStyleComponents.map((component) => `element-plus/es/components/${component}/style/css`)]
 const backendProxy = {
   '/api': {
     target: 'http://localhost:8080',
@@ -90,12 +96,12 @@ export default defineConfig({
     cssCodeSplit: true
   },
   server: {
-    host: '127.0.0.1',
+    host: process.env.VITE_HOST ?? '127.0.0.1',
     port: 3000,
     proxy: backendProxy
   },
   preview: {
-    host: '127.0.0.1',
+    host: process.env.VITE_HOST ?? '127.0.0.1',
     port: 3000,
     proxy: backendProxy
   }

@@ -28,12 +28,13 @@ uploads/
 # TypeScript 增量编译
 *.tsbuildinfo
 
-# IDE
+# IDE（.vscode 目录内容整体忽略，唯一例外：随仓库分发的调试配置）
 .idea/
 *.iml
 *.ipr
 *.iws
-.vscode/
+.vscode/*
+!.vscode/launch.json
 
 # 编辑器与系统临时文件
 *.swp

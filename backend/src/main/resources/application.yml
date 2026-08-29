@@ -58,7 +58,8 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 zhiyi:
-  upload-path: ./uploads
+  # 上传目录。显式占位符便于按环境覆盖（如独立部署时指向数据盘）；
+  upload-path: ${ZHIYI_UPLOAD_PATH:./uploads}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   jwt:

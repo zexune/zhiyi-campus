@@ -10,19 +10,27 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
+
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final JwtInterceptor jwtInterceptor;
     private final RoleInterceptor roleInterceptor;
     private final String[] allowedOrigins;
+    private final String uploadLocation;
 
     public WebMvcConfig(JwtInterceptor jwtInterceptor,
                         RoleInterceptor roleInterceptor,
-                        @Value("${zhiyi.cors.allowed-origins}") String[] allowedOrigins) {
+                        @Value("${zhiyi.cors.allowed-origins}") String[] allowedOrigins,
+                        @Value("${zhiyi.upload-path:./uploads}") String uploadPath) {
         this.jwtInterceptor = jwtInterceptor;
         this.roleInterceptor = roleInterceptor;
         this.allowedOrigins = allowedOrigins.clone();
+        // 与 LocalImageStorage 共用同一属性并同样解析为绝对路径，保证读写同源；
+        // file: 目录位置必须以 / 结尾（目录尚不存在时 toUri 不补斜杠，会静默 404）
+        String uri = Path.of(uploadPath).toAbsolutePath().normalize().toUri().toString();
+        this.uploadLocation = uri.endsWith("/") ? uri : uri + "/";
     }
 
     /**
@@ -59,11 +67,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 静态资源映射（商品图片等上传文件）
+     * 静态资源映射（商品图片等上传文件）。
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:./uploads/");
+                .addResourceLocations(uploadLocation);
     }
 }

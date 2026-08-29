@@ -1,0 +1,161 @@
+# 容器化开发环境的冒烟流水线，验证 README「容器化」章节的核心承诺：
+#   cp .env.example .env → docker compose up -d → 容器内工具链与 MySQL 开箱即用。
+#
+# 为什么是独立 workflow 而不是塞进 test.yml：
+#   - paths 是 workflow 级过滤，加在 test.yml 上会让无关改动跳过整个测试金字塔；
+#   - schedule 不受 paths 限制——URL 腐烂 / apt 源漂移只会被定时构建发现
+#     （引发它们的提交永远不会碰容器文件），这正是每周定时的价值；
+#   - 失败语义不同：金字塔红 = 代码问题，本流水线红 = 容器基础设施或外部世界变了。
+#
+# 范围刻意保持小：镜像可构建、容器可启动、MySQL 首启/非首启两分支都活着、
+# .env 模板（README 首步 cp .env.example .env）能被 compose 正确加载进容器、
+# README 的初始化命令原样可用、容器内工具链能跑起后端。不在此重跑测试矩阵——
+# 代码正确性由 test.yml 六条流水线覆盖，容器只负责提供工具链与 MySQL。
+name: Container Smoke
+
+on:
+  # .env.example 必须在列表里：Prepare .env 步骤对它做读取 + 格式断言，而
+  # test.yml 完全不读它——本流水线是它唯一的回归防线，改它必须触发本流水线
+  push:
+    paths:
+      - ".devcontainer/**"
+      - "docker/**"
+      - "compose.yaml"
+      - ".dockerignore"
+      - ".env.example"
+      - ".github/workflows/container.yml"
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - "docker/**"
+      - "compose.yaml"
+      - ".dockerignore"
+      - ".env.example"
+      - ".github/workflows/container.yml"
+  # 每周一 03:17 UTC（北京时间周一 11:17）
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Dev container smoke (build / boot / MySQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+
+      # README 首步的等价物：cp .env.example .env 后只填 JWT_SECRET（MySQL 默认
+      # 无密码是设计使然，模板里保持注释即可）。刻意不导出到 GITHUB_ENV：
+      # compose 插值里 shell 环境优先于 .env 文件，一旦导出就会掩盖本步骤要测的
+      # .env 自动加载链路——那是新人按 README 走的第一段路。
+      - name: Prepare .env as README does
+        run: |
+          cp .env.example .env
+          # 模板守卫：JWT_SECRET 行必须是空值占位，示例文件不得内置可用凭据字面量
+          grep -qx 'JWT_SECRET=' .env.example \
+            || { echo "::error::.env.example 的 JWT_SECRET 行偏离空值模板约定"; exit 1; }
+          sed -i "s|^JWT_SECRET=$|JWT_SECRET=$(openssl rand -base64 32)|" .env
+          grep -q '^JWT_SECRET=.\+' .env \
+            || { echo "::error::.env.example 缺少可填充的 JWT_SECRET= 行，按 README 填充会失败"; exit 1; }
+
+      - name: Validate compose file and .env wiring
+        run: |
+          docker compose config -q
+          # 只断言长度、不打印解析结果（避免密钥进 CI 日志）：JWT_SECRET 必须
+          # 已从 .env 经 compose 插值进入 dev 服务环境；后端 JwtUtils 对空值
+          # 启动期硬失败，后续 Boot backend 步骤是它的端到端兜底
+          len=$(docker compose config --format json | jq -r '.services.dev.environment.JWT_SECRET | length')
+          [ "${len}" -ge 40 ] \
+            || { echo "::error::compose 未能从 .env 解析出 JWT_SECRET（自动加载链路断了？）"; exit 1; }
+
+      # entrypoint 是唯一有分支逻辑的 shell（首启初始化 / 非首启直启 / SIGTERM 收尾）
+      - name: Lint entrypoint script
+        run: shellcheck docker/dev-entrypoint.sh
+
+      # --pull 顺带探测基镜像漂移（ubuntu:24.04 是移动 tag）。暂不做跨运行层缓存：
+      # compose 的缓存出口要么写进 compose.yaml（type=gha 在本地构建会直接报错），
+      # 要么需要 CI 专用 override 文件；等分钟数真的成为问题再上
+      - name: Build image
+        run: docker compose build --pull
+
+      - name: First boot and wait for MySQL
+        run: |
+          docker compose up -d --no-build
+          for attempt in $(seq 1 80); do
+            if docker compose exec -T dev mysqladmin ping -uroot >/dev/null 2>&1; then
+              echo "mysqld ready (attempt ${attempt})"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::mysqld 未在 240s 内就绪"
+          docker compose logs dev | tail -60 || true
+          exit 1
+
+      # mysql 9.7 断言与 Dockerfile 构建期校验呼应：确认实际运行版本未被 apt 源
+      # 漂移改变；mvn -version 一并暴露 JDK 版本
+      - name: Assert toolchain inside container
+        run: |
+          docker compose exec -T dev mysqld --version
+          docker compose exec -T dev mysqld --version | grep -qE ' 9\.7\.'
+          docker compose exec -T dev mvn -version | head -2
+          docker compose exec -T dev node --version
+
+      # README 承诺的初始化命令必须原样可用
+      - name: Import schema via README command
+        run: |
+          docker compose exec -T dev mysql -uroot --default-character-set=utf8mb4 < zhiyi_campus_init.sql
+          tables=$(docker compose exec -T dev mysql -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'zhiyi_campus'")
+          echo "zhiyi_campus tables: ${tables}"
+          [ "${tables}" -gt 0 ]
+          # 持久化标记库：验证 down 不丢数据、非首启分支不误重置
+          docker compose exec -T dev mysql -uroot -e "CREATE DATABASE ci_persistence_marker"
+
+      # 容器内 mvn 冷启动（maven-repo 卷每轮运行都是空的，宿主缓存帮不到容器）：
+      # 依赖下载 + 编译 + 起服务，给足 450s
+      - name: Boot backend inside container
+        run: |
+          docker compose exec -d -T dev bash -c 'cd /repo/backend && mvn -B spring-boot:run > /tmp/backend.log 2>&1'
+          for attempt in $(seq 1 90); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8080/api/school/list; then
+              echo "backend ready (attempt ${attempt})"
+              curl -fsS http://127.0.0.1:8080/api/school/list | head -c 300
+              echo
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::后端 450s 内未就绪"
+          docker compose exec -T dev bash -c 'tail -100 /tmp/backend.log' || true
+          exit 1
+
+      # 非首启分支：down 删容器、卷保留；标记库还在 = 数据卷持久 + entrypoint 未误重置
+      - name: Restart container and assert data persists
+        run: |
+          docker compose down
+          docker compose up -d --no-build
+          for attempt in $(seq 1 40); do
+            if docker compose exec -T dev mysqladmin ping -uroot >/dev/null 2>&1; then
+              echo "mysqld ready after restart (attempt ${attempt})"
+              break
+            fi
+            sleep 3
+          done
+          docker compose exec -T dev mysqladmin ping -uroot >/dev/null 2>&1 \
+            || { echo "::error::重启后 mysqld 未就绪"; docker compose logs dev | tail -40 || true; exit 1; }
+          docker compose exec -T dev mysql -uroot -N -e "SHOW DATABASES LIKE 'ci_persistence_marker'" | grep -q ci_persistence_marker
+          tables=$(docker compose exec -T dev mysql -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'zhiyi_campus'")
+          [ "${tables}" -gt 0 ]
+          echo "persistence OK: marker db and ${tables} app tables survived restart"
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v --remove-orphans || true

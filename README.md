@@ -8,6 +8,7 @@
 - [技术栈](#技术栈)
 - [性能与数据模型](#性能与数据模型)
 - [快速开始](#快速开始)
+- [容器化](#容器化)
 - [常用命令](#常用命令)
 - [测试体系](#测试体系)
 - [项目目录结构](#项目目录结构)
@@ -52,6 +53,8 @@
 
 ## 快速开始
 
+> 宿主机不想安装 JDK / Maven / Node / MySQL？可直接使用[容器化](#容器化)的开发机，或用 Dev Container 让 IDE 直连容器，这是更为推荐的方法。
+
 ### 1. 开发环境
 
 - JDK 25
@@ -80,7 +83,21 @@ SOURCE C:/path/to/zhiyi-campus/zhiyi_campus_init.sql;
 
 ### 3. 配置并启动后端
 
-后端默认使用虚拟线程处理请求，并通过环境变量读取敏感配置。`JWT_SECRET` 没有开发默认值，必须是至少 32 字节随机数据的 Base64 编码。PowerShell 示例：
+后端默认使用虚拟线程处理请求，并通过环境变量读取敏感配置。`JWT_SECRET` 没有开发默认值，必须是至少 32 字节随机数据的 Base64 编码。
+32 字节随机数据的 Base64 编码的获取方法参考如下：
+
+```powershell
+$bytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+```bash
+openssl rand -base64 32
+```
+完整的后端启动方法参考如下：
+
+PowerShell 示例：
 
 ```powershell
 cd backend
@@ -145,6 +162,45 @@ npm run dev
 浏览器访问 `http://localhost:3000`。Vite 会将 `/api` 和 `/uploads` 请求代理到 `http://localhost:8080`。
 
 数据库种子数据包含一个仅供本地开发使用的管理员：后台账号为 `admin`，初始密码为 `123456`。管理员必须从 `http://localhost:3000/admin/login` 独立登录，不选择学校，也不能进入交易大厅、发布、普通聊天、钱包或个人中心。首次登录后请在后台顶部修改密码，部署环境不得继续使用该凭据。
+
+## 容器化
+
+本项目定义了一个简单的单容器开发环境，推荐使用 Docker 开发和运行此项目，避免未知的版本兼容问题。
+
+```bash
+# —— 首次使用 ——
+cp .env.example .env          # JWT_SECRET 必填，Windows开发环境使用 Copy-Item 命令或手动复制
+docker compose up -d          # 启动容器
+docker compose exec dev bash  # 进入 Docker 容器终端
+
+# —— 容器内，与普通机器完全一致 ——
+mysql -uroot < /repo/zhiyi_campus_init.sql    # 初始化数据库，仅首次需要
+cd frontend && npm ci && npm run dev          # 前端 http://localhost:3000
+cd backend  && mvn spring-boot:run            # 后端 http://localhost:8080
+
+# —— 停止 / 删除 / 重建 ——
+docker compose stop             # 停止（容器保留，数据不动）
+docker compose restart          # 重启整台"机器"
+docker compose down             # 停止并删除容器（数据卷保留，下次 up -d 数据照旧）
+docker compose down -v          # 连数据卷一起删（数据库、Maven 缓存、node_modules 全清，回到出厂）
+docker compose up -d --build    # 改了 Dockerfile 后重建镜像并重建容器；改 .env 只需 up -d
+```
+
+VS Code / GitHub Codespaces 用户直接 "Dev Containers: Reopen in Container"——走的是同一份 compose、同一份数据卷，进入时 MySQL 已就绪，在集成终端跑上面同样的命令即可；改完 Java `Ctrl+C` 重跑（容器不重启、IDE 不掉线）；调试配置在 `.vscode/launch.json`（随仓库分发，F5 直接选 **Launch backend (ZhiyiApplication)**，或以 JDWP 启动后选 Attach，命令见该文件注释）。关闭 VS Code 窗口（`stopCompose`）会停掉容器，数据都在卷里不丢。
+
+数据与端口：
+
+- 端口：`3000` Vite、`8080` 后端直连、`5005` JDWP。MySQL 的 3306 不发布到宿主：root 默认无密码且仅容器内可用，在宿主机上操作库用 `docker compose exec -T dev mysql -uroot < 脚本.sql`（导入）或 `docker compose exec dev mysql -uroot`（交互）。
+- 数据库数据在 `zhiyi-campus_mysql-data` 卷、Maven 依赖缓存在 `zhiyi-campus_maven-repo` 卷；`down` 保留、`down -v` 清除。上传文件按"普通机器"语义落在 `backend/uploads`（已 gitignore）。
+- 数据库密码完全由你自己掌控：想设密码就 `ALTER USER 'root'@'localhost' IDENTIFIED BY '...'`，然后把同一值填进 `.env` 的 `MYSQL_PASSWORD`（后端连库与入口脚本的探活/关机共用它）并 `docker compose up -d` 重建容器；彻底重置数据库 = 删 `zhiyi-campus_mysql-data` 卷后重新 `up -d` + 手动导脚本。
+
+注意事项：
+
+- 首次 `npm ci` 必须在容器内执行：`node_modules` 是 Linux 二进制，装进命名卷后不落宿主 Windows 盘；改动 `package.json` 后在容器内重跑一次 `npm ci` 即可。
+- 容器内不回写 `auto-imports.d.ts` / `components.d.ts`（防止 dev server 按已访问页面部分重写、弄脏 CI 卫生门禁的提交版）；在容器里新增 store/组件后，于宿主机跑一次 `npm run build` 让声明文件入库——用 `build` 而非 `dev`，因为 build 会 transform 全部模板，产出的是完整声明。
+- 构建产物在 `backend/target` 命名卷里（宿主不可见）；需要 JaCoCo 报告时用 `docker compose cp dev:/repo/backend/target/site/jacoco ./jacoco`。
+- Windows 上若实测改 `.vue` 不触发 HMR（bind mount 事件穿透问题），在 `frontend/vite.config.ts` 的 `server.watch` 加 `usePolling` 开关（以 CPU 代价换事件可靠性），无需改动其他配置。
+- E2E / 系统测试在宿主机或 CI 跑（见 [测试体系](#测试体系)）：后端发布在宿主 8080，`run-e2e.mjs` 的代理目标无需改动；跑之前先停掉容器内的 Vite（避免 3000 端口冲突）。
 
 ## 常用命令
 
@@ -230,6 +286,11 @@ zhiyi-campus/
 │   ├── tests/                         # Vitest 组件/工具测试与 Playwright E2E
 │   ├── package.json                   # npm 脚本与依赖
 │   └── vite.config.ts                 # Vite 配置与开发代理
+├── compose.yaml                       # 单文件编排
+├── docker/                            # 开发容器入口脚本（MySQL 随容器开机自启）
+├── .devcontainer/                     # VS Code / Codespaces 直连同一 compose
+├── .dockerignore                      # 构建上下文排除（node_modules / target 等）
+├── .env.example                       # 容器编排密钥模板（.env 不入库）
 ├── zhiyi_campus_init.sql              # MySQL 初始化脚本
 ├── .github/workflows/test.yml         # 六条 CI 测试与契约审计流水线
 ├── TESTING.md                         # 测试策略、命令与质量规范

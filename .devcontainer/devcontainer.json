@@ -1,0 +1,26 @@
+// VS Code / GitHub Codespaces 直连单容器开发环境：compose.yaml 里唯一的
+// `dev` 服务就是一台装齐 JDK 25 + Maven + Node 24 + MySQL 9.7 的"开发机"，
+// 进入时 MySQL 已随容器自启（数据在命名卷），后端/前端在集成终端里像普通
+// 机器一样手动启动（cd backend && mvn spring-boot:run / cd frontend && npm run dev），
+// 改完 Ctrl+C 重跑即可，不重启容器、IDE 不掉线。
+{
+  "name": "zhiyi-campus",
+  "dockerComposeFile": ["../compose.yaml"],
+  "service": "dev",
+  // 保留镜像 entrypoint（负责拉起 mysqld），不被 VS Code 的常驻 shim 覆盖
+  "overrideCommand": false,
+  "workspaceFolder": "/repo",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "Vue.volar",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+  // 注意：devcontainer 规范没有 launch 字段（写了也不会生效）。调试配置
+  // 在 .vscode/launch.json，随仓库分发，Dev Container 与宿主直开两种方式通用。
+}

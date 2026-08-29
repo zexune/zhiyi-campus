@@ -1,0 +1,27 @@
+{
+  // F5 的配置来源是这里。Dev Container（工作区 /repo）与宿主直开仓库两种
+  // 方式下都由 VS Code 原生读取。envFile 直接复用容器编排同一份 .env。
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // 首选：调试器自起 JVM，无需任何端口；.env 提供 JWT_SECRET 等
+      "type": "java",
+      "name": "Launch backend (ZhiyiApplication)",
+      "request": "launch",
+      "mainClass": "com.zhiyi.ZhiyiApplication",
+      "projectName": "zhiyi-campus",
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      // 备用 attach：需先以 JDWP 启动后端——
+      //   mvn spring-boot:run -Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      // 5005 端口仅绑定宿主回环（见 compose.yaml），不对局域网开放
+      "type": "java",
+      "name": "Attach backend (JDWP 5005)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+# 单容器开发环境：一台装齐 JDK 25 / Maven 3.9.16 / Node 24.17.0 / MySQL 9.7
+# 的"开发机"。MySQL 随容器开机自启（数据在命名卷里，只初始化一次、重启不
+# 重置），后端与前端和普通机器一样在终端里手动启动：
+#
+#   首次使用：cp .env.example .env，填 JWT_SECRET（数据库默认无密码）
+#   命令行：  docker compose up -d && docker compose exec dev bash
+#   VS Code： Dev Containers: Reopen in Container（走同一份 compose、同一份数据）
+#
+# 容器内日常（与普通机器一致）：
+#   cd frontend && npm ci        # 仅首次（node_modules 是命名卷，重建容器不丢）
+#   cd frontend && npm run dev   # 前端 http://localhost:3000（HMR）
+#   cd backend  && mvn spring-boot:run   # 后端 http://localhost:8080
+#   mysql -uroot < /repo/zhiyi_campus_init.sql   # 首次使用或需要重置库时手动执行
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    entrypoint: ["/usr/local/bin/dev-entrypoint.sh"]
+    command: ["sleep", "infinity"]
+    init: true
+    working_dir: /repo
+    environment:
+      TZ: Asia/Shanghai
+      # Vite 必须监听 0.0.0.0 才能经发布端口被宿主浏览器访问；代理目标
+      # 默认 http://localhost:8080 即容器内后端，无需任何桥接
+      VITE_HOST: 0.0.0.0
+      # 容器内不回写 auto-imports.d.ts / components.d.ts（防按已访问页面
+      # 部分重写、弄脏 CI 卫生门禁的提交版）；新增组件后在宿主跑一次
+      # npm run build 让声明文件入库
+      VITE_DTS_WRITE: "0"
+      # 数据库默认 root 无密码（首启初始化即空密码）；仅当你自己给库设过
+      # 密码时才在 .env 填 MYSQL_PASSWORD——后端连库与入口脚本共用它
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      # 缺失/为空不拦在编排层——那会误伤 down/ps 等不需要它的命令；由后端
+      # JwtUtils 构造器硬校验（空/非法 Base64/不足 32 字节都在启动期抛错）
+      JWT_SECRET: ${JWT_SECRET:-}
+    volumes:
+      - ./:/repo
+      # Linux 原生依赖与构建产物不跨 Windows 边界；命名卷跨容器/镜像重建持久
+      - node-modules:/repo/frontend/node_modules
+      - backend-target:/repo/backend/target
+      - maven-repo:/root/.m2
+      - mysql-data:/var/lib/mysql
+    ports:
+      # 除 Vite 外均只绑宿主回环：本机的浏览器和 IDE 够用，不把后端和
+      # JDWP（无认证的调试入口）暴露给局域网。MySQL 3306 不发布——库只在
+      # 容器网内可达，宿主上用 docker compose exec dev mysql -uroot 操作
+      - "3000:3000" # Vite dev server（保留 0.0.0.0 便于局域网设备调移动端页面）
+      - "127.0.0.1:8080:8080" # 后端直连（Swagger /swagger-ui.html）
+      - "127.0.0.1:5005:5005" # JDWP（以 -agentlib:jdwp 启动后端后 attach）
+
+volumes:
+  # 默认命名（<项目名>_<逻辑名>，项目名取本目录名）
+  mysql-data:
+  maven-repo:
+  node-modules:
+  backend-target:

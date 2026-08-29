@@ -1,0 +1,25 @@
+# 密钥与本地工具
+.env
+.env.*
+.zcode
+.mimosa
+.vscode
+.idea
+.claude
+.codex
+.devcontainer
+
+# 版本控制（构建上下文是仓库根，.git 会显著拖慢上下文传输）
+.git
+
+# 依赖与构建产物
+# frontend/node_modules 必须排除：宿主是 Windows 版 native 二进制（esbuild 等），
+# COPY 会覆盖镜像内 npm ci 安装的 Linux 版本，导致容器内构建必炸
+**/node_modules
+**/target
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+**/uploads
+*.log
