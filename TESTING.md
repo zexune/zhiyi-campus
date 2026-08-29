@@ -90,7 +90,7 @@ npm run test:system
 
 ## CI 门禁
 
-`.github/workflows/test.yml` 在 push 和 pull request 上执行六条独立流水线：
+CI 由两条工作流组成。`.github/workflows/test.yml` 在 push 和 pull request 上执行测试金字塔的六条独立流水线：
 
 | 作业 | 阻断内容 |
 | --- | --- |
@@ -98,10 +98,12 @@ npm run test:system
 | Backend unit + MVC contract | 编译、快速测试套件、JaCoCo 门禁 |
 | Backend real MySQL integration | Testcontainers 全链路与事务回滚 |
 | Frontend component + mocked browser | Vitest 覆盖率门禁、生产构建、Playwright 烟测 |
-| API contract drift（OpenAPI 快照审计） | 固定版本 oasdiff breaking 审计、后端实时 OpenAPI 规格与 `openapi.json` 快照比对、契约类型重新生成一致性 |
+| API contract drift（OpenAPI 快照审计） | 后端实时 OpenAPI 规格与 `openapi.json` 快照比对、契约类型重新生成一致性 |
 | Full Vue + Spring + MySQL journey | 真实浏览器、真实后端和真实 MySQL 的关键交易闭环 |
 
-失败诊断会以 GitHub Actions artifact 保存：后端 Surefire/Failsafe 报告、JaCoCo、前端覆盖率、Playwright report、trace、截图和视频。
+`.github/workflows/container.yml` 冒烟验证开发容器环境：复制并填充 `.env`，依次验证 compose 配置与密钥加载链路、镜像可构建、容器首启后 MySQL 就绪、容器内工具链版本（MySQL 9.7.x / JDK / Node）、README 的建库命令原样可用、容器内可冷启动后端、重启后数据卷持久化。触发范围限于容器相关文件（`.devcontainer/**`、`docker/**`、`compose.yaml`、`.dockerignore`、`.env.example` 与工作流自身），并设每周定时与手动触发，以发现 apt 源漂移、基镜像变化等与具体提交无关的环境退化。失败语义与金字塔不同：金字塔红代表代码问题，容器冒烟红代表容器基础设施或外部依赖漂移。
+
+测试金字塔的失败诊断会以 GitHub Actions artifact 保存：后端 Surefire/Failsafe 报告、JaCoCo、前端覆盖率、Playwright report、trace、截图和视频。
 
 ## 新功能应落在哪一层
 
