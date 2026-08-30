@@ -8,13 +8,13 @@ import { ROUTE_NAME, ROUTE_PATH } from '@/constants/routes'
  * 每个模块的页面放到 views/<模块名>/ 下面
  */
 const routes: RouteRecordRaw[] = [
-  // ── 公共页面 ──
   {
     path: ROUTE_PATH.HOME,
     name: ROUTE_NAME.HOME,
     component: () => import('@/views/home/HomePage.vue'),
-    meta: { title: '商品大厅' }
+    meta: { title: '商品大厅', requireAuth: true }
   },
+  // ── 公共页面 ──
   {
     path: ROUTE_PATH.RANKING,
     name: ROUTE_NAME.RANKING,
@@ -205,6 +205,11 @@ router.beforeEach((to) => {
       return { name: ROUTE_NAME.ADMIN_DASHBOARD }
     }
     return true
+  }
+
+  // 已登录普通用户不停留在登录/注册页（进入这两页只应发生在未登录时）：回交易大厅
+  if (authenticated && (to.name === ROUTE_NAME.LOGIN || to.name === ROUTE_NAME.REGISTER)) {
+    return { name: ROUTE_NAME.HOME }
   }
 
   if (isAdminPath && to.name !== ROUTE_NAME.ADMIN_LOGIN) {

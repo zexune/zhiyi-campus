@@ -69,22 +69,7 @@
         </div>
       </section>
 
-      <section v-if="!loggedIn" class="login-gate">
-        <span class="login-gate__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11 12 4l9 7" />
-            <path d="M5 10v10h14V10" />
-            <path d="M9 20v-6h6v6" />
-          </svg>
-        </span>
-        <div>
-          <h2>先登录，再逛本校交易大厅</h2>
-          <p>登录后展示你所在学校的商品与榜单。</p>
-        </div>
-        <router-link :to="{ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } }" class="btn btn--primary">登录并进入</router-link>
-      </section>
-
-      <section v-if="loggedIn && activeTopic" class="topic-banner">
+      <section v-if="activeTopic" class="topic-banner">
         <span class="topic-banner__stamp">{{ activeTopic.stamp }}</span>
         <div class="topic-banner__copy">
           <small>{{ activeTopic.dateLabel }}</small>
@@ -97,7 +82,7 @@
         </button>
       </section>
 
-      <div v-if="loggedIn" class="cat-row" role="tablist" aria-label="商品大类筛选">
+      <div class="cat-row" role="tablist" aria-label="商品大类筛选">
         <button class="cat-chip" :class="{ active: !filters.categoryId }" @click="selectCategory('')">
           <CategoryIcon name="全部" />
           全部
@@ -108,7 +93,7 @@
         </button>
       </div>
 
-      <section v-if="loggedIn" class="filter-panel">
+      <section class="filter-panel">
         <div class="filter-panel__bar">
           <button class="filter-panel__title" type="button" :aria-expanded="showTagCloud" @click="toggleTagCloud">
             <span class="filter-panel__stamp">
@@ -160,7 +145,7 @@
         </div>
       </section>
 
-      <div v-if="loggedIn" class="hall">
+      <div class="hall">
         <main aria-label="商品列表">
           <div class="sort-row">
             <div class="sort-tabs" role="tablist" aria-label="排序方式">
@@ -345,7 +330,6 @@ const {
   loadMore,
   loading,
   loadingMore,
-  loggedIn,
   placeholderClass,
   quickSearch,
   ranking,

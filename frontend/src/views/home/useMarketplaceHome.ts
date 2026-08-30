@@ -7,7 +7,6 @@ import type { ItemFeedQuery } from '@/api/item'
 import type { Category, EventTopic, Item, TagCloudGroup } from '@/types/models'
 import { ITEM_TYPE_OPTIONS } from '@/constants/domain'
 import type { SelectOption } from '@/constants/domain'
-import { isLoggedIn } from '@/utils/auth'
 import { ApiError } from '@/utils/request'
 import { itemTypeLabel } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
@@ -129,7 +128,6 @@ export interface MarketplaceHomeReturn {
   loadMore: () => Promise<void>
   loading: Ref<boolean>
   loadingMore: Ref<boolean>
-  loggedIn: boolean
   placeholderClass: typeof placeholderClass
   quickSearch: (keyword: string) => void
   ranking: Ref<Item[]>
@@ -156,10 +154,11 @@ function formatTopicDate(value: string | null | undefined): string {
 
 /**
  * 首页交易大厅的状态、查询副作用和交互。视图文件只负责渲染。
+ * 路由已要求登录（requireAuth），进入本页时必为已登录用户。
  *
  * Feed 游标协议（B9 前端侧）：
  * - 随机/排序列表不再使用页码与精确 total；"加载更多"只提交服务端返回的 nextCursor；
- * - 筛选、排序或登录周期变化时清空整条游标链并推进 latest-wins 代数；
+ * - 筛选、排序变化时清空整条游标链并推进 latest-wins 代数；
  * - 游标过期/版本冲突（2004）保留当前筛选、清空旧列表并从首屏重取，
  *   不把旧游标和新条件拼接；前端不解析、修改或自行构造游标；
  * - 收藏互斥为 per-entity 集合：并发结束后合并一次 latest-wins 刷新。
@@ -167,7 +166,6 @@ function formatTopicDate(value: string | null | undefined): string {
 export function useMarketplaceHome(): MarketplaceHomeReturn {
   const router = useRouter()
   const route = useRoute()
-  const loggedIn = isLoggedIn()
   const categories = ref<CategoryOption[]>([...FALLBACK_CATEGORIES])
   const items = ref<Item[]>([])
   const ranking = ref<Item[]>([])
@@ -222,7 +220,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   async function fetchAllTags(): Promise<void> {
-    if (!loggedIn) return
     try {
       const response = await getAllTags()
       allTags.value = Array.isArray(response.data) ? response.data : []
@@ -232,7 +229,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   async function fetchRanking(): Promise<void> {
-    if (!loggedIn) return
     const gen = rankingGuard.begin()
     try {
       const response = await getItemRanking({ limit: 10 })
@@ -243,7 +239,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   async function fetchActiveTopic(): Promise<void> {
-    if (!loggedIn) return
     try {
       const response = await getActiveTopic()
       if (response.data) {
@@ -267,7 +262,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   /** 首屏拉取（单次）：返回结果供外层决定是否重试 */
   async function fetchFirstScreen(): Promise<'ok' | 'cursor-invalid'> {
-    if (!loggedIn) return 'ok'
     const gen = guard.begin()
     loading.value = true
     nextCursor = null
@@ -298,7 +292,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   /** 加载更多：只提交服务端返回的下一游标，按 ID 去重防止重复条目 */
   async function loadMore(): Promise<void> {
-    if (!loggedIn || loadingMore.value || !nextCursor || !hasMore.value) return
+    if (loadingMore.value || !nextCursor || !hasMore.value) return
     const gen = guard.generation.value
     const cursor = nextCursor
     loadingMore.value = true
@@ -326,10 +320,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   function handleSearch(): void {
-    if (!loggedIn) {
-      router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } })
-      return
-    }
     fetchItems()
   }
 
@@ -356,7 +346,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   function schedulePriceFilter(): void {
-    if (!loggedIn || resettingFilters) return
+    if (resettingFilters) return
     window.clearTimeout(priceFilterTimer)
     priceFilterTimer = window.setTimeout(() => {
       priceFilterTimer = undefined
@@ -428,10 +418,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   async function handleFavorite(item: Item): Promise<void> {
-    if (!isLoggedIn()) {
-      router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.HOME } })
-      return
-    }
     // per-entity 互斥（F10）：同一商品防重复点击，不同商品互不阻塞
     if (!favoriteMutex.tryLock(item.id)) return
     try {
@@ -462,10 +448,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
 
   onMounted(async () => {
     if (route.query.keyword) filters.keyword = String(route.query.keyword)
-    if (!loggedIn) {
-      await fetchCategories()
-      return
-    }
     await Promise.all([fetchCategories(), fetchItems(), fetchRanking(), fetchAllTags(), fetchActiveTopic()])
   })
 
@@ -494,7 +476,6 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     loadMore,
     loading,
     loadingMore,
-    loggedIn,
     placeholderClass,
     quickSearch,
     ranking,

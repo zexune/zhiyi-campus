@@ -1,18 +1,12 @@
 <template>
   <div class="auth-page">
-    <!-- 顶栏（未登录态精简版，遵循 demo login.html） -->
+    <!-- 顶栏（纯品牌展示：登录/注册页不提供任何站内跳转） -->
     <header class="topbar">
       <div class="topbar__inner">
-        <router-link class="logo" :to="ROUTE_PATH.HOME" aria-label="智易校园首页">
+        <div class="logo">
           <span class="logo__mark">智</span>
           智易
           <em>校园</em>
-        </router-link>
-        <nav class="nav-links" aria-label="主导航">
-          <router-link :to="ROUTE_PATH.HOME">交易大厅</router-link>
-        </nav>
-        <div class="topbar__user">
-          <router-link :to="ROUTE_PATH.HOME" class="btn btn--ghost btn--sm">先逛逛 →</router-link>
         </div>
       </div>
     </header>
@@ -84,7 +78,6 @@
     <footer class="footer">
       <div class="footer__inner">
         <span>智易校园 · 本地内容治理与可信交易闭环的校园平台</span>
-        <span><router-link :to="ROUTE_PATH.HOME">回到大厅</router-link></span>
       </div>
     </footer>
   </div>
@@ -96,7 +89,6 @@ import ForgotPanel from './panels/ForgotPanel.vue'
 import LoginPanel from './panels/LoginPanel.vue'
 import RegisterPanel from './panels/RegisterPanel.vue'
 import { readSavedSchoolId, useSchoolOptions } from '@/composables/useSchoolOptions'
-import { ROUTE_PATH } from '@/constants/routes'
 import { resetAuthRedirect } from '@/utils/request'
 
 /**
@@ -140,6 +132,11 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* 全局 .logo 是链接样式（cursor: pointer）；本页 logo 为纯展示 */
+.logo {
+  cursor: default;
 }
 
 .auth-wrap {
