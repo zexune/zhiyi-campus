@@ -43,7 +43,7 @@
           <!-- 商品封面 -->
           <router-link :to="ROUTE_PATH.item(o.itemId)" class="order-cover">
             <div v-if="o.itemCover" class="order-cover__img">
-              <img :src="o.itemCover" :alt="o.itemTitle" />
+              <img :src="o.itemCover" :alt="o.itemTitle" loading="lazy" decoding="async" />
             </div>
             <div v-else class="order-cover__ph" :class="placeholderClass(o.itemId)">
               <span class="muted">暂无图片</span>

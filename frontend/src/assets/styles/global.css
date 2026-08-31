@@ -55,23 +55,28 @@
   --z-drop: 40;
   --z-modal: 60;
 
-  /* —— 通用别名（映射到上方设计令牌，禁止 hardcode） —— */
-  --color-primary: var(--primary);
-  --color-success: var(--green);
-  --color-danger: var(--primary);
-  --color-warning: var(--yellow);
-  --color-error: var(--red);
-  --text-primary: var(--ink);
-  --text-secondary: var(--ink-soft);
-  --bg-page: var(--paper);
-  --bg-card: var(--white);
-  --border-color: var(--line);
-  --border-radius: var(--r-s);
-  --shadow-card: var(--shadow-s);
+  /* —— 触控目标（WCAG 2.2 / 用户标准：触屏下最小 44×44） —— */
+  --tap-target: 44px;
+
+  /* —— 刘海屏/底部横条安全区（index.html 已开 viewport-fit=cover） —— */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* —— 版心左右留白：小屏 16px，大屏 24px（8pt 网格） —— */
+  --page-pad: clamp(16px, 3vw, 24px);
+
+  /* —— 版心实际 gutter：留白与横屏刘海侧取大者。顶栏（常驻）、滚动正文与页脚
+     统一引用，保证左右对齐且正文不被传感器遮挡；直接相加会叠出 ~70-83px 缩进，
+     竖屏安全区为 0 时退化为 --page-pad，与无刘海设备表现一致 —— */
+  --gutter-left: max(var(--safe-left), var(--page-pad));
+  --gutter-right: max(var(--safe-right), var(--page-pad));
+
+  /* —— 通用别名：仅保留实际被引用的令牌。
+     Element Plus 主题直接消费下方 --el-* 系列（值已内联），不要在此堆未接线的别名 —— */
   --font-sm: 13px;
   --font-md: 15px;
-  --font-lg: 17px;
-  --font-xl: 20px;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
@@ -241,7 +246,9 @@ ol {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  /* viewport-fit=cover 下横屏时版心延伸进刘海区，gutter 与顶栏一致避让 */
+  padding-left: var(--gutter-left);
+  padding-right: var(--gutter-right);
 }
 
 /* ============ 顶部导航 ============ */
@@ -253,11 +260,16 @@ ol {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: var(--bw) solid var(--line);
+  /* 刘海屏：纵向避让状态栏；左右避让合并进 inner（见下），
+     避免外层 safe 与内层 page-pad 双重叠加 */
+  padding-top: var(--safe-top);
 }
 .topbar__inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  /* 横屏刘海侧避让统一走 --gutter-*（与版心/页脚共用，见令牌区） */
+  padding-left: var(--gutter-left);
+  padding-right: var(--gutter-right);
   height: 60px;
   display: flex;
   align-items: center;
@@ -274,16 +286,11 @@ ol {
   flex-shrink: 0;
   color: var(--ink);
 }
-.logo__mark {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-s);
-  background: var(--primary);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  font-weight: 800;
+.logo__img {
+  width: 30px;
+  height: 30px;
+  display: block;
+  flex-shrink: 0;
 }
 .logo em {
   font-style: normal;
@@ -1001,11 +1008,16 @@ ol {
   border-top: var(--bw) solid var(--line);
   background: var(--white);
   color: var(--ink-soft);
+  /* 手势横条：页脚内容避让底部安全区 */
+  padding-bottom: var(--safe-bottom);
 }
 .footer__inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 26px 20px;
+  padding: 26px 0;
+  /* 左右 gutter 与版心一致（横屏避让刘海侧） */
+  padding-left: var(--gutter-left);
+  padding-right: var(--gutter-right);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1073,5 +1085,45 @@ ol {
   }
   .footer {
     margin-top: var(--spacing-xl);
+  }
+}
+
+/* ============ 触控目标（菲茨定律 / WCAG 2.2 Target Size） ============ */
+/* 触屏设备（含触屏笔记本）与窄屏下，高频操作目标统一提升至 ≥44×44；
+   桌面鼠标端维持紧凑尺寸，避免 hover 界面被无谓放大。 */
+@media (pointer: coarse), (max-width: 768px) {
+  .btn,
+  .btn--sm,
+  .btn--lg {
+    min-height: var(--tap-target);
+  }
+  .icon-btn {
+    width: var(--tap-target);
+    height: var(--tap-target);
+  }
+  .nav-toggle {
+    width: var(--tap-target);
+    height: var(--tap-target);
+  }
+  .seg-tabs > * {
+    min-height: var(--tap-target);
+  }
+  .el-pagination {
+    --el-pagination-button-height: var(--tap-target);
+    --el-pagination-button-width: var(--tap-target);
+  }
+  .el-pagination .el-pager li,
+  .el-pagination button.btn-prev,
+  .el-pagination button.btn-next {
+    min-width: var(--tap-target);
+    height: var(--tap-target);
+  }
+  /* 44px 目标 + li 的 4px 外边距：7 格 pager + 前后翻页 ≈ 468px，超出 360px 视口；
+     EP 的 .el-pager 是 flex 且未设 wrap，放行换行防止横向溢出（换行行距 8px）。
+     仅在本媒体查询内生效，桌面鼠标端行宽充裕、不会触发 */
+  .el-pager {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    justify-content: center;
   }
 }

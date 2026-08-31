@@ -48,7 +48,10 @@
 
           <RelatedItemCard v-if="activeRelatedItem" :item="activeRelatedItem" />
 
-          <main ref="messagePanel" class="msg-flow">
+          <!-- 消息回放区不做 live region：切会话/加载历史是整表替换，进 live region 会被整段播报。
+               新消息播报由下方视觉隐藏的 status 区承担（见 incomingAnnouncement）；
+               不用 <main>：布局层已有 main landmark，避免页面双 main -->
+          <div ref="messagePanel" class="msg-flow">
             <el-skeleton v-if="threadLoading && !messages.length" :rows="8" animated />
             <template v-else-if="messages.length">
               <button v-if="hasEarlier" class="btn btn--sm btn--ghost load-earlier" :disabled="earlierLoading" @click="loadEarlier">
@@ -60,6 +63,7 @@
                   :user-id="message.mine ? 0 : thread?.peer?.id || 0"
                   size="s"
                   :src="message.mine ? userStore.user?.avatar || null : thread?.peer?.avatar || null"
+                  alt=""
                 />
                 <div>
                   <div class="msg__bubble">{{ message.content }}</div>
@@ -68,7 +72,10 @@
               </div>
             </template>
             <div v-else class="empty-chat"><p class="muted">还没有消息，打个招呼吧。</p></div>
-          </main>
+          </div>
+
+          <!-- 屏幕阅读器专用的新消息播报区：仅在后台轮询发现"非自己"的新消息时写入一条 -->
+          <div class="visually-hidden" role="status" aria-live="polite">{{ incomingAnnouncement }}</div>
 
           <footer class="chat-input">
             <el-input
@@ -156,6 +163,8 @@ const threadLoading = ref(false)
 const sending = ref(false)
 const serviceLoading = ref(false)
 const messagePanel = ref<HTMLElement | null>(null)
+/** 屏幕阅读器新消息播报文本：仅后台轮询发现的非自己新消息写入，历史加载/切会话不播报 */
+const incomingAnnouncement = ref('')
 const hasEarlier = ref(false)
 const earlierLoading = ref(false)
 /** 是否已向前翻页（组件内状态，随会话切换代数作废——M11 修复） */
@@ -251,6 +260,16 @@ async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
     const ownMessageArrived = !!lastMessage?.mine && lastMessage?.id !== previousLastMessage?.id
     if (ownMessageArrived || wasNearBottom || !silent) {
       await scrollToBottom()
+    }
+    // 新消息播报：仅后台静默轮询发现的、非自己发送的最后一条（历史加载/切会话/向上翻页不播报）
+    const incomingArrived = silent && !!lastMessage && lastMessage.id !== previousLastMessage?.id
+    if (incomingArrived && !lastMessage.mine) {
+      const peerName = thread.value?.peer?.nickname || conversation?.peer?.nickname || '对方'
+      // 先清空再于下一轮写入：内容相同时也能重新触发 live region 播报
+      incomingAnnouncement.value = ''
+      void nextTick(() => {
+        incomingAnnouncement.value = `${peerName}：${lastMessage.content}`
+      })
     }
   } finally {
     if (chatGuard.isCurrent(conversationId, gen)) {

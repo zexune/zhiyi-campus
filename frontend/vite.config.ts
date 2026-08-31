@@ -65,7 +65,13 @@ const backendProxy = {
 
 export default defineConfig({
   plugins: [
-    vue(),
+    // includeAbsolute: false —— 模板里的静态绝对路径（如 <img src="/logo.png">）保持字面量：
+    // plugin-vue 在构建/测试模式默认把绝对路径也转成模块导入，public 目录资产会被
+    // Vitest 当模块解析，Windows 上 file:///logo.png 触发 fileURLToPath 抛错（全组件测试挂）。
+    // 注意这是全局开关：此后模板绝对路径只允许指向 public 目录资产；指向 src/assets 的
+    // 绝对路径（如 src="/assets/x.png"）不会被转成导入，构建不报错、dev/build 运行时 404。
+    // 引用 src/assets 请用相对/别名路径（../assets、@/assets），让 plugin-vue 正常转导入。
+    vue({ template: { transformAssetUrls: { includeAbsolute: false } } }),
     AutoImport({
       imports: ['vue', 'vue-router', 'pinia'],
       dirs: ['./src/stores'],

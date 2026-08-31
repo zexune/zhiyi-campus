@@ -3,7 +3,7 @@
     <header class="admin-header">
       <div class="admin-header__inner">
         <router-link class="admin-brand" :to="ROUTE_PATH.ADMIN_DASHBOARD" aria-label="智易校园管理后台">
-          <span class="admin-brand__mark">智</span>
+          <img class="admin-brand__mark" src="/logo.png" alt="" width="30" height="30" />
           <span>
             智易校园
             <small>管理后台</small>
@@ -173,14 +173,9 @@ async function changePassword() {
   white-space: nowrap;
 }
 .admin-brand__mark {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-s);
-  background: var(--primary);
-  color: #fff;
-  font-size: 16px;
+  width: 30px;
+  height: 30px;
+  display: block;
 }
 .admin-brand small {
   display: block;

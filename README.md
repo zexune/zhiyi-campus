@@ -200,9 +200,12 @@ npm run format:check  # Prettier 检查（CI 同款）
 npm run format        # 按 Prettier 格式化
 npm run gen:api       # 从根目录 openapi.json 快照重新生成契约类型（改后端 DTO 后执行）
 npm run gen:api:dev   # 直接从本地运行中的后端 /v3/api-docs 生成并刷新快照来源
+npm run gen:icons     # 由品牌源图 assets/brand/logo-source.png 生成 public/ 下全部图标
 ```
 
 前端生产构建产物位于 `frontend/dist`。
+
+品牌图标以 `frontend/assets/brand/logo-source.png` 为唯一真相源，`npm run gen:icons` 生成 `frontend/public/` 下全部图标；源图是构建输入而非应用资产，刻意置于 `src/assets` 之外，请勿搬动。
 
 ## 测试体系
 
@@ -251,6 +254,9 @@ zhiyi-campus/
 │   │   ├── types/                     # OpenAPI 生成契约类型与领域别名
 │   │   ├── utils/                     # 请求、鉴权、信誉与交易工具
 │   │   └── views/                     # 首页、商品、聊天、钱包、后台等页面
+│   ├── assets/                        # 品牌源图等构建输入（非应用资产，勿搬入 src/assets）
+│   ├── public/                        # 图标等原样复制的静态资产（由 gen:icons 生成）
+│   ├── scripts/                       # API 契约快照更新与品牌图标生成脚本
 │   ├── tests/                         # Vitest 组件/工具测试与 Playwright E2E
 │   ├── package.json                   # npm 脚本与依赖
 │   └── vite.config.ts                 # Vite 配置与开发代理

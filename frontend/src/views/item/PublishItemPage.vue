@@ -148,7 +148,7 @@
             </label>
             <div class="upload-grid">
               <div v-for="(image, index) in form.images" :key="image" class="upload-thumb">
-                <img :src="image" :alt="`商品图${index + 1}`" />
+                <img :src="image" :alt="`商品图${index + 1}`" loading="lazy" decoding="async" />
                 <span v-if="index === 0" class="main-flag">封面主图</span>
                 <button class="del" type="button" aria-label="删除这张图片" @click="removeImage(index)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>

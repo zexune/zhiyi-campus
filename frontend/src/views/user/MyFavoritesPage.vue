@@ -7,7 +7,7 @@
         <div class="fav-grid">
           <article v-for="item in items" :key="item.id" class="card card--hover fav-card" @click="goDetail(item)">
             <div class="fav-card__img" :class="placeholderClass(item.id)">
-              <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" />
+              <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" loading="lazy" decoding="async" />
               <span v-if="displayStatus(item) !== ITEM_STATUS.ON_SALE" class="badge badge--muted fav-card__state">
                 {{ statusText(displayStatus(item)) }}
               </span>

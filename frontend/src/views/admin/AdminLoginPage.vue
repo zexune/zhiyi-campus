@@ -2,7 +2,7 @@
   <div class="admin-login-page">
     <header class="login-header">
       <router-link class="admin-brand" :to="ROUTE_PATH.ADMIN_LOGIN" aria-label="智易校园管理后台">
-        <span class="admin-brand__mark">智</span>
+        <img class="admin-brand__mark" src="/logo.png" alt="" width="30" height="30" />
         <span>
           智易校园
           <small>管理后台</small>
@@ -12,8 +12,8 @@
     </header>
 
     <main class="login-main">
-      <section class="login-copy">
-        <span class="login-copy__mark" aria-hidden="true">智</span>
+      <section class="login-copy rise">
+        <img class="login-copy__mark" src="/logo.png" alt="" width="56" height="56" />
         <div>
           <h1>智易校园 · 管理后台</h1>
           <p>仅限授权运营人员使用</p>
@@ -45,7 +45,7 @@
         </div>
       </section>
 
-      <section class="card login-card" aria-labelledby="admin-login-title">
+      <section class="card login-card rise rise-2" aria-labelledby="admin-login-title">
         <h2 id="admin-login-title">管理员登录</h2>
         <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="submit">
           <el-form-item prop="username" class="field">
@@ -136,14 +136,9 @@ async function submit() {
   font-weight: 800;
 }
 .admin-brand__mark {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-s);
-  background: var(--primary);
-  color: var(--white);
-  font-size: 16px;
+  width: 30px;
+  height: 30px;
+  display: block;
 }
 .admin-brand small {
   display: block;
@@ -180,14 +175,7 @@ async function submit() {
   width: 56px;
   height: 56px;
   flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-l);
-  background: var(--primary);
-  color: var(--white);
-  font-size: 27px;
-  font-weight: 700;
-  box-shadow: var(--shadow-m);
+  display: block;
 }
 .login-copy h1 {
   font-size: 30px;
@@ -266,8 +254,6 @@ async function submit() {
   .login-copy__mark {
     width: 44px;
     height: 44px;
-    border-radius: var(--r-m);
-    font-size: 21px;
   }
   .login-copy h1 {
     font-size: 22px;

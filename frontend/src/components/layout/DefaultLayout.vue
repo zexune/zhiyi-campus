@@ -4,7 +4,7 @@
     <header class="topbar">
       <div class="topbar__inner">
         <router-link :to="ROUTE_PATH.HOME" class="logo" aria-label="智易校园首页">
-          <span class="logo__mark">智</span>
+          <img class="logo__img" src="/logo.png" alt="" width="30" height="30" />
           智易
           <em>校园</em>
         </router-link>
@@ -315,14 +315,23 @@ onUnmounted(() => {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  padding: var(--spacing-lg) 20px;
+  padding: var(--spacing-lg) 0;
+  /* 左右 gutter 与版心一致：横屏避让刘海侧（见 global.css 令牌区） */
+  padding-left: var(--gutter-left);
+  padding-right: var(--gutter-right);
 }
 
 .user-entry {
   cursor: pointer;
   display: flex;
   align-items: center;
-  outline: none;
+  /* 触发器是唯一焦点入口，不可抹掉键盘焦点环（WCAG 2.4.7） */
+  border-radius: var(--r-s);
+}
+
+.user-entry:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .footer {

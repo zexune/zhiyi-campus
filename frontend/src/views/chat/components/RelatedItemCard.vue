@@ -1,7 +1,7 @@
 <template>
   <router-link class="related-item" :to="ROUTE_PATH.item(item.id)">
     <span class="related-item__thumb" :class="placeholderClass(item.id)">
-      <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
+      <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" loading="lazy" decoding="async" />
     </span>
     <span class="related-item__info">
       <strong>{{ item.title }}</strong>

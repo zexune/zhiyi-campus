@@ -249,3 +249,62 @@ test('SSE resync（重连/恢复可见）整段重拉会话与当前线程', asy
     vi.useRealTimers()
   }
 })
+
+/** 在基准线程（最后一条 id=12）后追加一条新消息，构造静默轮询的返回 */
+function threadWithAppended(message: { id: number; content: string; mine: boolean }) {
+  const base = thread().messages as unknown as Array<Record<string, unknown>>
+  return thread({
+    messages: [
+      ...base,
+      {
+        id: message.id,
+        conversationId: 'c1',
+        senderId: message.mine ? 999 : 2,
+        receiverId: message.mine ? 2 : 999,
+        content: message.content,
+        mine: message.mine,
+        createdAt: '2026-08-24T10:02:00'
+      }
+    ]
+  })
+}
+
+function mockThreadResponse(data: ChatThread) {
+  vi.mocked(getChatMessages).mockResolvedValue({ code: 200, message: 'ok', data } as unknown as ApiResult<ChatThread>)
+}
+
+test('静默刷新收到对方新消息：live region 播报“昵称：内容”，后续新消息更新播报', async () => {
+  const { wrapper } = await mountWithOpenConversation()
+  try {
+    // 初始加载（非静默）不写播报区
+    assert.equal(wrapper.get('[role="status"]').text(), '')
+
+    mockThreadResponse(threadWithAppended({ id: 13, content: '到了说一声', mine: false }))
+    emitStreamMessage('c1', 13)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    assert.equal(wrapper.get('[role="status"]').text(), '卖家小明：到了说一声')
+
+    // 之后的另一条新消息覆盖播报文本（清空重写路径保证内容相同也能重触发）
+    mockThreadResponse(threadWithAppended({ id: 14, content: '稍等五分钟', mine: false }))
+    emitStreamMessage('c1', 14)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    assert.equal(wrapper.get('[role="status"]').text(), '卖家小明：稍等五分钟')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('静默刷新最后一条是自己发的消息（多端回显）：不写播报区', async () => {
+  const { wrapper } = await mountWithOpenConversation()
+  try {
+    mockThreadResponse(threadWithAppended({ id: 13, content: '我在路上', mine: true }))
+    emitStreamMessage('c1', 13)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    assert.equal(wrapper.get('[role="status"]').text(), '')
+  } finally {
+    vi.useRealTimers()
+  }
+})

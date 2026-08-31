@@ -1,6 +1,6 @@
 <template>
   <div class="gallery__main" :class="placeholder">
-    <img v-if="activeImage" :src="activeImage" :alt="alt" />
+    <img v-if="activeImage" :src="activeImage" :alt="alt" fetchpriority="high" decoding="async" />
     <!-- 类型徽标等内容由父级经作用域插槽注入（绝对定位于主图左上角） -->
     <slot name="overlay" />
     <button v-if="images.length > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
@@ -9,7 +9,7 @@
   </div>
   <div v-if="images.length > 1" class="gallery__thumbs">
     <button v-for="image in images" :key="image" class="th" :class="{ active: image === activeImage }" @click="activeImage = image">
-      <img :src="image" :alt="alt" />
+      <img :src="image" :alt="alt" loading="lazy" decoding="async" />
     </button>
   </div>
 </template>

@@ -19,7 +19,7 @@
         <div class="item-list">
           <article v-for="item in items" :key="item.id" class="card item-row">
             <router-link :to="ROUTE_PATH.item(item.id)" class="item-row__thumb" :class="placeholderClass(item.id)">
-              <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" />
+              <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" loading="lazy" decoding="async" />
             </router-link>
 
             <div class="item-row__body">

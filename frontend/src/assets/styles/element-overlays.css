@@ -720,12 +720,25 @@ html:has(> body.el-message-box-parent--hidden) {
 .el-message {
   min-width: min(340px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
+  /* 安全区避让：EP 消息为 position:fixed，堆叠偏移由内联 top/bottom 与不含 margin
+     的高度（getBoundingClientRect）累加得出，兄弟元素互不感知 margin——自己的
+     margin 只平移自己。因此 top 放置（默认）只有 margin-top 生效（下移避刘海），
+     margin-bottom 惰性；bottom 放置（EP 加 is-bottom 类）恰好相反（上移避手势条）。
+     单侧与双侧 margin 渲染完全等价（实测两条消息间隙恒为 EP 默认 16px，既不会
+     垫大也不会重叠），按方向单侧写只为表达意图、不留惰性声明；桌面端 env 为 0 无感知 */
+  margin-top: var(--safe-top, 0px);
   padding: 11px 15px;
   border: var(--bw) solid var(--line);
   border-radius: var(--r-s);
   background: var(--white);
   box-shadow: var(--shadow-m);
   color: var(--ink);
+}
+
+/* bottom 放置反向避让：上移躲手势条，不吃 margin-top */
+.el-message.is-bottom {
+  margin-top: 0;
+  margin-bottom: var(--safe-bottom, 0px);
 }
 
 .el-message .el-message__content {

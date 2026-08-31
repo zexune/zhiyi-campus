@@ -2,7 +2,7 @@
   <span class="avatar" :class="[`avatar--${size}`, `avatar--${color}`]" :title="nickname">
     <template v-if="showImage">
       <!-- src 非空且未加载失败：圆形图片填充容器；加载失败回退文字头像 -->
-      <img class="avatar__img" :src="src || ''" :alt="nickname" @error="onError" />
+      <img class="avatar__img" :src="src || ''" :alt="alt ?? nickname" loading="lazy" decoding="async" @error="onError" />
     </template>
     <template v-else>
       {{ initial }}
@@ -27,12 +27,15 @@ const props = withDefaults(
     size?: string // s / m / l
     /** 头像相对路径（如 /uploads/avatars/xxx.png）；null/'' 表示未设置，走文字头像 */
     src?: string | null
+    /** 覆盖图片 alt；缺省用昵称。纯装饰场景（如消息气泡内，昵称会与消息内容重复播报）传空串 */
+    alt?: string | null
   }>(),
   {
     nickname: '?',
     userId: 0,
     size: 's',
-    src: null
+    src: null,
+    alt: null
   }
 )
 

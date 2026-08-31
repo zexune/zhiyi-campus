@@ -64,7 +64,7 @@
           <article v-for="entry in podiumEntries" :key="entry.item.id" class="podium-card rise" :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]" @click="goDetail(entry.item.id)">
             <span class="podium-card__rank">TOP {{ entry.rank }}</span>
             <div class="podium-card__image" :class="placeholderClass(entry.item.id)">
-              <img v-if="entry.item.coverImage" :src="entry.item.coverImage" :alt="entry.item.title" />
+              <img v-if="entry.item.coverImage" :src="entry.item.coverImage" :alt="entry.item.title" loading="lazy" decoding="async" />
               <span class="podium-card__medal" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="8" r="6" />
@@ -115,7 +115,7 @@
             <li v-for="(item, index) in remainingItems" :key="item.id" class="ranking-row" @click="goDetail(item.id)">
               <span class="ranking-row__number">{{ index + 4 }}</span>
               <span class="ranking-row__image" :class="placeholderClass(item.id)">
-                <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
+                <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" loading="lazy" decoding="async" />
               </span>
               <span class="ranking-row__main">
                 <strong>{{ item.title }}</strong>

@@ -27,7 +27,8 @@
     "test:all": "npm run test:coverage && npm run test:e2e",
     "typecheck": "vue-tsc -b",
     "gen:api": "openapi-typescript ../openapi.json --output src/types/api.gen.d.ts",
-    "gen:api:dev": "node scripts/update-api-spec.mjs && openapi-typescript ../openapi.json --output src/types/api.gen.d.ts"
+    "gen:api:dev": "node scripts/update-api-spec.mjs && openapi-typescript ../openapi.json --output src/types/api.gen.d.ts",
+    "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.2",
@@ -52,8 +53,9 @@
     "globals": "17.11.0",
     "happy-dom": "20.11.2",
     "jiti": "2.7.0",
-    "openapi-typescript": "^7.13.0",
+    "openapi-typescript": "7.13.0",
     "prettier": "3.9.6",
+    "sharp": "0.35.4",
     "typescript": "5.9.3",
     "unplugin-auto-import": "21.1.0",
     "unplugin-vue-components": "32.1.0",

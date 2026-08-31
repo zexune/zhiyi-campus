@@ -4,7 +4,7 @@
     <header class="topbar">
       <div class="topbar__inner">
         <div class="logo">
-          <span class="logo__mark">智</span>
+          <img class="logo__img" src="/logo.png" alt="" width="30" height="30" />
           智易
           <em>校园</em>
         </div>

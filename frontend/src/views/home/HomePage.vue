@@ -146,7 +146,8 @@
       </section>
 
       <div class="hall">
-        <main aria-label="商品列表">
+        <!-- section+名称 形成命名 region：保留读屏"商品列表"跳转锚点，且不与布局层 main landmark 重复 -->
+        <section aria-label="商品列表">
           <div class="sort-row">
             <div class="sort-tabs" role="tablist" aria-label="排序方式">
               <button :class="{ active: filters.sort === 'random' }" @click="filters.sort = 'random'">智能推荐</button>
@@ -164,9 +165,9 @@
           <el-skeleton v-if="loading && !items.length" :rows="8" animated />
 
           <div v-else-if="items.length" class="goods-grid">
-            <article v-for="item in items" :key="item.id" class="goods-card rise" @click="goDetail(item.id)">
+            <article v-for="(item, index) in items" :key="item.id" class="goods-card rise" @click="goDetail(item.id)">
               <div class="goods-card__img" :class="placeholderClass(item.id)">
-                <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
+                <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" :loading="index < EAGER_COVER_COUNT ? 'eager' : 'lazy'" decoding="async" />
                 <span class="badge goods-card__type" :class="typeBadgeClass(item.type)">
                   {{ itemTypeLabel(item.type) }}
                 </span>
@@ -250,7 +251,7 @@
               </svg>
             </button>
           </div>
-        </main>
+        </section>
 
         <aside>
           <div class="hall-aside__sticky">
@@ -266,7 +267,7 @@
                 <button v-for="(item, index) in ranking" :key="item.id" class="rank-item" @click="goDetail(item.id)">
                   <span class="rank-item__no">{{ index + 1 }}</span>
                   <span class="rank-item__thumb" :class="placeholderClass(item.id)">
-                    <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" />
+                    <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" loading="lazy" decoding="async" />
                   </span>
                   <span class="rank-item__info">
                     <strong class="rank-item__title">
@@ -307,6 +308,10 @@ import TagList from '@/components/common/TagList.vue'
 import { typeBadgeClass } from '@/utils/trade'
 import { useMarketplaceHome } from './useMarketplaceHome'
 import { ROUTE_PATH } from '@/constants/routes'
+
+/** 首行封面不懒加载：桌面 3 列/移动 2 列网格的首行卡片在首屏内，可能成为 LCP 元素，
+ *  lazy 会压低其加载优先级（Chrome 约定 LCP 图禁用 lazy）；其余卡片保持懒加载 */
+const EAGER_COVER_COUNT = 3
 
 const {
   TYPE_OPTIONS,
