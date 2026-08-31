@@ -7,6 +7,7 @@
         <!-- 左：身份卡 + 经验记录 -->
         <div class="left-col">
           <section class="card id-card">
+            <i class="tape tape--center" aria-hidden="true"></i>
             <div class="id-card__head">
               <div class="id-card__avatar">
                 <UserAvatar :nickname="user.nickname" :user-id="user.id" size="l" :src="user.avatar" />
@@ -616,7 +617,10 @@ onMounted(async () => {
 }
 
 .id-card {
+  position: relative;
   padding: 24px;
+  /* 校牌：像挂在布告栏上的学生证，微微倾斜（窄屏回正，见上方媒体查询） */
+  transform: rotate(-1deg);
 }
 .id-card__head {
   display: flex;

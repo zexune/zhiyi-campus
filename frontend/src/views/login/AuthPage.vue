@@ -23,6 +23,7 @@
 
         <div class="feature-list">
           <div class="feature-item rise rise-2">
+            <i class="tape" aria-hidden="true"></i>
             <div class="feature-item__icon" style="background: var(--green-bg)">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
@@ -35,6 +36,7 @@
             </div>
           </div>
           <div class="feature-item rise rise-3">
+            <i class="tape tape--blue" aria-hidden="true"></i>
             <div class="feature-item__icon" style="background: var(--yellow-bg)">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 8V4H8" />
@@ -48,6 +50,7 @@
             </div>
           </div>
           <div class="feature-item rise rise-4">
+            <i class="tape tape--green" aria-hidden="true"></i>
             <div class="feature-item__icon" style="background: var(--blue-bg)">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11.5 8.5 14 4l2.5 4.5L21 10l-3.5 3 1 5-4.5-2.5L9.5 18l1-5L7 10Z" transform="translate(-2 1)" />
@@ -63,6 +66,7 @@
 
       <!-- 右侧表单卡：三个面板共享学校数据，由本组件负责加载与面板间协调 -->
       <section class="card auth-card rise rise-1" aria-label="账户操作">
+        <i class="tape tape--center" aria-hidden="true"></i>
         <div class="auth-tabs" role="tablist">
           <button role="tab" :aria-selected="tab === 'login'" :class="{ active: tab === 'login' }" @click="switchTab('login')">登 录</button>
           <button role="tab" :aria-selected="tab === 'register'" :class="{ active: tab === 'register' }" @click="switchTab('register')">注 册</button>
@@ -169,9 +173,10 @@ onMounted(() => {
 }
 .auth-side h1 .hl {
   display: inline-block;
-  background: var(--yellow-bg);
   padding: 0 12px;
-  border-radius: var(--r-s);
+  /* 荧光笔笔触：下半截被圆头荧光笔划过 */
+  background: linear-gradient(180deg, transparent 52%, var(--marker) 52%);
+  border-radius: 6px;
   color: var(--ink);
 }
 .auth-side p {
@@ -187,7 +192,9 @@ onMounted(() => {
   flex-direction: column;
   gap: 14px;
 }
+/* 便利贴：贴在布告栏上的三张纸条，交替微倾 + 顶部胶带 */
 .feature-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -199,8 +206,17 @@ onMounted(() => {
   max-width: 420px;
   transition: transform 0.2s;
 }
+.feature-item:nth-child(1) {
+  transform: rotate(-0.8deg);
+}
+.feature-item:nth-child(2) {
+  transform: rotate(0.6deg);
+}
+.feature-item:nth-child(3) {
+  transform: rotate(-0.5deg);
+}
 .feature-item:hover {
-  transform: translateX(4px);
+  transform: rotate(0deg) translateX(4px);
 }
 .feature-item__icon {
   width: 42px;

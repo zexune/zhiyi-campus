@@ -1,11 +1,20 @@
 /* ============================================================
-   智易校园 · 设计系统 v2.0
-   风格：暖纸极简（Warm Minimal）
+   智易校园 · 设计系统 v3.0
+   风格：暖纸极简 × 校园纸品（Warm Minimal × Campus Paper Craft）
    —— 暖白底面 + 细线分隔 + 柔和层次阴影，仅用 transform/opacity 做动效
+   特色语言（全部纯 CSS，零外部请求）：
+     · 横格信纸 hero   交易大厅 = 校园布告栏的信纸底纹
+     · 邮票齿孔 stamp-edge  活动专题 = 贴在栏上的纪念邮票
+     · 图钉 pushpin    商品卡 = 被图钉钉住的一张张纸条
+     · 和纸胶带 tape   便签/CTA = 半透明胶带贴角
+     · 盖章按钮        实底按钮带 letterpress“按下盖章”手感
+     · 荧光笔 marker   标题重点词的圆头荧光笔笔触
+     · 票据撕边        页脚顶部的打孔撕边
    主色：柿橙 #C2410C（白字对比 5.2:1，AA）  交易绿：#15803D（5.0:1）
    信息蓝：#1D4ED8（6.7:1）  警示红：#DC2626（4.8:1）
    字体：系统字体栈（零外部请求，中文回退 PingFang / YaHei）
-   所有文本/背景组合满足 WCAG 2.1 AA 对比度要求
+   所有文本/背景组合满足 WCAG 2.1 AA 对比度要求；
+   纸品纹样均为低透明度装饰层，置于文字之后，不影响对比度
    ============================================================ */
 
 :root {
@@ -45,6 +54,36 @@
   --r-s: 8px;
   --r-m: 12px;
   --r-l: 16px;
+
+  /* —— 校园纸品纹理令牌（装饰层，不承载任何信息） —— */
+  /* 横格信纸：32px 行距细线，透明度控制在装饰级（≤4.5%） */
+  --rule-line: rgba(31, 27, 22, 0.045);
+  --rule-gap: 32px;
+  /* 信纸左侧页边线（传统信纸的红竖线，取警示红的浅调） */
+  --margin-line: rgba(220, 38, 38, 0.18);
+  /* 邮票齿孔：孔径 / 齿距 */
+  --perf-dot: 5px;
+  --perf-size: 18px;
+  /* 和纸胶带：柿橙系半透明 */
+  --tape-ink: rgba(194, 65, 12, 0.16);
+  --tape-ink-deep: rgba(234, 88, 12, 0.26);
+  /* 荧光笔笔触（高亮黄的半透明调，仅作底纹不作文字） */
+  --marker: rgba(255, 201, 77, 0.55);
+
+  /* —— 纸品工艺色（各色族的专用档位，换主题色时随色族一起改） ——
+     盖章投影：实底按钮 letterpress 底边，比 hover 底色再深一档 */
+  --primary-press: #7c2d12;
+  --green-press: #14532d;
+  --red-press: #991b1b;
+  --ink-press: #000;
+  /* 黄族此前只有亮调（--yellow 仅作底色），补 deep/press 两档 */
+  --yellow-deep: #e0a925;
+  --yellow-press: #d9a016;
+  /* 图钉球面径向渐变的亮调端与暗调端 */
+  --green-bright: #22a355;
+  --blue-bright: #3f66e8;
+  --blue-deep: #1e40af;
+  --yellow-bright: #ffd97a;
 
   /* —— 字体（系统栈，零外部请求） —— */
   --font-display: var(--font-body);
@@ -291,6 +330,11 @@ ol {
   height: 30px;
   display: block;
   flex-shrink: 0;
+  /* 校徽贴纸：白衬圈 + 细线描边的圆形裁切 */
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2.5px var(--white),
+    0 0 0 3.5px var(--line);
 }
 .logo em {
   font-style: normal;
@@ -325,6 +369,8 @@ ol {
   color: var(--primary-deep);
   background: var(--primary-bg);
   font-weight: 600;
+  /* 荧光笔笔触：激活项底部一道圆头黄色划线（布告栏上被划重点的条目） */
+  box-shadow: inset 0 -3px 0 var(--marker);
 }
 .nav-links a .dot {
   min-width: 17px;
@@ -400,6 +446,7 @@ ol {
   background: var(--primary-bg);
   color: var(--primary-deep);
   font-weight: 600;
+  box-shadow: inset 0 -3px 0 var(--marker);
 }
 .mobile-nav a .dot {
   min-width: 17px;
@@ -461,48 +508,79 @@ ol {
 }
 .btn--primary {
   background: var(--primary);
-  border-color: var(--primary);
+  border-color: var(--primary-deep);
   color: #fff;
+  /* 盖章手感：深色 letterpress 底边，按下时收平（见 :active） */
+  box-shadow: 0 2px 0 var(--primary-deep);
 }
 .btn--primary:hover {
   background: var(--primary-deep);
   border-color: var(--primary-deep);
+  box-shadow: 0 3px 0 var(--primary-press);
+}
+.btn--primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--primary-deep);
 }
 .btn--green {
   background: var(--green);
-  border-color: var(--green);
+  border-color: var(--green-deep);
   color: #fff;
+  box-shadow: 0 2px 0 var(--green-deep);
 }
 .btn--green:hover {
   background: var(--green-deep);
   border-color: var(--green-deep);
+  box-shadow: 0 3px 0 var(--green-press);
+}
+.btn--green:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--green-deep);
 }
 .btn--yellow {
   background: var(--yellow);
-  border-color: var(--yellow);
+  border-color: var(--yellow-deep);
   color: var(--ink);
+  box-shadow: 0 2px 0 var(--yellow-deep);
 }
 .btn--yellow:hover {
   background: #f5bd35;
-  border-color: #f5bd35;
+  border-color: var(--yellow-press);
+  box-shadow: 0 3px 0 var(--yellow-press);
+}
+.btn--yellow:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--yellow-press);
 }
 .btn--dark {
   background: var(--ink);
-  border-color: var(--ink);
+  border-color: var(--ink-press);
   color: var(--paper);
+  box-shadow: 0 2px 0 var(--ink-press);
 }
 .btn--dark:hover {
   background: #3a332b;
-  border-color: #3a332b;
+  border-color: var(--ink-press);
+  box-shadow: 0 3px 0 var(--ink-press);
+}
+.btn--dark:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--ink-press);
 }
 .btn--danger {
   background: var(--red);
-  border-color: var(--red);
+  border-color: var(--red-deep);
   color: #fff;
+  box-shadow: 0 2px 0 var(--red-deep);
 }
 .btn--danger:hover {
   background: var(--red-deep);
   border-color: var(--red-deep);
+  box-shadow: 0 3px 0 var(--red-press);
+}
+.btn--danger:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--red-deep);
 }
 .btn--ghost {
   box-shadow: none;
@@ -884,6 +962,12 @@ ol {
   border-radius: 50%;
   background: var(--paper-deep);
   color: var(--ink-soft);
+  /* 手绘感：便签上的涂鸦图标略微歪斜 */
+  transform: rotate(-4deg);
+  transition: transform 0.25s ease;
+}
+.empty-state:hover .empty-state__icon {
+  transform: rotate(0deg);
 }
 .empty-state__icon svg {
   width: 28px;
@@ -974,6 +1058,102 @@ ol {
   background: #f6f0dc;
 }
 
+/* ============ 校园纸品工具类（装饰层，均不进无障碍树） ============ */
+
+/* 和纸胶带：贴在卡片顶角的半透明胶带条，两端撕毛边。
+   用法：父元素 position:relative，加 <i class="tape" aria-hidden="true"></i>
+   修饰类：.tape--center（居中横贴） .tape--green / .tape--blue（异色胶带）
+           .tape--on-dark（深色底专用，见下） */
+.tape {
+  position: absolute;
+  top: -10px;
+  left: 18px;
+  width: 88px;
+  height: 24px;
+  background: linear-gradient(100deg, var(--tape-ink), var(--tape-ink-deep) 55%, var(--tape-ink));
+  box-shadow: 0 1px 2px rgba(31, 27, 22, 0.08);
+  transform: rotate(-3.5deg);
+  /* 两端撕毛边：不规则多边形裁切 */
+  clip-path: polygon(1.5% 8%, 98.5% 0%, 100% 26%, 97% 44%, 100% 66%, 96.5% 86%, 98.5% 100%, 1.5% 92%, 0% 72%, 3% 52%, 0% 30%);
+  pointer-events: none;
+}
+/* 深色底专用：默认的柿橙半透（16%~26%）在墨色底上几乎不可见，
+   换暖米白半透胶带（.publish-cta 等 var(--ink) 底） */
+.tape--on-dark {
+  background: linear-gradient(100deg, rgba(247, 244, 238, 0.2), rgba(247, 244, 238, 0.32) 55%, rgba(247, 244, 238, 0.2));
+}
+.tape--center {
+  left: 50%;
+  top: -11px;
+  transform: translateX(-50%) rotate(-2deg);
+}
+.tape--green {
+  background: linear-gradient(100deg, rgba(21, 128, 61, 0.14), rgba(21, 128, 61, 0.24) 55%, rgba(21, 128, 61, 0.14));
+}
+.tape--blue {
+  background: linear-gradient(100deg, rgba(29, 78, 216, 0.12), rgba(29, 78, 216, 0.22) 55%, rgba(29, 78, 216, 0.12));
+}
+
+/* 图钉：钉住纸条/卡片的圆头图钉。
+   用法：父元素 position:relative，加 <i class="pushpin" aria-hidden="true"></i> */
+.pushpin {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  /* 高光偏左上模拟球面，外投影模拟针影 */
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 42%), radial-gradient(circle at 50% 50%, var(--primary-bright), var(--primary) 72%, var(--primary-deep));
+  box-shadow:
+    0 2px 3px rgba(31, 27, 22, 0.35),
+    inset 0 -1.5px 2px rgba(122, 34, 8, 0.55);
+  pointer-events: none;
+}
+.pushpin--green {
+  background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 42%), radial-gradient(circle at 50% 50%, var(--green-bright), var(--green) 72%, var(--green-deep));
+}
+.pushpin--blue {
+  background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 42%), radial-gradient(circle at 50% 50%, var(--blue-bright), var(--blue) 72%, var(--blue-deep));
+}
+.pushpin--yellow {
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 42%), radial-gradient(circle at 50% 50%, var(--yellow-bright), var(--yellow) 72%, var(--yellow-press));
+}
+
+/* 邮票齿孔边：四边等距半圆孔（叠在元素自身背景色之上，孔色取页面底色）。
+   用法：元素加 class="stamp-edge"，背景色用 --stamp-bg / 孔色用 --perf-color
+   定制。默认值刻意走 var() fallback 而非在此声明变量：本类与页面级类同特异性，
+   在此声明会被同一元素上的定制值按源顺序竞争（本文件后加载即覆盖定制），
+   fallback 则只在使用点生效，定制永远可靠。 */
+.stamp-edge {
+  border: none;
+  background-color: var(--stamp-bg, var(--white));
+  background-image:
+    radial-gradient(circle var(--perf-dot), var(--perf-color, var(--paper)) calc(var(--perf-dot) - 0.6px), transparent var(--perf-dot)),
+    radial-gradient(circle var(--perf-dot), var(--perf-color, var(--paper)) calc(var(--perf-dot) - 0.6px), transparent var(--perf-dot)),
+    radial-gradient(circle var(--perf-dot), var(--perf-color, var(--paper)) calc(var(--perf-dot) - 0.6px), transparent var(--perf-dot)),
+    radial-gradient(circle var(--perf-dot), var(--perf-color, var(--paper)) calc(var(--perf-dot) - 0.6px), transparent var(--perf-dot));
+  background-size:
+    var(--perf-size) calc(var(--perf-dot) * 2),
+    var(--perf-size) calc(var(--perf-dot) * 2),
+    calc(var(--perf-dot) * 2) var(--perf-size),
+    calc(var(--perf-dot) * 2) var(--perf-size);
+  background-position:
+    left top,
+    left bottom,
+    left top,
+    right top;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+}
+
+/* 横格信纸：32px 行距的细横线（叠加在元素原背景之上） */
+.ruled-paper {
+  background-image: repeating-linear-gradient(180deg, transparent 0 calc(var(--rule-gap) - 1px), var(--rule-line) calc(var(--rule-gap) - 1px) var(--rule-gap));
+}
+
 /* 分割线（细线，替代旧手绘涂鸦线） */
 .doodle-hr {
   border: none;
@@ -982,7 +1162,7 @@ ol {
   background: var(--line);
 }
 
-/* 页面标题 */
+/* 页面标题：重点词被圆头荧光笔划过（纯背景装饰，不改文本内容） */
 .page-title {
   font-size: 23px;
   font-weight: 700;
@@ -992,24 +1172,53 @@ ol {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+  /* 圆头荧光笔笔触：底部 42% 高度的黄色圆角划线，随标题宽度伸缩 */
+  background-image: linear-gradient(var(--marker), var(--marker));
+  background-size: 100% 42%;
+  background-position: 0 82%;
+  background-repeat: no-repeat;
+  border-radius: 6px;
+  /* 左缘宽度原点：不随 padding 扩张（无 padding 时无感知） */
+  background-origin: content-box;
+  width: fit-content;
 }
 .page-title .stamp {
+  /* 检验章：微微歪斜的印章角标（如“本地检测”“重新检测”） */
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 2px 9px;
-  border-radius: 999px;
-  background: var(--yellow-bg);
-  color: #8a5a00;
+  border-radius: 6px;
+  background: var(--primary-bg);
+  color: var(--primary-deep);
+  transform: rotate(-2.5deg);
+  box-shadow: var(--shadow-s);
 }
 
 /* ============ 页脚 ============ */
 .footer {
+  position: relative;
   margin-top: 72px;
-  border-top: var(--bw) solid var(--line);
+  border-top: none;
   background: var(--white);
   color: var(--ink-soft);
   /* 手势横条：页脚内容避让底部安全区 */
   padding-bottom: var(--safe-bottom);
+}
+/* 票据撕边：白底页脚顶缘被半圆孔撕开（布告栏取纸条的存根联） */
+.footer::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background-image: radial-gradient(circle var(--perf-dot) at 50% 0, var(--paper) calc(var(--perf-dot) - 0.6px), transparent var(--perf-dot));
+  background-size: var(--perf-size) 12px;
+  background-repeat: repeat-x;
+  background-position: top center;
+  /* 伪元素不进无障碍树、不挡交互 */
+  pointer-events: none;
 }
 .footer__inner {
   max-width: 1200px;
@@ -1032,15 +1241,19 @@ ol {
   color: var(--primary);
 }
 
-/* ============ 入场动画（仅 transform / opacity，不触发重排） ============ */
+/* ============ 入场动画（仅 translate / opacity，不触发重排） ============ */
+/* 关键帧刻意用独立变换属性 translate 而非 transform：fill-mode: both 会让动画
+   终帧在层叠中压过普通 transform 声明（CSS 动画 > 非动画声明），若写在
+   transform 上，挂 .rise 的元素自身的 transform（hover 抬升、便利贴倾斜等）
+   将永久失效。translate 与 transform 是并列的独立属性，互不覆盖。 */
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    translate: 0 12px;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    translate: 0 0;
   }
 }
 .rise {

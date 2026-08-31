@@ -69,7 +69,7 @@
         </div>
       </section>
 
-      <section v-if="activeTopic" class="topic-banner">
+      <section v-if="activeTopic" class="topic-banner stamp-edge">
         <span class="topic-banner__stamp">{{ activeTopic.stamp }}</span>
         <div class="topic-banner__copy">
           <small>{{ activeTopic.dateLabel }}</small>
@@ -166,6 +166,8 @@
 
           <div v-else-if="items.length" class="goods-grid">
             <article v-for="(item, index) in items" :key="item.id" class="goods-card rise" @click="goDetail(item.id)">
+              <!-- 图钉：纸条被钉在布告栏上的视觉锚点（纯装饰） -->
+              <i class="pushpin" :class="pushpinTone(item.type)" aria-hidden="true"></i>
               <div class="goods-card__img" :class="placeholderClass(item.id)">
                 <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" :loading="index < EAGER_COVER_COUNT ? 'eager' : 'lazy'" decoding="async" />
                 <span class="badge goods-card__type" :class="typeBadgeClass(item.type)">
@@ -287,6 +289,7 @@
             </div>
 
             <div class="publish-cta">
+              <i class="tape tape--center tape--on-dark" aria-hidden="true"></i>
               <h4>宿舍在吃灰？</h4>
               <p>拍照发布，30 秒上架</p>
               <router-link :to="ROUTE_PATH.PUBLISH" class="btn btn--yellow">去发布闲置</router-link>
@@ -306,12 +309,28 @@ import ItemPrice from '@/components/common/ItemPrice.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import TagList from '@/components/common/TagList.vue'
 import { typeBadgeClass } from '@/utils/trade'
+import { ITEM_TYPE, type ItemType } from '@/constants/domain'
 import { useMarketplaceHome } from './useMarketplaceHome'
 import { ROUTE_PATH } from '@/constants/routes'
 
 /** 首行封面不懒加载：桌面 3 列/移动 2 列网格的首行卡片在首屏内，可能成为 LCP 元素，
  *  lazy 会压低其加载优先级（Chrome 约定 LCP 图禁用 lazy）；其余卡片保持懒加载 */
 const EAGER_COVER_COUNT = 3
+
+/** 图钉配色跟随交易类型（出售柿橙 / 求购蓝 / 换物绿 / 跑腿黄），纯装饰。
+ *  Record<ItemType, string>：新增交易类型时漏配在这里直接编译失败（domain.ts 状态码收口惯例） */
+const PUSHPIN_TONES: Record<ItemType, string> = {
+  [ITEM_TYPE.SELL]: '',
+  [ITEM_TYPE.BUY]: 'pushpin--blue',
+  [ITEM_TYPE.SWAP]: 'pushpin--green',
+  [ITEM_TYPE.ERRAND]: 'pushpin--yellow'
+}
+
+/** 入参保持 API 契约的 string（ItemSummary.type 生成为 string），收窄后查表；
+ *  契约外的意外值落到 ''（默认柿橙图钉），不抛错 */
+function pushpinTone(type: string): string {
+  return PUSHPIN_TONES[type as ItemType] ?? ''
+}
 
 const {
   TYPE_OPTIONS,

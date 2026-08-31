@@ -13,6 +13,8 @@
 
       <div v-loading="pageLoading" class="pub-wrap">
         <el-form ref="formRef" class="card pub-card rise rise-1" :model="form" :rules="rules">
+          <!-- 图钉：上架登记表被钉在布告栏上（纯装饰） -->
+          <i class="pushpin" aria-hidden="true"></i>
           <el-form-item prop="type" class="type-form-item">
             <div class="type-switch" role="radiogroup" aria-label="发布类型">
               <button class="type-option" :class="{ selected: form.type === ITEM_TYPE.SELL }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.SELL" @click="setType(ITEM_TYPE.SELL)">
@@ -524,7 +526,15 @@ onMounted(async () => {
   margin: 30px auto 0;
 }
 .pub-card {
+  position: relative;
   padding: 30px 32px;
+}
+/* 图钉钉在表单卡右上角，避开首行的类型选择 */
+.pub-card > .pushpin {
+  top: -7px;
+  left: auto;
+  right: 34px;
+  transform: none;
 }
 .type-form-item {
   margin-bottom: 0;

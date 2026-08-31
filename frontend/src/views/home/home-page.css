@@ -11,19 +11,32 @@
   margin-left: calc(50% - 50vw);
   margin-top: calc(var(--spacing-lg) * -1);
   border-bottom: var(--bw) solid var(--line);
-  background: linear-gradient(180deg, #f2ede3 0%, var(--paper) 100%);
+  /* 布告栏的信纸底：横格线叠在暖色渐变之上（装饰层，不影响文字对比度） */
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0 calc(var(--rule-gap) - 1px), var(--rule-line) calc(var(--rule-gap) - 1px) var(--rule-gap)), linear-gradient(180deg, #f2ede3 0%, var(--paper) 100%);
 }
 
+/* 信纸左侧页边线：传统信纸的红竖线 */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: clamp(20px, 11%, 168px);
+  width: 1.5px;
+  background: var(--margin-line);
+  pointer-events: none;
+}
+
+/* 专题横幅：贴在布告栏上的纪念邮票（四边齿孔由 stamp-edge 工具类提供） */
 .topic-banner {
+  --stamp-bg: var(--blue-bg);
   margin: 24px 0 4px;
-  padding: 16px 20px;
+  padding: 18px 22px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-m);
-  background: var(--blue-bg);
 }
 
 .topic-banner__stamp {
@@ -35,6 +48,9 @@
   font-weight: 700;
   text-align: center;
   font-size: 13px;
+  /* 邮戳手感：略倾斜的印章 */
+  transform: rotate(-2deg);
+  box-shadow: 0 2px 0 var(--primary-deep);
 }
 
 .topic-banner__copy small {
@@ -69,10 +85,11 @@
 }
 
 .hero h1 .hl {
+  /* 荧光笔笔触：下半截被圆头荧光笔划过 */
   display: inline-block;
   padding: 0 10px;
-  background: var(--yellow-bg);
-  border-radius: var(--r-s);
+  background: linear-gradient(180deg, transparent 52%, var(--marker) 52%);
+  border-radius: 6px;
   color: var(--ink);
 }
 
@@ -654,7 +671,8 @@
   background: var(--white);
   border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
-  overflow: hidden;
+  /* 不裁切子元素：让图钉（.pushpin）跨在卡片顶缘上，像钉在布告栏的纸条 */
+  overflow: visible;
   cursor: pointer;
   box-shadow: var(--shadow-s);
   transition:
@@ -679,6 +697,8 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  /* 卡片不再整体裁切，图片自身补上顶部圆角 */
+  border-radius: calc(var(--r-m) - var(--bw)) calc(var(--r-m) - var(--bw)) 0 0;
 }
 
 .goods-card__img img {
@@ -691,6 +711,9 @@
   position: absolute;
   top: 10px;
   left: 10px;
+  /* 贴纸感：标签像手贴上去的，微微歪斜 */
+  transform: rotate(-2deg);
+  box-shadow: var(--shadow-s);
 }
 
 .goods-card__body {
@@ -882,6 +905,11 @@
   border-radius: var(--r-s);
   transition: background-color 0.15s;
   font-family: var(--font-body);
+  /* 自建层叠上下文：前三名奖牌的缎带伪元素 z-index:-1 需要绘制在本元素
+     hover 背景之上（负 z-index 只沉到最近层叠上下文的背景层之下），
+     否则 hover 出现 --paper 底色时缎带被盖住消失 */
+  position: relative;
+  z-index: 0;
 }
 
 .rank-item:hover {
@@ -900,23 +928,45 @@
   place-items: center;
   font-size: 13px;
   font-weight: 700;
-  border-radius: 7px;
+  border-radius: 50%;
   background: var(--paper-deep);
   color: var(--ink-soft);
+}
+
+/* 前三名：校运会奖牌——圆章 + 双色缎带（伪元素置底，不影响排版） */
+.rank-item:nth-child(-n + 3) .rank-item__no {
+  position: relative;
+  border: 2px solid currentColor;
+}
+
+.rank-item:nth-child(-n + 3) .rank-item__no::before {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 11px;
+  height: 13px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, var(--red) 50%, var(--primary) 50%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
+  z-index: -1;
 }
 
 .rank-item:nth-child(1) .rank-item__no {
   background: var(--yellow-bg);
   color: #8a5a00;
+  box-shadow: 0 2px 0 rgba(138, 90, 0, 0.35);
 }
 
 .rank-item:nth-child(2) .rank-item__no {
   background: #eceae5;
   color: var(--ink-soft);
+  box-shadow: 0 2px 0 rgba(107, 96, 83, 0.3);
 }
 .rank-item:nth-child(3) .rank-item__no {
   background: #f7e8d8;
   color: #9a5b2d;
+  box-shadow: 0 2px 0 rgba(154, 91, 45, 0.3);
 }
 
 .rank-item__thumb {
@@ -965,11 +1015,13 @@
 }
 
 .publish-cta {
-  padding: 24px 20px;
+  position: relative;
+  padding: 26px 20px 24px;
   text-align: center;
   background: var(--ink);
   color: var(--paper);
   border-radius: var(--r-m);
+  /* 顶部跨贴一条和纸胶带（.tape 元素由模板提供） */
 }
 
 .publish-cta h4 {

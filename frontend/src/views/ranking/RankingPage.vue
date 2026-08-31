@@ -22,6 +22,8 @@
       <el-skeleton v-if="loading" :rows="10" animated />
 
       <section v-else class="trending-panel" aria-labelledby="trending-title">
+        <!-- 图钉：热搜榜像被钉在布告栏上的一张纸（纯装饰） -->
+        <i class="pushpin" aria-hidden="true"></i>
         <div class="trending-panel__head">
           <span class="trending-panel__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -273,6 +275,7 @@ onMounted(fetchRanking)
 }
 
 .trending-panel {
+  position: relative;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 24px;
@@ -282,6 +285,13 @@ onMounted(fetchRanking)
   border-radius: var(--r-m);
   background: var(--white);
   box-shadow: var(--shadow-m);
+}
+/* 图钉钉在面板顶缘右侧 */
+.trending-panel > .pushpin {
+  top: -7px;
+  left: auto;
+  right: 28px;
+  transform: none;
 }
 .trending-panel__head {
   display: flex;
@@ -320,6 +330,7 @@ onMounted(fetchRanking)
   flex-wrap: wrap;
 }
 .trending-tag {
+  position: relative;
   min-height: 38px;
   display: inline-flex;
   align-items: center;
@@ -342,13 +353,25 @@ onMounted(fetchRanking)
 .trending-tag--top {
   background: var(--yellow-bg);
 }
+/* 前三名标签：顶部一小截和纸胶带（伪元素画胶带，不占布局） */
+.trending-tag--top::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 10px;
+  width: 46px;
+  height: 12px;
+  background: linear-gradient(100deg, var(--tape-ink), var(--tape-ink-deep) 55%, var(--tape-ink));
+  transform: rotate(-2deg);
+  pointer-events: none;
+}
 .trending-tag__rank {
   min-width: 23px;
   height: 23px;
   display: grid;
   place-items: center;
   border: var(--bw) solid var(--line);
-  border-radius: 5px;
+  border-radius: 50%;
   background: var(--white);
   font-family: var(--font-display);
   font-size: 11px;
@@ -430,15 +453,20 @@ onMounted(fetchRanking)
   box-shadow: var(--shadow-s);
   font-family: var(--font-display);
   font-size: 16px;
+  /* 印章感：微微歪斜的号牌 */
+  transform: rotate(-2deg);
 }
 .podium-card--1 .podium-card__rank {
   background: var(--yellow);
+  box-shadow: 0 2px 0 var(--yellow-press);
 }
 .podium-card--2 .podium-card__rank {
   background: #dcd6cb;
+  box-shadow: 0 2px 0 #b9b1a4;
 }
 .podium-card--3 .podium-card__rank {
   background: #f0c9a8;
+  box-shadow: 0 2px 0 #c99b6e;
 }
 .podium-card__image {
   position: relative;
@@ -615,7 +643,8 @@ onMounted(fetchRanking)
   height: 36px;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--line);
+  /* 集邮册编号：虚线框的小票位 */
+  border: var(--bw) dashed var(--line-strong);
   border-radius: 8px;
   background: var(--paper);
   font-family: var(--font-display);

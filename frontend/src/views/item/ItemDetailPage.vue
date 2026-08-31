@@ -489,8 +489,9 @@ watch(
 }
 
 .price-strip {
+  position: relative;
   margin: 18px 0;
-  padding: 16px 22px;
+  padding: 16px 22px 16px 42px;
   display: flex;
   align-items: baseline;
   gap: 16px;
@@ -499,6 +500,23 @@ watch(
   border: var(--bw) solid var(--line);
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
+}
+
+/* 价签吊牌：左缘一个拴绳孔（伪元素透出页面底色模拟打孔） */
+.price-strip::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow:
+    inset 0 1.5px 2px rgba(31, 27, 22, 0.16),
+    0 0 0 2px rgba(31, 27, 22, 0.04);
+  pointer-events: none;
 }
 
 .escrow {
@@ -555,6 +573,8 @@ watch(
   padding: 16px 18px;
   margin: 22px 0;
   border: var(--bw) solid var(--line);
+  /* 校牌感：左侧柿橙侧条，像挂在胸前的学生证 */
+  border-left: 4px solid var(--primary);
   border-radius: var(--r-m);
   background: var(--paper-deep);
 }

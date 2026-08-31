@@ -310,8 +310,9 @@ onMounted(() => {
   box-shadow: var(--shadow-s);
 }
 
-/* 余额卡片：信息在左、操作在右 */
+/* 余额卡片：信息在左、操作在右 —— 存折质感（横格底纹 + 左侧账本侧条） */
 .balance-card {
+  position: relative;
   margin-top: var(--spacing-lg);
   padding: var(--spacing-lg);
   display: flex;
@@ -319,7 +320,9 @@ onMounted(() => {
   justify-content: space-between;
   gap: var(--spacing-md);
   flex-wrap: wrap;
-  background: var(--white);
+  background-color: var(--white);
+  background-image: repeating-linear-gradient(180deg, transparent 0 calc(var(--rule-gap) - 1px), var(--rule-line) calc(var(--rule-gap) - 1px) var(--rule-gap));
+  border-left: 4px solid var(--green);
 }
 
 .balance-card__info {
