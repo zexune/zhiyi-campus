@@ -23,6 +23,9 @@
               :active="selectedConversationId === conversation.conversationId"
               @select="selectConversation(conversation)"
             />
+            <button v-if="!keyword.trim() && hasMoreConversations" class="btn btn--sm btn--ghost conv-more" :disabled="moreLoading" @click="loadMoreConversations">
+              {{ moreLoading ? '加载中…' : '加载更多会话' }}
+            </button>
           </div>
           <div v-else class="conv-empty">
             <p class="muted">还没有聊天记录</p>
@@ -41,7 +44,7 @@
             <div>
               <div class="nm">
                 {{ thread?.peer?.nickname || selectedConversation?.peer?.nickname || '会话' }}
-                <LevelBadge :level="thread?.peer?.level || selectedConversation?.peer?.level || 1" show-title />
+                <LevelBadge :level="thread?.peer?.level || selectedConversation?.peer?.level || 1" show-title :title="thread?.peer?.levelTitle || selectedConversation?.peer?.levelTitle || ''" />
               </div>
             </div>
           </header>
@@ -167,6 +170,9 @@ const messagePanel = ref<HTMLElement | null>(null)
 const incomingAnnouncement = ref('')
 const hasEarlier = ref(false)
 const earlierLoading = ref(false)
+/** 会话列表翻页状态：满页即可能还有更多（keyset 以 lastMessageId 为游标） */
+const hasMoreConversations = ref(false)
+const moreLoading = ref(false)
 /** 是否已向前翻页（组件内状态，随会话切换代数作废——M11 修复） */
 let earlierLoaded = false
 /** 事件合并定时器（线程/当前会话线程刷新） */
@@ -206,13 +212,34 @@ async function scrollToBottom() {
   if (messagePanel.value) messagePanel.value.scrollTop = messagePanel.value.scrollHeight
 }
 
+/** 会话列表 keyset 翻页页大小（与后端 CONVERSATION_PAGE_SIZE 对齐）；返回满页视为可能还有下一页 */
+const CONVERSATION_PAGE_SIZE = 50
+
 async function fetchConversations() {
   loading.value = true
   try {
     const res = await getConversations()
     conversations.value = res.data || []
+    hasMoreConversations.value = conversations.value.length >= CONVERSATION_PAGE_SIZE
   } finally {
     loading.value = false
+  }
+}
+
+async function loadMoreConversations() {
+  const last = conversations.value[conversations.value.length - 1]
+  if (!last || moreLoading.value) return
+  moreLoading.value = true
+  try {
+    const res = await getConversations(last.lastMessageId)
+    const fresh = res.data || []
+    const existing = new Set(conversations.value.map((item) => item.conversationId))
+    for (const item of fresh) {
+      if (!existing.has(item.conversationId)) conversations.value.push(item)
+    }
+    hasMoreConversations.value = fresh.length >= CONVERSATION_PAGE_SIZE
+  } finally {
+    moreLoading.value = false
   }
 }
 
@@ -470,6 +497,11 @@ onUnmounted(() => {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+}
+.conv-more {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 8px 12px 12px;
 }
 .conv-empty,
 .chat-placeholder,

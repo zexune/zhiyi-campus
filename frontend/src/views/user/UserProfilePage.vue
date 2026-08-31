@@ -39,7 +39,7 @@
               <div>
                 <div class="id-card__name">
                   {{ user.nickname }}
-                  <LevelBadge :level="user.level" show-title />
+                  <LevelBadge :level="user.level" show-title :title="user.levelTitle || ''" />
                 </div>
                 <div class="muted">学号：{{ user.studentId }}</div>
                 <div class="school-line">

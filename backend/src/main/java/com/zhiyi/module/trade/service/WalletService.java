@@ -10,6 +10,7 @@ import com.zhiyi.common.annotation.RetryOnDeadlock;
 import com.zhiyi.common.enums.UserStatus;
 import com.zhiyi.common.enums.WalletLogType;
 import com.zhiyi.common.support.IdempotencyService;
+import com.zhiyi.module.trade.dto.RechargeDTO;
 import com.zhiyi.module.trade.entity.WalletLog;
 import com.zhiyi.module.trade.mapper.WalletLogMapper;
 import com.zhiyi.module.trade.vo.WalletBalanceVO;
@@ -58,8 +59,9 @@ public class WalletService {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "充值金额必须大于 0");
         }
-        if (amount.compareTo(new BigDecimal("100000")) > 0) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "单笔充值金额过大");
+        // 与 RechargeDTO 的 Bean Validation 上限同一真相源；此处为非 HTTP 调用路径的防御分支
+        if (amount.compareTo(new BigDecimal(RechargeDTO.MAX_AMOUNT_TEXT)) > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "单次充值不能超过10000元");
         }
         BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
         return idempotencyService.execute(userId, IdempotencyService.OP_RECHARGE,

@@ -13,7 +13,9 @@ import com.zhiyi.common.enums.ItemType;
 import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.module.item.entity.Category;
 import com.zhiyi.module.item.entity.Item;
+import com.zhiyi.module.item.entity.ItemFavorite;
 import com.zhiyi.module.item.mapper.CategoryMapper;
+import com.zhiyi.module.item.mapper.ItemFavoriteMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.support.ViewCountBuffer;
 import com.zhiyi.module.item.vo.FavoriteToggleVO;
@@ -23,8 +25,6 @@ import com.zhiyi.module.item.vo.ItemSummaryResponse;
 import com.zhiyi.module.item.vo.MarketplaceFeedVO;
 import com.zhiyi.module.item.vo.TagGroupVO;
 import com.zhiyi.module.item.vo.TagTrendVO;
-import com.zhiyi.module.social.entity.ItemFavorite;
-import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -105,9 +105,15 @@ public class MarketplaceService {
     public ItemDetailResponse getDetail(Long itemId, Long currentUserId) {
         Item item = requireItem(itemId);
         requireSameSchool(currentUserId, item, "只能查看本校商品");
-        if (!Objects.equals(item.getPublisherId(), currentUserId)
-                && item.getModerationStatus() != ModerationStatus.PASSED) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "商品正在审核或已被下架");
+        if (!Objects.equals(item.getPublisherId(), currentUserId)) {
+            if (item.getModerationStatus() != ModerationStatus.PASSED) {
+                throw new BusinessException(ResultCode.NOT_FOUND, "商品正在审核或已被下架");
+            }
+            // 已下架（OFF_SHELF）商品对非发布者不可见：卖家主动移出大厅后不再可经链接访问；
+            // RESERVED/SOLD 仍可查看——买家需要经订单上下文回看交易中的商品
+            if (item.getStatus() == ItemStatus.OFF_SHELF) {
+                throw new BusinessException(ResultCode.NOT_FOUND, "商品已下架");
+            }
         }
         viewCountBuffer.record(itemId);
         ItemSnapshot snapshot = itemCardAssembler.assemble(List.of(item), currentUserId).getFirst();

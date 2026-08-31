@@ -352,7 +352,7 @@ class ChatServiceTest {
 
     @Test
     void ordinaryAdministratorConversationListOnlyContainsSameSchoolPeers() {
-        when(chatMessageMapper.aggregateConversations(9L)).thenReturn(List.of(
+        when(chatMessageMapper.aggregateConversations(9L, null, 100)).thenReturn(List.of(
                 aggregate("1_9", 1L, 1L, null, 0L),
                 aggregate("2_9", 2L, 2L, null, 0L)
         ));

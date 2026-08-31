@@ -52,8 +52,9 @@ public class ChatController {
 
     @GetMapping("/conversations")
     @BusinessErrors(ResultCode.USER_NOT_FOUND)
-    public ApiSuccess<List<ConversationVO>> conversations(@RequestAttribute("userId") Long userId) {
-        return ApiSuccess.ok(chatService.conversations(userId));
+    public ApiSuccess<List<ConversationVO>> conversations(@RequestAttribute("userId") Long userId,
+            @RequestParam(required = false) Long beforeMessageId) {
+        return ApiSuccess.ok(chatService.conversations(userId, beforeMessageId));
     }
 
     @GetMapping("/messages")

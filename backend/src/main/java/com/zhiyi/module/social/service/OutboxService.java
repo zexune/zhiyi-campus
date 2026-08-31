@@ -28,6 +28,7 @@ public class OutboxService {
     public static final String AGGREGATE_ORDER = "ORDER";
 
     public static final String EVENT_USER_PUNISHED = "USER_PUNISHED";
+    public static final String EVENT_USER_UNBANNED = "USER_UNBANNED";
     public static final String EVENT_USER_LEVEL_UP = "USER_LEVEL_UP";
     public static final String EVENT_ORDER_COMPLETED = "ORDER_COMPLETED";
     public static final String EVENT_ORDER_AUTO_CANCELLED = "ORDER_AUTO_CANCELLED";

@@ -18,19 +18,28 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
      *
      * peerId 推导：会话内每条消息的"另一方"都是同一对端，MAX 即取该常量；
      * relatedItemId 取 MAX（忽略 NULL）：会话内关联商品应唯一（messagesInternal 会拒绝多商品会话）。
+     *
+     * 分页兜底（keyset）：按会话最后消息 id 递减分页——beforeMessageId 非空时
+     * 只取 MAX(id) 更小的会话；LIMIT 强制上限，防止重度/恶意用户拖垮聚合。
      */
     @Select("""
+            <script>
             SELECT conversation_id AS conversationId,
                    MAX(id) AS lastMessageId,
                    MAX(CASE WHEN sender_id = #{userId} THEN receiver_id ELSE sender_id END) AS peerId,
                    MAX(related_item_id) AS relatedItemId,
                    CAST(SUM(CASE WHEN receiver_id = #{userId} AND is_read = 0 THEN 1 ELSE 0 END) AS SIGNED) AS unreadCount
-            FROM chat_message
-            WHERE sender_id = #{userId} OR receiver_id = #{userId}
-            GROUP BY conversation_id
-            ORDER BY MAX(id) DESC
+              FROM chat_message
+             WHERE sender_id = #{userId} OR receiver_id = #{userId}
+             GROUP BY conversation_id
+             <if test="beforeMessageId != null">HAVING MAX(id) &lt; #{beforeMessageId}</if>
+             ORDER BY MAX(id) DESC
+             LIMIT #{limit}
+            </script>
             """)
-    List<ConversationAggregate> aggregateConversations(@Param("userId") Long userId);
+    List<ConversationAggregate> aggregateConversations(@Param("userId") Long userId,
+                                                       @Param("beforeMessageId") Long beforeMessageId,
+                                                       @Param("limit") int limit);
 
     /** 全局未读数：单条 idx_chat_receiver_unread (receiver_id, is_read, id) 覆盖索引 COUNT，固定成本。 */
     @Select("SELECT COUNT(*) FROM chat_message WHERE receiver_id = #{userId} AND is_read = 0")

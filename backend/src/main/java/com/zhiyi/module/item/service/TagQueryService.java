@@ -36,19 +36,15 @@ public class TagQueryService {
         return loadGroups(schoolId);
     }
 
+    /** 标签趋势窗口：只统计近 N 天新发布商品的标签，窗口外的存量不计入。 */
+    private static final int TREND_WINDOW_DAYS = 7;
+    /** 趋势榜条数上限（与前端"TAG TOP 10"展示一致）。 */
+    private static final int MAX_TREND_LIMIT = 10;
+
     public List<TagTrendVO> trending(Long schoolId, int limit) {
-        Map<String, Long> totals = new LinkedHashMap<>();
-        for (TagGroupVO group : allTags(schoolId)) {
-            for (TagCountVO tag : group.tags()) {
-                totals.merge(tag.name(), tag.count(), Long::sum);
-            }
-        }
-        return totals.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed()
-                        .thenComparing(Map.Entry::getKey, String.CASE_INSENSITIVE_ORDER))
-                .limit(Math.max(1, Math.min(limit, 10)))
-                .map(entry -> new TagTrendVO(entry.getKey(), entry.getValue()))
-                .toList();
+        // 时间窗口聚合由 SQL 完成（DB 时间基准），不再基于存量 allTags 结果做内存排序
+        return itemTagMapper.selectRecentTagTrends(schoolId, ItemStatus.ON_SALE,
+                ModerationStatus.PASSED, TREND_WINDOW_DAYS, Math.max(1, Math.min(limit, MAX_TREND_LIMIT)));
     }
 
     private List<TagGroupVO> loadGroups(Long schoolId) {

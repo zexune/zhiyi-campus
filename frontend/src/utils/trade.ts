@@ -80,16 +80,3 @@ export function buildOrderParams(page: number, size: number, status: string | nu
   if (status) params.status = status
   return params
 }
-
-/** 等级经验阈值表（与后端 LevelRule 对齐；键为等级） */
-const EXP_THRESHOLDS: Record<number, number> = { 1: 0, 2: 100, 3: 300, 4: 600, 5: 1000 }
-
-/** 计算经验进度百分比（0-100） */
-export function expProgress(currentExp: number | null | undefined, level: number | null | undefined): number {
-  if (level == null || currentExp == null) return 0
-  const currentMin = EXP_THRESHOLDS[level] ?? 0
-  const nextMin = EXP_THRESHOLDS[level + 1]
-  if (nextMin === undefined) return 100 // 最高级
-  const progress = ((currentExp - currentMin) / (nextMin - currentMin)) * 100
-  return Math.max(0, Math.min(100, Math.round(progress)))
-}

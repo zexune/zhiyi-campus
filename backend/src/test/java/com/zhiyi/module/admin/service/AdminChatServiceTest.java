@@ -70,7 +70,7 @@ class AdminChatServiceTest {
         SysUser admin = user(1L, "管理员", 99);
         admin.setStatus(com.zhiyi.common.enums.UserStatus.ACTIVE);
         when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
-        when(messageMapper.aggregateConversations(1L)).thenReturn(List.of());
+        when(messageMapper.aggregateConversations(1L, null, 100)).thenReturn(List.of());
 
         assertTrue(service.getSessions().isEmpty());
     }
@@ -83,7 +83,7 @@ class AdminChatServiceTest {
         SysUser alice = user(2L, "小爱", 3);
         SysUser bob = user(3L, "小博", 4);
         when(userMapper.selectHumanAdmins()).thenReturn(List.of(admin));
-        when(messageMapper.aggregateConversations(1L)).thenReturn(List.of(
+        when(messageMapper.aggregateConversations(1L, null, 100)).thenReturn(List.of(
                 aggregate("3_admin", 5L, 3L, 1L),
                 aggregate("2_admin", 4L, 2L, 2L)));
         when(messageMapper.selectByIds(any())).thenReturn(List.of(

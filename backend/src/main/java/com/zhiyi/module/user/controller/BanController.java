@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  *
  * GET  /api/admin/users           用户列表（学校精确 + 学号/昵称/邮箱/手机号模糊搜索）
  * POST /api/admin/ban-user        限时或永久封禁用户
- * POST /api/admin/unban-user      提前解封 / 恢复注销账户
+ * POST /api/admin/unban-user      提前解封（仅封禁账户；注销账户不可恢复）
  * GET  /api/admin/violation-logs  处罚记录（可追溯，命名 DTO，P0-4）
  */
 @Validated

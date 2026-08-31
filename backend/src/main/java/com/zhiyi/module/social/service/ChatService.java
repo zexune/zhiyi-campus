@@ -59,6 +59,11 @@ public class ChatService {
 
     private static final int MESSAGE_PAGE_SIZE = 50;
     private static final int UNREAD_LIMIT = 200;
+    /** 会话列表单页可见会话数：前端以"返回条数 == 页大小"判断可能还有下一页。 */
+    private static final int CONVERSATION_PAGE_SIZE = 50;
+    /** 单次请求内最多扫描的聚合行数：可见性过滤会丢弃部分行，循环补齐页大小但有硬上限。 */
+    private static final int CONVERSATION_SCAN_CHUNK = 100;
+    private static final int CONVERSATION_MAX_SCAN = 500;
 
     private final ChatMessageMapper chatMessageMapper;
     private final ItemMapper itemMapper;
@@ -271,12 +276,18 @@ public class ChatService {
 
     /**
      * 会话列表：SQL 聚合（每会话一行）+ 按集合批量装配对端与商品，固定次数数据库往返。
+     * keyset 分页兜底：beforeMessageId 为上一页最后一条会话的 lastMessageId；
+     * 可见性过滤会丢弃行，内部按块循环补齐页大小，但单请求最多扫描 CONVERSATION_MAX_SCAN 行。
      */
     public List<ConversationVO> conversations(Long userId) {
+        return conversations(userId, null);
+    }
+
+    public List<ConversationVO> conversations(Long userId, Long beforeMessageId) {
         SysUser currentUser = requireUser(userId);
         SchoolScopeGuard.requireAssigned(currentUser.getSchoolId());
 
-        List<ConversationSnapshot> snapshots = loadAccessibleSnapshots(userId, currentUser);
+        List<ConversationSnapshot> snapshots = loadAccessibleSnapshots(userId, currentUser, beforeMessageId);
         if (snapshots.isEmpty()) {
             return List.of();
         }
@@ -287,6 +298,7 @@ public class ChatService {
             vo.setRelatedItem(toItemSummary(snapshot.relatedItem()));
             vo.setLastMessage(snapshot.lastMessage().getContent());
             vo.setLastMessageTime(snapshot.lastMessage().getCreatedAt());
+            vo.setLastMessageId(snapshot.aggregate().getLastMessageId());
             vo.setUnreadCount(snapshot.aggregate().getUnreadCount());
             return vo;
         }).toList();
@@ -337,8 +349,22 @@ public class ChatService {
             Item relatedItem) {
     }
 
-    private List<ConversationSnapshot> loadAccessibleSnapshots(Long userId, SysUser currentUser) {
-        List<ConversationAggregate> aggregates = chatMessageMapper.aggregateConversations(userId);
+    private List<ConversationSnapshot> loadAccessibleSnapshots(Long userId, SysUser currentUser,
+                                                               Long beforeMessageId) {
+        // keyset 分块扫描：单块聚合行有界，可见性过滤丢行时继续取下一块补齐页大小
+        List<ConversationAggregate> aggregates = new ArrayList<>();
+        Long cursor = beforeMessageId;
+        int scanned = 0;
+        while (aggregates.size() < CONVERSATION_PAGE_SIZE && scanned < CONVERSATION_MAX_SCAN) {
+            List<ConversationAggregate> chunk = chatMessageMapper.aggregateConversations(
+                    userId, cursor, CONVERSATION_SCAN_CHUNK);
+            aggregates.addAll(chunk);
+            scanned += chunk.size();
+            if (chunk.size() < CONVERSATION_SCAN_CHUNK) {
+                break; // 聚合行已取尽
+            }
+            cursor = chunk.getLast().getLastMessageId();
+        }
         if (aggregates.isEmpty()) {
             return List.of();
         }
@@ -367,6 +393,9 @@ public class ChatService {
 
         List<ConversationSnapshot> snapshots = new ArrayList<>(aggregates.size());
         for (ConversationAggregate aggregate : aggregates) {
+            if (snapshots.size() >= CONVERSATION_PAGE_SIZE) {
+                break;
+            }
             ChatMessage lastMessage = lastMessages.get(aggregate.getLastMessageId());
             // lastMessage 是该会话存在的凭证（聚合行由消息聚合而来），防御性跳过理论上的空行。
             if (lastMessage == null) {

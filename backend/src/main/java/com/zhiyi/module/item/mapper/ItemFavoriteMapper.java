@@ -1,7 +1,7 @@
-package com.zhiyi.module.social.mapper;
+package com.zhiyi.module.item.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.zhiyi.module.social.entity.ItemFavorite;
+import com.zhiyi.module.item.entity.ItemFavorite;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.module.item.vo.FavoriteRankRow;

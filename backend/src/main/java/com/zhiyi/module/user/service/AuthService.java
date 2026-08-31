@@ -86,7 +86,7 @@ public class AuthService {
                 .eq(SysUser::getStudentId, studentId));
         if (exists != null) {
             if (exists.getStatus() == UserStatus.CANCELLED) {
-                throw new BusinessException(ResultCode.USER_CANCELLED, "该学号在当前学校的账户已注销，如需恢复请联系管理员");
+                throw new BusinessException(ResultCode.USER_CANCELLED, "该学号在当前学校的账户已注销，注销后不可恢复");
             }
             throw new BusinessException(ResultCode.STUDENT_ID_EXISTS, "该学号已在当前学校注册，请直接登录或找回密码");
         }
@@ -152,7 +152,7 @@ public class AuthService {
 
         // 封禁/注销状态检查
         if (user.getStatus() == UserStatus.CANCELLED) {
-            throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
+            throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，注销后不可恢复");
         }
         if (user.getStatus() == UserStatus.BANNED_PERM) {
             throw new BusinessException(ResultCode.USER_BANNED, "该账户已被永久封禁");
@@ -204,7 +204,7 @@ public class AuthService {
             throw new BusinessException(ResultCode.USER_NOT_FOUND, "该学号尚未注册");
         }
         if (user.getStatus() == UserStatus.CANCELLED) {
-            throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
+            throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，注销后不可恢复");
         }
         return user.getSecurityQuestion();
     }
@@ -237,7 +237,7 @@ public class AuthService {
             throw new BusinessException(ResultCode.PASSWORD_ERROR, "学号或密保答案错误");
         }
         if (user.getStatus() == UserStatus.CANCELLED) {
-            throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员");
+            throw new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，注销后不可恢复");
         }
         // 比对忽略首尾空格、不区分大小写（需求 1.3）
         if (!passwordEncoder.matches(normalizeAnswer(dto.getSecurityAnswer()), user.getSecurityAnswer())) {

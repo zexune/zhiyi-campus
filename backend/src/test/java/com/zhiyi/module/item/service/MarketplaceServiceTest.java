@@ -7,7 +7,7 @@ import com.zhiyi.module.item.entity.Item;
 import com.zhiyi.module.item.mapper.CategoryMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.support.ViewCountBuffer;
-import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
+import com.zhiyi.module.item.mapper.ItemFavoriteMapper;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,6 +75,21 @@ class MarketplaceServiceTest {
     }
 
     @Test
+    void rejectsOffShelfDetailForNonPublisher() {
+        // 已下架（OFF_SHELF+PASSED）商品对非发布者不可见，且不记录浏览量
+        Item offShelf = visibleItem(100L, 1L);
+        offShelf.setStatus(ItemStatus.OFF_SHELF);
+        when(itemMapper.selectById(100L)).thenReturn(offShelf);
+        when(userMapper.selectById(7L)).thenReturn(user(7L, 1L));
+
+        BusinessException error = assertThrows(
+                BusinessException.class, () -> service.getDetail(100L, 7L));
+
+        assertEquals(404, error.getCode());
+        verify(viewCountBuffer, never()).record(any());
+    }
+
+    @Test
     void rejectsUnknownOwnItemStatusInsteadOfSilentlyReturningWrongData() {
         BusinessException error = assertThrows(BusinessException.class,
                 () -> service.listMyItems(7L, "ON-SALE", 1, 10));
@@ -93,7 +108,7 @@ class MarketplaceServiceTest {
                 BusinessException.class, () -> service.toggleFavorite(7L, 100L));
 
         assertEquals(2001, error.getCode());
-        verify(favoriteMapper, never()).insert(any(com.zhiyi.module.social.entity.ItemFavorite.class));
+        verify(favoriteMapper, never()).insert(any(com.zhiyi.module.item.entity.ItemFavorite.class));
     }
 
     @Test

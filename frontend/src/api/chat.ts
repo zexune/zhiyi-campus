@@ -25,8 +25,9 @@ export function startCustomerService() {
   return contracts.post('/api/chat/customer-service').then((res) => mapRequiredData(res, '/api/chat/customer-service', (wire) => wire as ChatStartResult))
 }
 
-export function getConversations() {
-  return contracts.get('/api/chat/conversations').then((res) => mapRequiredData(res, '/api/chat/conversations', (wire) => wire as Conversation[]))
+/** beforeMessageId 为上一页最后一条会话的 lastMessageId（keyset 翻页） */
+export function getConversations(beforeMessageId?: number) {
+  return contracts.get('/api/chat/conversations', { query: { beforeMessageId } }).then((res) => mapRequiredData(res, '/api/chat/conversations', (wire) => wire as Conversation[]))
 }
 
 /** transport 承载超时/静默等传输层选项，不能绕过 query/header 契约 */

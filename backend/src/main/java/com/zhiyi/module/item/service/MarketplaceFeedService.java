@@ -86,7 +86,8 @@ public class MarketplaceFeedService {
             }
             List<Item> page = itemMapper.selectViewsSortedPage(ViewsSortQuery.builder()
                     .schoolId(viewer.getSchoolId())
-                    .keyword(StringUtils.hasText(criteria.keyword()) ? criteria.keyword().trim() : null)
+                    .keyword(StringUtils.hasText(criteria.keyword())
+                            ? escapeLikeWildcard(criteria.keyword().trim()) : null)
                     .categoryId(criteria.categoryId())
                     .minPrice(criteria.minPrice())
                     .maxPrice(criteria.maxPrice())
@@ -220,9 +221,10 @@ public class MarketplaceFeedService {
                 .le(Item::getListingRevision, snapshotMaxRevision);
 
         if (StringUtils.hasText(criteria.keyword())) {
-            String keyword = criteria.keyword().trim();
-            wrapper.and(nested -> nested.like(Item::getTitle, keyword)
-                    .or().like(Item::getDescription, keyword)
+            // 用户关键词中的 %/_/\ 按 LIKE 通配符语义转义为字面字符（MySQL 默认转义符为反斜杠）
+            String keyword = escapeLikeWildcard(criteria.keyword().trim());
+            wrapper.and(nested -> nested.apply("title LIKE CONCAT('%', {0}, '%')", keyword)
+                    .or().apply("description LIKE CONCAT('%', {0}, '%')", keyword)
                     .or().apply("EXISTS (SELECT 1 FROM item_tag ik JOIN tag tk ON tk.id = ik.tag_id "
                             + "WHERE ik.item_id = item.id AND tk.name LIKE CONCAT('%', {0}, '%'))", keyword));
         }
@@ -361,6 +363,11 @@ public class MarketplaceFeedService {
         return StringUtils.hasText(value)
                 ? value.trim().replaceAll("\\s+", "").toLowerCase(Locale.ROOT)
                 : null;
+    }
+
+    /** LIKE 模式中的字面量转义：\、%、_ 前加反斜杠，防止用户关键词被当作通配符。 */
+    private String escapeLikeWildcard(String keyword) {
+        return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private long epochSecond(LocalDateTime time) {

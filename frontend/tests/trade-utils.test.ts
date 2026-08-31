@@ -1,7 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 
-import { orderStatusLabel, orderStatusBadge, itemStatusLabel, itemStatusBadge, itemTypeLabel, walletLogTypeLabel, formatPriceYuan, isExpense, buildOrderParams, expProgress } from '../src/utils/trade'
+import { orderStatusLabel, orderStatusBadge, itemStatusLabel, itemStatusBadge, itemTypeLabel, walletLogTypeLabel, formatPriceYuan, isExpense, buildOrderParams } from '../src/utils/trade'
 
 // ================================================================
 // 订单状态
@@ -109,25 +109,6 @@ test('buildOrderParams omits status when empty', () => {
   assert.deepEqual(buildOrderParams(1, 10, null), { page: 1, size: 10 })
 })
 
-// ================================================================
-// expProgress 经验值进度
-// ================================================================
-
-test('expProgress calculates level progress correctly', () => {
-  // Lv.2: 100-300 → 50 exp in = 25%
-  assert.equal(expProgress(150, 2), 25)
-  // Lv.3: 300-600 → 450 exp = 50%
-  assert.equal(expProgress(450, 3), 50)
-  // Lv.1: 0-100 → 50 exp = 50%
-  assert.equal(expProgress(50, 1), 50)
-})
-
-test('expProgress caps at 100 for max level', () => {
-  assert.equal(expProgress(2000, 5), 100)
-})
-
-test('expProgress handles edge cases', () => {
-  assert.equal(expProgress(0, 1), 0)
-  assert.equal(expProgress(null, 1), 0)
-  assert.equal(expProgress(100, null), 0)
-})
+// 注：原 expProgress（前端硬编码经验阈值表）已删除——它是无调用方的死代码，
+// 且经验进度唯一真实消费方 UserProfilePage 使用服务端下发的
+// currentLevelBaseExp / nextLevelExp 计算，前后端阈值不再存在第二份拷贝。

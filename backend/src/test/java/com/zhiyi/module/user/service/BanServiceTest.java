@@ -168,14 +168,33 @@ class BanServiceTest {
         user.setStatus(UserStatus.BANNED_PERM);
         when(userMapper.selectByIdForUpdate(2L)).thenReturn(user);
         when(userMapper.update(any(), any())).thenReturn(1);
+        ViolationLog banLog = new ViolationLog();
+        banLog.setId(77L);
+        when(violationLogMapper.selectLatestBanLog(2L)).thenReturn(banLog);
 
         service.unban(2L, 99L);
 
         verify(userMapper).update(any(), any());
         verify(userMapper, never()).bumpTokenVersion(any());
-        verify(outboxService).appendNotice(contains("USER:2:UNBANNED"),
+        // 确定性 event_id：以被解除的封禁日志主键为键，事件类型为独立的 USER_UNBANNED
+        verify(outboxService).appendNotice(eq("USER:2:UNBANNED:77"),
                 eq(OutboxService.AGGREGATE_USER), eq(2L),
-                eq(OutboxService.EVENT_USER_PUNISHED), eq(2L), contains("解封"));
+                eq(OutboxService.EVENT_USER_UNBANNED), eq(2L), contains("解封"));
+    }
+
+    @Test
+    void unbanSkipsNoticeWhenBanLogMissing() {
+        // 数据不一致（封禁态但无封禁日志）：放弃通知并告警，不做静默兜底
+        SysUser user = activeUser(2L);
+        user.setStatus(UserStatus.BANNED_PERM);
+        when(userMapper.selectByIdForUpdate(2L)).thenReturn(user);
+        when(userMapper.update(any(), any())).thenReturn(1);
+        when(violationLogMapper.selectLatestBanLog(2L)).thenReturn(null);
+
+        service.unban(2L, 99L);
+
+        verify(userMapper).update(any(), any());
+        verify(outboxService, never()).appendNotice(any(), any(), any(), any(), any(), any());
     }
 
     @Test

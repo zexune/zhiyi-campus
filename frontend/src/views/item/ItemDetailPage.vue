@@ -79,7 +79,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6" /></svg>
                     已认证
                   </span>
-                  <LevelBadge :level="item.publisherLevel || 1" show-title />
+                  <LevelBadge :level="item.publisherLevel || 1" show-title :title="item.publisherLevelTitle || ''" />
                   <template v-if="canCompareSeller">
                     <span v-for="relation in sellerRelations" :key="relation" class="seller-card__relation-tag" :aria-label="`校园关系：${relation}`">{{ relation }}</span>
                   </template>

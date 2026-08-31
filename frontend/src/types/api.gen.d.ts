@@ -2027,6 +2027,8 @@ export interface components {
         ConversationVO: {
             conversationId: string;
             lastMessage: string;
+            /** Format: int64 */
+            lastMessageId: number;
             /** Format: date-time */
             lastMessageTime: string;
             peer: components["schemas"]["ChatUserVO"];
@@ -7193,7 +7195,9 @@ export interface operations {
     };
     conversations: {
         parameters: {
-            query?: never;
+            query?: {
+                beforeMessageId?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;

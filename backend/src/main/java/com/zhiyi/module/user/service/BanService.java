@@ -180,8 +180,15 @@ public class BanService {
             throw new BusinessException(ResultCode.CONFLICT, "用户状态已变更或已注销");
         }
 
-        outboxService.appendNotice("USER:" + userId + ":UNBANNED:" + System.currentTimeMillis(),
-                OutboxService.AGGREGATE_USER, userId, OutboxService.EVENT_USER_PUNISHED,
+        // 确定性 event_id：以被解除的封禁日志主键为键（punish 与封禁同事务写日志，
+        // 一轮回封恰好对应一条日志）；异常缺失时放弃通知并显式告警，不做静默兜底。
+        ViolationLog banLog = violationLogMapper.selectLatestBanLog(userId);
+        if (banLog == null) {
+            log.error("解封通知缺失：用户 {} 处于封禁状态但无封禁日志（数据不一致）", userId);
+            return;
+        }
+        outboxService.appendNotice("USER:" + userId + ":UNBANNED:" + banLog.getId(),
+                OutboxService.AGGREGATE_USER, userId, OutboxService.EVENT_USER_UNBANNED,
                 userId, "你的账号已被管理员解封，可以重新登录使用了。");
         log.info("管理员 {} 解封用户 {}", adminId, userId);
     }

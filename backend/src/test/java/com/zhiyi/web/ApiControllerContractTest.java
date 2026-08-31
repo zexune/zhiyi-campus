@@ -330,7 +330,7 @@ class ApiControllerContractTest {
     @DisplayName("P0-1 认证矩阵：注销账户登录是业务拒绝 403+1008，而非 401")
     void cancelledAccountLoginIsBusiness403With1008() throws Exception {
         when(authService.login(any()))
-                .thenThrow(new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，如需恢复请联系管理员"));
+                .thenThrow(new BusinessException(ResultCode.USER_CANCELLED, "该账户已注销，注销后不可恢复"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

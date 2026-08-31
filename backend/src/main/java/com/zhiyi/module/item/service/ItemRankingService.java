@@ -4,10 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.common.enums.ItemStatus;
 import com.zhiyi.common.enums.ModerationStatus;
 import com.zhiyi.module.item.entity.Item;
+import com.zhiyi.module.item.mapper.ItemFavoriteMapper;
 import com.zhiyi.module.item.mapper.ItemMapper;
 import com.zhiyi.module.item.vo.FavoriteRankRow;
 import com.zhiyi.module.item.vo.ItemSummaryResponse;
-import com.zhiyi.module.social.mapper.ItemFavoriteMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

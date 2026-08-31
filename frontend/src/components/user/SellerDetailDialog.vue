@@ -14,7 +14,7 @@
               <span class="seller-dialog__eyebrow">校园卖家档案</span>
               <div class="seller-dialog__name-row">
                 <h2 id="seller-dialog-title">{{ seller?.nickname || '' }}</h2>
-                <LevelBadge v-if="seller?.level" :level="seller.level" show-title />
+                <LevelBadge v-if="seller?.level" :level="seller.level" show-title :title="seller.levelTitle || ''" />
               </div>
               <span class="seller-dialog__school">{{ seller?.schoolName || '' }}</span>
             </div>
@@ -84,6 +84,8 @@ interface SellerDetail {
   schoolEmail?: string
   /** 卖家头像相对路径（getSellerDetail 的 SellerDetailVO 新增字段） */
   avatar?: string | null
+  /** 等级称号（服务端 LevelRule 下发，徽章不做本地映射） */
+  levelTitle?: string
 }
 
 const props = defineProps({

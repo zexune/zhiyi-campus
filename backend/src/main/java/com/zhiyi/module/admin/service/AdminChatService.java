@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminChatService {
 
+    /** 客服收件箱单次返回的会话数上限（客服后台当前无翻页 UI，取有界上限即可）。 */
+    private static final int CONVERSATION_LIMIT = 100;
+
     private final ChatMessageMapper chatMessageMapper;
     private final SysUserMapper sysUserMapper;
 
@@ -56,7 +59,8 @@ public class AdminChatService {
         }
         Long adminId = admin.getId();
 
-        List<ConversationAggregate> aggregates = chatMessageMapper.aggregateConversations(adminId);
+        List<ConversationAggregate> aggregates = chatMessageMapper
+                .aggregateConversations(adminId, null, CONVERSATION_LIMIT);
         if (aggregates.isEmpty()) {
             return List.of();
         }
@@ -83,6 +87,7 @@ public class AdminChatService {
                     peer.getLevel(), LevelRule.titleOf(peer.getLevel())));
             vo.setLastMessage(latest.getContent());
             vo.setLastMessageTime(latest.getCreatedAt());
+            vo.setLastMessageId(aggregate.getLastMessageId());
             vo.setUnreadCount(aggregate.getUnreadCount());
             result.add(vo);
         }

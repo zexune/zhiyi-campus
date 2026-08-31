@@ -20,6 +20,9 @@ public class ConversationVO {
     private String lastMessage;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private LocalDateTime lastMessageTime;
+    /** 会话最后消息 id：客户端 keyset 翻页时作为 beforeMessageId 回传 */
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+    private Long lastMessageId;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private long unreadCount;
 }

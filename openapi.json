@@ -1706,6 +1706,10 @@
           "lastMessage": {
             "type": "string"
           },
+          "lastMessageId": {
+            "format": "int64",
+            "type": "integer"
+          },
           "lastMessageTime": {
             "format": "date-time",
             "type": "string"
@@ -1731,6 +1735,7 @@
         "required": [
           "conversationId",
           "lastMessage",
+          "lastMessageId",
           "lastMessageTime",
           "peer",
           "relatedItem",
@@ -10546,6 +10551,17 @@
     "/api/chat/conversations": {
       "get": {
         "operationId": "conversations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "beforeMessageId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
