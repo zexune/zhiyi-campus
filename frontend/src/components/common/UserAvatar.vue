@@ -1,8 +1,9 @@
 <template>
   <span class="avatar" :class="[`avatar--${size}`, `avatar--${color}`]" :title="nickname">
     <template v-if="showImage">
-      <!-- src 非空且未加载失败：圆形图片填充容器；加载失败回退文字头像 -->
-      <img class="avatar__img" :src="src || ''" :alt="alt ?? nickname" loading="lazy" decoding="async" @error="onError" />
+      <!-- src 非空且未加载失败：圆形图片填充容器；加载失败回退文字头像。
+           eager 供首屏可见头像（顶栏/当前会话头）跳过 lazy，避免推迟加载与滚动闪烁 -->
+      <img class="avatar__img" :src="src || ''" :alt="alt ?? nickname" :loading="eager ? 'eager' : 'lazy'" decoding="async" @error="onError" />
     </template>
     <template v-else>
       {{ initial }}
@@ -29,13 +30,16 @@ const props = withDefaults(
     src?: string | null
     /** 覆盖图片 alt；缺省用昵称。纯装饰场景（如消息气泡内，昵称会与消息内容重复播报）传空串 */
     alt?: string | null
+    /** 首屏可见的头像（顶栏、当前会话头）传 true 禁用懒加载 */
+    eager?: boolean
   }>(),
   {
     nickname: '?',
     userId: 0,
     size: 's',
     src: null,
-    alt: null
+    alt: null,
+    eager: false
   }
 )
 

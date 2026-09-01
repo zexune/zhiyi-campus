@@ -1,7 +1,8 @@
 <template>
   <DefaultLayout>
     <div class="chat-list-page">
-      <section class="chat-shell rise">
+      <!-- 移动端视图态（列表/会话二选一）：桌面端双栏不受影响，由 CSS 按 .chat-shell 的修饰类切换 -->
+      <section class="chat-shell rise" :class="mobilePane === 'thread' ? 'is-on-thread' : 'is-on-list'">
         <aside class="conv-list" aria-label="会话列表">
           <div class="conv-list__head">
             <h1>消息</h1>
@@ -35,11 +36,16 @@
 
         <section v-if="selectedConversationId" class="chat-pane" :aria-label="`与${thread?.peer?.nickname || '同学'}的对话`">
           <header class="chat-pane__head">
+            <!-- 移动端返回会话列表（仅窄屏显示） -->
+            <button class="btn btn--sm btn--ghost chat-back" type="button" aria-label="返回会话列表" @click="backToList">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
             <UserAvatar
               :nickname="thread?.peer?.nickname || selectedConversation?.peer?.nickname || '同学'"
               :user-id="thread?.peer?.id || selectedConversation?.peer?.id || 0"
               size="m"
               :src="thread?.peer?.avatar || selectedConversation?.peer?.avatar || null"
+              eager
             />
             <div>
               <div class="nm">
@@ -69,6 +75,8 @@
                   alt=""
                 />
                 <div>
+                  <!-- 视觉隐藏的发送者标识：气泡本身无"我/对方"文本，读屏无法区分收发 -->
+                  <span class="visually-hidden">{{ message.mine ? '我' : thread?.peer?.nickname || '对方' }}：</span>
                   <div class="msg__bubble">{{ message.content }}</div>
                   <div class="msg__time">{{ formatChatTime(message.createdAt) }}</div>
                 </div>
@@ -89,7 +97,7 @@
               show-word-limit
               resize="none"
               placeholder="输入消息，Enter 发送，Shift + Enter 换行"
-              @keydown.enter.exact.prevent="handleSend"
+              @keydown.enter.exact="onEnter"
             />
             <button class="btn btn--green" :disabled="sending || !draft.trim()" @click="handleSend">
               发送
@@ -134,6 +142,7 @@ import { ROUTE_PATH } from '@/constants/routes'
 import { formatChatTime } from '@/utils/format'
 import { useContextGuard } from '@/composables/useContextGuard'
 import { useChatStream } from '@/composables/useChatStream'
+import { useImeSafeEnter } from '@/composables/useImeSafeEnter'
 import type { ChatStreamMessageEvent, ChatStreamReadEvent } from '@/composables/useChatStream'
 
 /**
@@ -214,6 +223,13 @@ async function scrollToBottom() {
 
 /** 会话列表 keyset 翻页页大小（与后端 CONVERSATION_PAGE_SIZE 对齐）；返回满页视为可能还有下一页 */
 const CONVERSATION_PAGE_SIZE = 50
+
+/** 移动端视图态：窄屏下列表与会话二选一展示（桌面端双栏，此状态被 CSS 忽略） */
+const mobilePane = ref<'list' | 'thread'>('list')
+
+function backToList(): void {
+  mobilePane.value = 'list'
+}
 
 async function fetchConversations() {
   loading.value = true
@@ -339,6 +355,7 @@ async function selectConversation(conversation: ConversationLike, updateUrl = tr
   earlierLoaded = false
   hasEarlier.value = false
   lastAckedMessageId = null
+  mobilePane.value = 'thread'
   if (updateUrl) await router.replace({ path: ROUTE_PATH.CHAT, query: { conversationId: conversation.conversationId, peerId: conversation.peer?.id, relatedItemId: conversation.relatedItem?.id } })
   await fetchThread()
 }
@@ -361,6 +378,9 @@ async function handleSend() {
     sending.value = false
   }
 }
+
+// Enter 发送走 IME 安全通道：拼音组词选字的 Enter（isComposing/229）放行为上屏，不误发半截消息
+const { onEnter } = useImeSafeEnter(handleSend)
 
 async function contactService() {
   if (serviceLoading.value) return
@@ -636,22 +656,42 @@ onUnmounted(() => {
   width: 18px;
   height: 18px;
 }
+/* 返回按钮默认隐藏，仅移动端显示（写在媒体查询之前，避免被同特异性的后来者覆盖） */
+.chat-back {
+  display: none;
+  flex: 0 0 auto;
+}
+/* 移动端单列 + 视图切换：此前 130px 会话列塞不下头像+昵称+摘要，
+   气泡区只剩 ~200px。改为列表态/会话态二选一（.is-on-list / .is-on-thread），
+   桌面端（>760px）双栏不受影响 */
 @media (max-width: 760px) {
   .chat-shell {
-    grid-template-columns: 130px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     height: calc(100vh - 126px);
     height: calc(100dvh - 126px);
-    min-height: 560px;
+    /* iPhone SE 一类矮视口：不再用固定 560px 撑出外层滚动 */
+    min-height: min(560px, calc(100dvh - 126px));
     border-radius: var(--r-m);
   }
-  .conv-list__head {
-    padding: 12px 10px 8px;
-  }
-  .conv-list__head .btn {
+  .chat-shell.is-on-list .chat-pane,
+  .chat-shell.is-on-list .chat-placeholder {
     display: none;
   }
+  .chat-shell.is-on-thread .conv-list {
+    display: none;
+  }
+  /* 单列下不再画右侧分隔线（那是双栏布局的产物） */
+  .conv-list {
+    border-right: none;
+  }
+  .chat-back {
+    display: inline-flex;
+  }
+  .conv-list__head {
+    padding: 12px 14px 8px;
+  }
   .conv-search {
-    margin: 6px 8px 10px;
+    margin: 6px 12px 10px;
   }
   .chat-pane__head,
   .msg-flow,
@@ -665,9 +705,6 @@ onUnmounted(() => {
   .chat-input {
     flex-direction: column;
     align-items: stretch;
-  }
-  .chat-placeholder {
-    padding: 12px;
   }
 }
 </style>

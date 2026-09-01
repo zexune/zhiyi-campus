@@ -21,7 +21,16 @@
           <div v-if="sessionsLoading" class="sidebar-state muted">加载中...</div>
           <div v-else-if="sessions.length === 0" class="sidebar-state muted">暂无客服会话</div>
           <div v-else class="session-list">
-            <div v-for="s in sessions" :key="s.conversationId" class="session-item" :class="{ active: activeConv === s.conversationId }" @click="openSession(s)">
+            <!-- 会话入口是 button：键盘/读屏可聚焦进入（此前 div+@click 对键盘完全不可达） -->
+            <button
+              v-for="s in sessions"
+              :key="s.conversationId"
+              type="button"
+              class="session-item"
+              :class="{ active: activeConv === s.conversationId }"
+              :aria-current="activeConv === s.conversationId ? 'true' : undefined"
+              @click="openSession(s)"
+            >
               <UserAvatar :nickname="s.peer?.nickname || '?'" :user-id="s.peer?.id || 0" size="m" :src="s.peer?.avatar || null" />
               <div class="session-item__info">
                 <div class="session-item__top">
@@ -34,7 +43,7 @@
                 </div>
               </div>
               <span v-if="s.unreadCount > 0" class="unread-dot">{{ s.unreadCount > 99 ? '99+' : s.unreadCount }}</span>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -60,7 +69,7 @@
               </div>
             </div>
 
-            <!-- 消息列表 -->
+            <!-- 消息列表：新消息由下方视觉隐藏 live region 播报（整表重拉不进 live region，避免整段播报） -->
             <div ref="msgContainer" class="chat-messages">
               <div v-if="messagesLoading" class="chat-placeholder muted">加载中...</div>
               <div v-else-if="messages.length === 0" class="chat-placeholder muted">暂无消息</div>
@@ -75,9 +84,12 @@
               </template>
             </div>
 
+            <!-- 屏幕阅读器新消息播报区：SSE 推送到达的对方新消息写入一条 -->
+            <div class="visually-hidden" role="status" aria-live="polite">{{ incomingAnnouncement }}</div>
+
             <!-- 输入区 -->
             <div class="chat-input-bar">
-              <textarea v-model="inputText" class="chat-input" rows="2" maxlength="500" placeholder="输入回复内容..." @keydown.enter.exact.prevent="handleSend"></textarea>
+              <textarea v-model="inputText" class="chat-input" rows="2" maxlength="500" placeholder="输入回复内容..." @keydown.enter.exact="onEnter"></textarea>
               <button class="btn btn--primary btn--sm" :disabled="!inputText.trim() || sending" @click="handleSend">
                 {{ sending ? '发送中' : '发送' }}
               </button>
@@ -91,6 +103,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
@@ -99,6 +112,7 @@ import type { ChatMessage, ChatUser, Conversation } from '@/types/models'
 import { formatChatTime } from '@/utils/format'
 import { useContextGuard } from '@/composables/useContextGuard'
 import { useChatStream } from '@/composables/useChatStream'
+import { useImeSafeEnter } from '@/composables/useImeSafeEnter'
 import type { ChatStreamMessageEvent } from '@/composables/useChatStream'
 
 /** SSE 事件合并窗口：连续到达的多条事件收敛为一次重拉 */
@@ -131,6 +145,8 @@ const earlierLoading = ref(false)
 const inputText = ref('')
 const sending = ref(false)
 const msgContainer = ref<HTMLElement | null>(null)
+/** 屏幕阅读器新消息播报文本：仅 SSE 推送刷新发现的对方新消息写入 */
+const incomingAnnouncement = ref('')
 /** 已确认读到的最后一条接收消息 ID */
 let lastAckedMessageId: number | null = null
 
@@ -164,11 +180,12 @@ function ackVisibleMessages(conversationId: string) {
   })
 }
 
-async function loadMessages() {
+async function loadMessages({ announce = false }: { announce?: boolean } = {}) {
   const conversationId = activeConv.value
   if (!conversationId) return
   const { gen, seq } = sessionGuard.nextRequest()
   messagesLoading.value = true
+  const previousLastMessage = messages.value[messages.value.length - 1]
   try {
     const res = await getAdminChatMessages({
       conversationId,
@@ -178,6 +195,15 @@ async function loadMessages() {
     messages.value = res.data?.messages || []
     hasEarlier.value = !!res.data?.hasMore
     ackVisibleMessages(conversationId)
+    // 新消息播报：仅 SSE 推送驱动的刷新、且最后一条是对方新消息时写一条
+    const lastMessage = messages.value[messages.value.length - 1]
+    if (announce && lastMessage && lastMessage.id !== previousLastMessage?.id && !lastMessage.mine) {
+      const peerName = activePeer.value?.nickname || '用户'
+      incomingAnnouncement.value = ''
+      void nextTick(() => {
+        incomingAnnouncement.value = `${peerName}：${lastMessage.content}`
+      })
+    }
   } catch {
     if (sessionGuard.isCurrent(conversationId, gen, seq)) ElMessage.error('加载消息失败')
   } finally {
@@ -242,6 +268,9 @@ async function handleSend() {
   }
 }
 
+// Enter 发送走 IME 安全通道：组词选字的 Enter 不误发半截内容
+const { onEnter } = useImeSafeEnter(handleSend)
+
 function scrollToBottom() {
   nextTick(() => {
     const el = msgContainer.value
@@ -260,11 +289,11 @@ function scheduleSessionsRefresh() {
   }, EVENT_MERGE_MS)
 }
 
-/** 当前会话新消息：刷新线程（贴底时自动滚底）并更新会话列表 */
+/** 当前会话新消息：刷新线程（贴底时自动滚底）并更新会话列表；announce 驱动读屏播报 */
 function refreshActiveSession() {
   if (!activeConv.value) return
   const nearBottom = isNearBottom()
-  void loadMessages().then(() => {
+  void loadMessages({ announce: true }).then(() => {
     if (nearBottom) scrollToBottom()
   })
   scheduleSessionsRefresh()
@@ -356,12 +385,19 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 .session-item {
+  /* button 化后的基础复位：宽度铺满、继承排版，保留原有分隔线与悬停反馈 */
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(38, 34, 28, 0.08);
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(38, 34, 28, 0.08);
   transition: background 0.12s;
 }
 .session-item:hover {

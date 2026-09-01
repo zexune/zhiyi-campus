@@ -4,10 +4,10 @@
       <nav class="crumb" aria-label="面包屑">
         <router-link :to="ROUTE_PATH.HOME">交易大厅</router-link>
         <span>/</span>
-        <button v-if="item?.categoryName" class="crumb-link" @click="goTag(item.categoryName)">{{ item.categoryName }}</button>
+        <button v-if="item?.categoryName" class="crumb-link" type="button" :aria-label="`查看${item.categoryName}分类的商品`" @click="goTag(item.categoryName)">{{ item.categoryName }}</button>
       </nav>
 
-      <el-skeleton v-if="loading" :rows="10" animated />
+      <PageSkeleton v-if="loading" variant="detail" />
 
       <template v-else-if="item">
         <section class="detail">
@@ -55,16 +55,18 @@
               </div>
               <div class="meta-row stat-row" aria-label="浏览与收藏数">
                 <span class="stat-chip" title="浏览次数">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
+                  <span class="visually-hidden">浏览次数</span>
                   {{ item.viewCount || 0 }}
                 </span>
                 <span class="stat-chip" title="收藏人数">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
                   </svg>
+                  <span class="visually-hidden">收藏人数</span>
                   {{ favoriteCount }}
                 </span>
               </div>
@@ -158,9 +160,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import ItemPrice from '@/components/common/ItemPrice.vue'
+import PageSkeleton from '@/components/common/PageSkeleton.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import SellerDetailDialog from '@/components/user/SellerDetailDialog.vue'
 import GalleryBlock from './components/GalleryBlock.vue'
@@ -403,6 +407,7 @@ function goTag(tag: string): void {
 }
 
 onMounted(() => {
+  // 路由 meta.requireAuth 已拦截未登录进入；此处兜底会话在导航与挂载之间过期的边角
   if (!isLoggedIn()) {
     router.replace({ path: ROUTE_PATH.LOGIN, query: { redirect: route.fullPath } })
     return
@@ -462,6 +467,14 @@ watch(
   grid-template-columns: 460px 1fr;
   gap: 32px;
   align-items: start;
+}
+
+/* 中间档视口（861–1080px）：固定 460px 画廊会吃掉过半宽度，价格条与操作按钮被迫换行；
+   收缩画廊为弹性区间，窄于 860px 再落为单列 */
+@media (max-width: 1080px) {
+  .detail {
+    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  }
 }
 
 .gallery {
@@ -561,7 +574,7 @@ watch(
   padding: 10px 14px;
   border-radius: var(--r-s);
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
   font-size: 13px;
   font-weight: 600;
 }
@@ -595,7 +608,7 @@ watch(
 
 .seller-card__relation-tag {
   padding: 2px 9px;
-  color: #8a5a00;
+  color: var(--yellow-ink);
   background: var(--yellow-bg);
   border-radius: 999px;
   font-size: 11.5px;
@@ -647,7 +660,7 @@ watch(
 .desc-block p {
   font-size: 15px;
   line-height: 1.9;
-  color: #3d372e;
+  color: var(--ink);
   white-space: pre-wrap;
 }
 

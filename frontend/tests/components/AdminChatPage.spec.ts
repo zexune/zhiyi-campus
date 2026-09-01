@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, test, vi } from 'vitest'
 
-import ChatAdminPage from '@/views/admin/ChatPage.vue'
+import ChatAdminPage from '@/views/admin/AdminChatInboxPage.vue'
 import { ackAdminChatRead, getAdminChatMessages, getAdminSessions } from '@/api/admin'
 import type { ApiResult } from '@/utils/request'
 import type { ChatThread, Conversation } from '@/types/models'

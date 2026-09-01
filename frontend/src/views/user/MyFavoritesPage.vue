@@ -5,7 +5,12 @@
 
       <template v-if="items.length">
         <div class="fav-grid">
-          <article v-for="item in items" :key="item.id" class="card card--hover fav-card" @click="goDetail(item)">
+          <router-link
+            v-for="item in items"
+            :key="item.id"
+            :to="ROUTE_PATH.item(item.id)"
+            class="card card--hover fav-card"
+          >
             <div class="fav-card__img" :class="placeholderClass(item.id)">
               <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" loading="lazy" decoding="async" />
               <span v-if="displayStatus(item) !== ITEM_STATUS.ON_SALE" class="badge badge--muted fav-card__state">
@@ -17,14 +22,14 @@
               <TagList :tags="item.tags" :limit="3" @select="goTag" />
               <div class="fav-card__foot">
                 <ItemPrice :type="item.type" :price="item.price" />
-                <button class="fav-remove" :disabled="acting" title="取消收藏" aria-label="取消收藏" @click.stop="handleUnfavorite(item)">
-                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                <button class="fav-remove" :disabled="acting" title="取消收藏" aria-label="取消收藏" @click.stop.prevent="handleUnfavorite(item)">
+                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
                   </svg>
                 </button>
               </div>
             </div>
-          </article>
+          </router-link>
         </div>
         <el-pagination v-if="total > pageSize" v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchFavorites" />
       </template>
@@ -48,6 +53,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import TagList from '@/components/common/TagList.vue'
 import ItemPrice from '@/components/common/ItemPrice.vue'
@@ -75,10 +81,6 @@ function displayStatus(item: Item) {
 
 function mainImage(item: Item) {
   return Array.isArray(item.images) ? item.images[0] || '' : ''
-}
-
-function goDetail(item: Item) {
-  router.push(ROUTE_PATH.item(item.id))
 }
 
 function goTag(tag: string) {

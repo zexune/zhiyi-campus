@@ -35,7 +35,7 @@ const global = {
     LevelBadge: { template: '<span />' },
     PriceTag: { template: '<span />' },
     TagList: { template: '<span />' },
-    ElSkeleton: { template: '<div data-test="skeleton" />' },
+    PageSkeleton: { template: '<div data-test="skeleton" />' },
     'router-link': { template: '<a><slot /></a>' }
   }
 }

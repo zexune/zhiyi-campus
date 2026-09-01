@@ -19,7 +19,7 @@
         </router-link>
       </header>
 
-      <el-skeleton v-if="loading" :rows="10" animated />
+      <PageSkeleton v-if="loading" variant="ranking" />
 
       <section v-else class="trending-panel" aria-labelledby="trending-title">
         <!-- 图钉：热搜榜像被钉在布告栏上的一张纸（纯装饰） -->
@@ -63,7 +63,16 @@
           </div>
         </div>
         <section class="podium" aria-label="榜单前三名">
-          <article v-for="entry in podiumEntries" :key="entry.item.id" class="podium-card rise" :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]" @click="goDetail(entry.item.id)">
+          <!-- DOM/焦点顺序保持 1→2→3，第 2 名的居中偏移交给 CSS order（视觉 2-1-3），
+               读屏与键盘顺序不再与视觉顺序互相打架（WCAG 1.3.2）。
+               不加 aria-label：它会整体覆盖链接的可访问名，价格/卖家/收藏数将无法朗读 -->
+          <router-link
+            v-for="entry in podiumEntries"
+            :key="entry.item.id"
+            :to="ROUTE_PATH.item(entry.item.id)"
+            class="podium-card rise"
+            :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]"
+          >
             <span class="podium-card__rank">TOP {{ entry.rank }}</span>
             <div class="podium-card__image" :class="placeholderClass(entry.item.id)">
               <img v-if="entry.item.coverImage" :src="entry.item.coverImage" :alt="entry.item.title" loading="lazy" decoding="async" />
@@ -77,12 +86,12 @@
             </div>
             <div class="podium-card__body">
               <span class="badge" :class="typeBadgeClass(entry.item.type)">{{ itemTypeLabel(entry.item.type) }}</span>
-              <h2>{{ entry.item.title }}</h2>
+              <h3 class="podium-card__title">{{ entry.item.title }}</h3>
               <TagList :tags="entry.item.tags" :limit="3" @select="goTag" />
               <div class="podium-card__meta">
                 <ItemPrice :type="entry.item.type" :price="entry.item.price" font-size="25px" swap-label="换物" />
                 <span class="favorite-count">
-                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8">
+                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                     <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
                   </svg>
                   {{ entry.item.favoriteCount || 0 }}
@@ -91,7 +100,7 @@
               <div class="seller-row">
                 <span>{{ entry.item.publisherNickname || '同学' }}</span>
                 <span v-if="entry.item.publisherVerified" class="seller-chip seller-chip--verified">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6" /></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
                   已认证
                 </span>
                 <span v-if="entry.item.dormitoryRelation === 'SAME_BUILDING'" class="seller-chip">本楼</span>
@@ -99,7 +108,7 @@
                 <LevelBadge :level="entry.item.publisherLevel || 1" />
               </div>
             </div>
-          </article>
+          </router-link>
         </section>
 
         <section v-if="remainingItems.length" class="ranking-board">
@@ -114,39 +123,43 @@
             <span>TOP 20</span>
           </div>
           <ol class="ranking-rows" start="4">
-            <li v-for="(item, index) in remainingItems" :key="item.id" class="ranking-row" @click="goDetail(item.id)">
-              <span class="ranking-row__number">{{ index + 4 }}</span>
-              <span class="ranking-row__image" :class="placeholderClass(item.id)">
-                <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" loading="lazy" decoding="async" />
-              </span>
-              <span class="ranking-row__main">
-                <strong>{{ item.title }}</strong>
-                <small>
-                  {{ item.publisherNickname || '同学' }}
-                  <span v-if="item.publisherVerified" class="inline-verified">已认证</span>
-                  · 浏览 {{ item.viewCount || 0 }}
-                </small>
-                <TagList :tags="item.tags" :limit="2" compact @select="goTag" />
-              </span>
-              <ItemPrice :type="item.type" :price="item.price" font-size="21px" swap-label="换物" />
-              <span class="ranking-row__favorites" title="收藏数">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
-                </svg>
-                {{ item.favoriteCount || 0 }}
-              </span>
-              <button
-                class="favorite-button"
-                :class="{ active: item.favoriteByCurrentUser }"
-                :disabled="favoriteBusyIds.has(item.id)"
-                :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
-                @click.stop="handleFavorite(item)"
-              >
-                <svg viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                  <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
-                </svg>
-              </button>
-              <svg class="ranking-row__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="m9 18 6-6-6-6" /></svg>
+            <!-- 行内为整行 router-link（li 只承载列表语义），键盘/读屏可直接进入商品详情 -->
+            <li v-for="(item, index) in remainingItems" :key="item.id" class="ranking-row-wrap">
+              <router-link :to="ROUTE_PATH.item(item.id)" class="ranking-row">
+                <span class="ranking-row__number">{{ index + 4 }}</span>
+                <span class="ranking-row__image" :class="placeholderClass(item.id)">
+                  <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" loading="lazy" decoding="async" />
+                </span>
+                <span class="ranking-row__main">
+                  <strong>{{ item.title }}</strong>
+                  <small>
+                    {{ item.publisherNickname || '同学' }}
+                    <span v-if="item.publisherVerified" class="inline-verified">已认证</span>
+                    · 浏览 {{ item.viewCount || 0 }}
+                  </small>
+                  <TagList :tags="item.tags" :limit="2" compact @select="goTag" />
+                </span>
+                <ItemPrice :type="item.type" :price="item.price" font-size="21px" swap-label="换物" />
+                <span class="ranking-row__favorites" title="收藏数">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
+                  </svg>
+                  {{ item.favoriteCount || 0 }}
+                </span>
+                <button
+                  class="favorite-button"
+                  :class="{ active: item.favoriteByCurrentUser }"
+                  :disabled="favoriteBusyIds.has(item.id)"
+                  :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
+                  :aria-label="item.favoriteByCurrentUser ? `取消收藏 ${item.title}` : `收藏 ${item.title}`"
+                  @click.stop.prevent="handleFavorite(item)"
+                >
+                  <svg viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
+                  </svg>
+                </button>
+                <svg class="ranking-row__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </router-link>
             </li>
           </ol>
         </section>
@@ -168,13 +181,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import TagList from '@/components/common/TagList.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import ItemPrice from '@/components/common/ItemPrice.vue'
-import { getItemRanking, getTrendingTags, toggleFavorite } from '@/api/item'
-import { useEntityMutex } from '@/composables/useEntityMutex'
+import PageSkeleton from '@/components/common/PageSkeleton.vue'
+import { getItemRanking, getTrendingTags } from '@/api/item'
+import { useFavorite } from '@/composables/useFavorite'
 import type { Item, TagCount } from '@/types/models'
 import { isLoggedIn } from '@/utils/auth'
 import { itemTypeLabel, typeBadgeClass } from '@/utils/trade'
@@ -182,26 +196,19 @@ import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
 
 const router = useRouter()
+const route = useRoute()
 const ranking = ref<Item[]>([])
 const trendingTags = ref<TagCount[]>([])
 const loading = ref(true)
-/** F10 根因修复：per-entity 收藏互斥——A 进行中不影响 B，也不会被 B 提前解锁 */
-const favoriteMutex = useEntityMutex<number>()
-/** 模板按 busy 集合禁用按钮 */
-const favoriteBusyIds = favoriteMutex.lockedIds
+/** 收藏共用实现（per-entity 互斥 + 提示），刷新策略留在本页 */
+const { busyIds: favoriteBusyIds, toggle: toggleFavorite } = useFavorite()
 /** 榜单请求代数：收藏合并刷新的旧响应不覆盖新结果 */
 let rankingGen = 0
 
-const podiumEntries = computed(() => {
-  const entries = ranking.value.slice(0, 3).map((item, index) => ({ item, rank: index + 1 }))
-  if (entries.length === 3) return [entries[1], entries[0], entries[2]]
-  return entries
-})
+/** DOM/焦点顺序保持名次自然序（1→2→3），桌面端视觉居中由 CSS order 完成 */
+const podiumEntries = computed(() => ranking.value.slice(0, 3).map((item, index) => ({ item, rank: index + 1 })))
 const remainingItems = computed(() => ranking.value.slice(3))
 
-function goDetail(id: number | string): void {
-  router.push(ROUTE_PATH.item(id))
-}
 function goTag(tag: string): void {
   router.push({ path: ROUTE_PATH.HOME, query: { keyword: tag } })
 }
@@ -221,15 +228,13 @@ async function fetchRanking(): Promise<void> {
 
 async function handleFavorite(item: Item): Promise<void> {
   if (!isLoggedIn()) {
-    router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: ROUTE_PATH.RANKING } })
+    router.push({ path: ROUTE_PATH.LOGIN, query: { redirect: route.fullPath } })
     return
   }
-  if (!favoriteMutex.tryLock(item.id)) return
-  try {
-    const res = await toggleFavorite(item.id)
-    ElMessage.success(res.data.favorite ? '已收藏' : '已取消收藏')
-  } finally {
-    favoriteMutex.unlock(item.id)
+  const result = await toggleFavorite(item.id)
+  if (result) {
+    item.favoriteByCurrentUser = result.favorite
+    item.favoriteCount = result.favoriteCount
   }
   // 并发结束后合并一次 latest-wins 刷新
   await fetchRanking()
@@ -425,6 +430,10 @@ onMounted(fetchRanking)
   gap: 24px;
   align-items: stretch;
 }
+/* 桌面端冠军居中：order 只挪视觉，DOM/焦点顺序仍是 1→2→3 */
+.podium-card--2 {
+  order: -1;
+}
 .podium-card {
   position: relative;
   overflow: hidden;
@@ -461,12 +470,12 @@ onMounted(fetchRanking)
   box-shadow: 0 2px 0 var(--yellow-press);
 }
 .podium-card--2 .podium-card__rank {
-  background: #dcd6cb;
-  box-shadow: 0 2px 0 #b9b1a4;
+  background: var(--silver);
+  box-shadow: 0 2px 0 var(--silver-deep);
 }
 .podium-card--3 .podium-card__rank {
-  background: #f0c9a8;
-  box-shadow: 0 2px 0 #c99b6e;
+  background: var(--bronze);
+  box-shadow: 0 2px 0 var(--bronze-deep);
 }
 .podium-card__image {
   position: relative;
@@ -501,18 +510,19 @@ onMounted(fetchRanking)
   color: var(--primary);
 }
 .podium-card--1 .podium-card__medal svg {
-  color: #d99b00;
+  color: var(--gold);
 }
 .podium-card--2 .podium-card__medal svg {
-  color: #777067;
+  color: var(--silver-ink);
 }
 .podium-card--3 .podium-card__medal svg {
-  color: #b76b32;
+  color: var(--bronze-ink);
 }
 .podium-card__body {
   padding: 16px 18px 18px;
 }
-.podium-card__body h2 {
+/* 卡片标题降为 h3：领奖台三张卡不再各产一个 h2 淹没文档大纲（榜单区块标题才是 h2） */
+.podium-card__title {
   min-height: 2.9em;
   margin: 9px 0 12px;
   font-size: 17px;
@@ -632,7 +642,7 @@ onMounted(fetchRanking)
   cursor: pointer;
   transition: background 0.15s;
 }
-.ranking-row:last-child {
+.ranking-row-wrap:last-child .ranking-row {
   border-bottom: 0;
 }
 .ranking-row:hover {
@@ -760,8 +770,9 @@ onMounted(fetchRanking)
     grid-template-columns: 1fr;
     padding-top: 0;
   }
-  .podium-card--1 {
-    order: -1;
+  /* 单列时名次自然排列（1→2→3），撤销桌面端的居中 order */
+  .podium-card--2 {
+    order: 0;
   }
   .ranking-row {
     grid-template-columns: 40px 56px minmax(0, 1fr) 92px 38px 18px;

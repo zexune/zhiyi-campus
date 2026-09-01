@@ -7,8 +7,12 @@
 .hero {
   position: relative;
   overflow: hidden;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  /* 全宽靠负 gutter 抵消版心左右内边距（与顶栏内容同界），不用 100vw：
+     100vw 含滚动条宽度（Windows ~15px），hero 会比视口内容宽 ~15px 并整体左偏，
+     右侧溢出只能靠 html{overflow-x:hidden} 裁剪；负 gutter 则精确对齐、零溢出。
+     margin-top 负值抵消 DefaultLayout.layout-main 的 padding-top（父子耦合，改布局间距需同步） */
+  margin-left: calc(var(--gutter-left) * -1);
+  margin-right: calc(var(--gutter-right) * -1);
   margin-top: calc(var(--spacing-lg) * -1);
   border-bottom: var(--bw) solid var(--line);
   /* 布告栏的信纸底：横格线叠在暖色渐变之上（装饰层，不影响文字对比度） */
@@ -248,7 +252,7 @@
   height: 28px;
   border-radius: 50%;
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 
 .hot-words .lab svg {
@@ -782,7 +786,7 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.6;
@@ -954,7 +958,7 @@
 
 .rank-item:nth-child(1) .rank-item__no {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
   box-shadow: 0 2px 0 rgba(138, 90, 0, 0.35);
 }
 

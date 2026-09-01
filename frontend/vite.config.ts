@@ -99,7 +99,17 @@ export default defineConfig({
   build: {
     target: 'es2022',
     modulePreload: { polyfill: false },
-    cssCodeSplit: true
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        // Element Plus（含按需样式入口）聚合为单一稳定 vendor chunk：
+        // 此前 EP 样式随首用页面拆散成多个 css-*.js 小分块，任何页面改动
+        // 都会让它们的缓存集体失效；聚合后业务迭代不再动摇 EP 的缓存命中
+        manualChunks(id) {
+          if (id.includes('node_modules/element-plus') || id.includes('node_modules/@element-plus')) return 'element-plus'
+        }
+      }
+    }
   },
   server: {
     host: process.env.VITE_HOST ?? '127.0.0.1',

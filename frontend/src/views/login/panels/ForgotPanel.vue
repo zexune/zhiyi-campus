@@ -3,19 +3,19 @@
     <h2>找回密码</h2>
     <p class="sub">回答密保问题，重置你的密码</p>
 
-    <div class="steps" aria-label="找回密码步骤">
-      <span class="step" :class="stepClass(1)">
-        <span class="step__no">{{ step > 1 ? '✓' : '1' }}</span>
+    <div class="auth-steps" aria-label="找回密码步骤">
+      <span class="auth-step" :class="stepClass(1)">
+        <span class="auth-step__no">{{ step > 1 ? '✓' : '1' }}</span>
         确认账号
       </span>
-      <span class="step-line"></span>
-      <span class="step" :class="stepClass(2)">
-        <span class="step__no">{{ step > 2 ? '✓' : '2' }}</span>
+      <span class="auth-step__line"></span>
+      <span class="auth-step" :class="stepClass(2)">
+        <span class="auth-step__no">{{ step > 2 ? '✓' : '2' }}</span>
         答密保
       </span>
-      <span class="step-line"></span>
-      <span class="step" :class="stepClass(3)">
-        <span class="step__no">3</span>
+      <span class="auth-step__line"></span>
+      <span class="auth-step" :class="stepClass(3)">
+        <span class="auth-step__no">3</span>
         设新密码
       </span>
     </div>
@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { getSecurityQuestion, resetPassword } from '@/api/auth'
 import { readSavedSchoolId, rememberSchoolId, useSchoolOptions } from '@/composables/useSchoolOptions'
@@ -140,7 +141,7 @@ const step3Rules = {
 }
 
 function stepClass(n: number) {
-  return { done: step.value > n, current: step.value === n }
+  return { 'auth-step--done': step.value > n, 'auth-step--current': step.value === n }
 }
 
 async function handleFetchQuestion() {

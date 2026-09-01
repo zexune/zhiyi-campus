@@ -2,11 +2,11 @@
   <Teleport to="body">
     <Transition name="seller-dialog">
       <div v-if="visible" class="seller-dialog__overlay" role="presentation" @click.self="emit('close')">
-        <section ref="dialogSheet" class="seller-dialog__sheet" role="dialog" aria-modal="true" aria-labelledby="seller-dialog-title" :aria-busy="loading">
+        <section :ref="sellerModal.bindSheet" class="seller-dialog__sheet" role="dialog" aria-modal="true" aria-labelledby="seller-dialog-title" :aria-busy="loading">
           <span class="seller-dialog__tape" aria-hidden="true"></span>
           <span class="seller-dialog__file-tag" aria-hidden="true">SELLER FILE</span>
 
-          <button ref="closeButton" class="seller-dialog__close" type="button" aria-label="关闭卖家详情" @click="emit('close')">×</button>
+          <button :ref="sellerModal.bindInitialFocus" class="seller-dialog__close" type="button" aria-label="关闭卖家详情" @click="emit('close')">×</button>
 
           <header class="seller-dialog__header">
             <UserAvatar :nickname="seller?.nickname || '同学'" :user-id="seller?.id || 0" size="l" :src="seller?.avatar || null" />
@@ -63,11 +63,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { PropType } from 'vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import ReputationRadar from '@/components/common/ReputationRadar.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
+import { useModalA11y } from '@/composables/useModalA11y'
 import type { ReputationVo } from '@/utils/reputation'
 
 /** getSellerDetail 响应中本对话框实际渲染的字段（宽松契约：全部可缺省） */
@@ -100,11 +101,10 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'retry'): void
 }>()
-const closeButton = ref<HTMLElement | null>(null)
-const dialogSheet = ref<HTMLElement | null>(null)
-let previousBodyOverflow = ''
-// 打开弹窗前记录焦点元素，关闭时归还焦点（activeElement 契约为 Element，此处按 HTMLElement 使用）
-let previouslyFocusedElement: HTMLElement | null = null
+
+/** 弹窗焦点管理三件套（Esc / Tab 循环 / 焦点归还 + 背景滚动锁定）的共用实现 */
+const visibleRef = computed(() => props.visible)
+const sellerModal = useModalA11y(visibleRef, () => emit('close'))
 
 const detailFields = computed(() => [
   { label: '昵称', value: props.seller?.nickname },
@@ -115,50 +115,6 @@ const detailFields = computed(() => [
   { label: '年级', value: props.seller?.grade },
   { label: '宿舍楼', value: props.seller?.dormitory }
 ])
-
-function handleKeydown(event: KeyboardEvent) {
-  if (props.visible && event.key === 'Escape') {
-    emit('close')
-    return
-  }
-  if (props.visible && event.key === 'Tab') {
-    const focusable = [...(dialogSheet.value?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])') || [])]
-    if (!focusable.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
-}
-
-watch(
-  () => props.visible,
-  async (visible) => {
-    if (visible) {
-      previouslyFocusedElement = document.activeElement as HTMLElement | null
-      previousBodyOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
-      await nextTick()
-      closeButton.value?.focus()
-    } else {
-      document.body.style.overflow = previousBodyOverflow
-      previouslyFocusedElement?.focus?.()
-      previouslyFocusedElement = null
-    }
-  }
-)
-
-onMounted(() => window.addEventListener('keydown', handleKeydown))
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  document.body.style.overflow = previousBodyOverflow
-})
 </script>
 
 <style scoped>

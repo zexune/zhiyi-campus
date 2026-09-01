@@ -125,6 +125,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import { getWalletBalance, rechargeWallet, getWalletLogs } from '@/api/wallet'
 import { usePagedList } from '@/composables/usePagedList'

@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
-# 单容器开发环境：一台装齐 JDK 25 / Maven 3.9.16 / Node 24.17.0 / MySQL 9.7 的"开发机"。
+# 单容器开发环境：一台装齐 JDK 25 / Maven 3.9.16 / Node 24.20.0 / MySQL 9.7 的"开发机"。
 
 FROM ubuntu:24.04
 
 ARG MAVEN_VERSION=3.9.16
-ARG NODE_VERSION=24.17.0
+ARG NODE_VERSION=24.20.0
 
 ENV DEBIAN_FRONTEND=noninteractive TZ=Asia/Shanghai
 

@@ -38,10 +38,11 @@
           <span class="muted">暂无学校数据</span>
         </div>
 
-        <!-- 编辑弹窗传送到 body，避免 rise 动画形成的局部层叠上下文盖住浮层。 -->
+        <!-- 编辑弹窗传送到 body，避免 rise 动画形成的局部层叠上下文盖住浮层。
+             焦点管理（Esc 关闭 / Tab 循环 / 焦点归还）由 useModalA11y 提供 -->
         <Teleport to="body">
           <div v-if="dialog.visible" class="modal-overlay" @click.self="closeDialog">
-            <div class="modal-card card" role="dialog" aria-modal="true" :aria-label="dialog.isCreate ? '新增学校' : '编辑学校'">
+            <div :ref="schoolModal.bindSheet" class="modal-card card" role="dialog" aria-modal="true" :aria-label="dialog.isCreate ? '新增学校' : '编辑学校'">
               <h3 class="modal-title">{{ dialog.isCreate ? '新增学校' : '编辑学校' }}</h3>
 
               <div class="field">
@@ -108,10 +109,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
 import type { School } from '@/types/models'
+import { useModalA11y } from '@/composables/useModalA11y'
 
 interface SchoolFormState {
   id: number | null
@@ -174,6 +177,15 @@ function closeDialog() {
   dialog.visible = false
   editingId.value = null
 }
+
+// 编辑弹窗的焦点管理（Esc 关闭 / Tab 循环 / 焦点归还）
+const schoolDialogVisible = computed({
+  get: () => dialog.visible,
+  set: (value: boolean) => {
+    dialog.visible = value
+  }
+})
+const schoolModal = useModalA11y(schoolDialogVisible, closeDialog)
 
 const SCHOOL_STATUS_LABELS: Record<string, string> = { ACTIVE: '启用', DISABLED: '停用', DELETED: '已删除' }
 

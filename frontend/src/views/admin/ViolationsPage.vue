@@ -14,12 +14,13 @@
         </button>
       </header>
 
-      <div class="workspace-tabs" role="tablist">
-        <button class="workspace-tab" :class="{ active: workspace === 'reviews' }" @click="switchWorkspace('reviews')">
+      <!-- 切换按钮组：无方向键导航，不冒充 tablist（读屏会播报"0 个选项卡"） -->
+      <div class="workspace-tabs" role="group" aria-label="治理工作区">
+        <button class="workspace-tab" :class="{ active: workspace === 'reviews' }" :aria-pressed="workspace === 'reviews'" @click="switchWorkspace('reviews')">
           内容审核
           <span v-if="pendingReviewCount" class="count">{{ pendingReviewCount }}</span>
         </button>
-        <button class="workspace-tab" :class="{ active: workspace === 'appeals' }" @click="switchWorkspace('appeals')">
+        <button class="workspace-tab" :class="{ active: workspace === 'appeals' }" :aria-pressed="workspace === 'appeals'" @click="switchWorkspace('appeals')">
           申诉复核
           <span v-if="pendingAppealCount" class="count">{{ pendingAppealCount }}</span>
         </button>
@@ -185,6 +186,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { approveAppeal, confirmViolation, dismissViolation, getAppeals, getViolations, rejectAppeal } from '@/api/admin'
 import { APPEAL_STATUS, VIOLATION_STATUS } from '@/constants/domain'
@@ -529,7 +531,7 @@ onMounted(async () => {
 }
 .content-box {
   border: var(--bw) dashed var(--line-strong);
-  background: #faf7f0;
+  background: var(--paper);
 }
 .content-box__label {
   margin-bottom: 5px;
@@ -544,7 +546,7 @@ onMounted(async () => {
 .reason-box {
   margin-top: 10px;
   border-left: 4px solid var(--primary);
-  background: #fff1e9;
+  background: var(--primary-bg);
 }
 .reason-box p {
   margin: 5px 0 9px;
@@ -569,11 +571,11 @@ onMounted(async () => {
   margin-top: 16px;
 }
 .appeal-compare > div:first-child {
-  background: #fff1e9;
+  background: var(--primary-bg);
   border-left: 4px solid var(--primary);
 }
 .appeal-compare > div:last-child {
-  background: #eef8f1;
+  background: var(--green-bg);
   border-left: 4px solid var(--green);
 }
 .appeal-compare p {
@@ -604,14 +606,14 @@ onMounted(async () => {
   font-size: 13px;
 }
 .warning-panel {
-  border-color: #c88719;
-  background: #fff4ce;
-  color: #6a4700;
+  border-color: var(--yellow-deep);
+  background: var(--yellow-bg);
+  color: var(--yellow-ink);
 }
 .success-panel {
   border-color: var(--green);
-  background: #e4f6ea;
-  color: #1d6b42;
+  background: var(--green-bg);
+  color: var(--green-deep);
 }
 .empty-card {
   padding: 54px 24px;

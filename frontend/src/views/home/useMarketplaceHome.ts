@@ -2,7 +2,7 @@ import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking, toggleFavorite } from '@/api/item'
+import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking } from '@/api/item'
 import type { ItemFeedQuery } from '@/api/item'
 import type { Category, EventTopic, Item, TagCloudGroup } from '@/types/models'
 import { ITEM_TYPE_OPTIONS } from '@/constants/domain'
@@ -12,7 +12,7 @@ import { itemTypeLabel } from '@/utils/trade'
 import { ROUTE_PATH } from '@/constants/routes'
 import { placeholderClass } from '@/utils/format'
 import { useLatestWins } from '@/composables/useLatestWins'
-import { useEntityMutex } from '@/composables/useEntityMutex'
+import { useFavorite } from '@/composables/useFavorite'
 
 const PAGE_SIZE = 12
 
@@ -173,7 +173,8 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   const loadingMore = ref(false)
   const hasMore = ref(false)
   const estimatedTotal = ref(0)
-  const favoriteMutex = useEntityMutex<number>()
+  /** 收藏共用实现（per-entity 互斥 + 提示），视图刷新策略留在本 composable */
+  const { busyIds: favoriteBusyIds, toggle: toggleFavorite } = useFavorite()
   const activeTopic = ref<TopicBanner | null>(CAMPUS_TOPICS.find(isTopicActive) || null)
   const allTags = ref<TagCloudGroup[]>([])
   const activeTags = ref<string[]>([])
@@ -418,15 +419,11 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   async function handleFavorite(item: Item): Promise<void> {
-    // per-entity 互斥（F10）：同一商品防重复点击，不同商品互不阻塞
-    if (!favoriteMutex.tryLock(item.id)) return
-    try {
-      const response = await toggleFavorite(item.id)
-      item.favoriteByCurrentUser = response.data.favorite
-      item.favoriteCount = response.data.favoriteCount
-      ElMessage.success(response.data.favorite ? '已收藏' : '已取消收藏')
-    } finally {
-      favoriteMutex.unlock(item.id)
+    // per-entity 互斥（F10）在 useFavorite 内；这里只消费结果做就地更新
+    const result = await toggleFavorite(item.id)
+    if (result) {
+      item.favoriteByCurrentUser = result.favorite
+      item.favoriteCount = result.favoriteCount
     }
     // 并发结束后合并一次 latest-wins 刷新榜单，不与列表请求竞争
     await fetchRanking()
@@ -463,7 +460,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
     applyTopic,
     categories,
     clearKeyword,
-    favoriteBusyIds: favoriteMutex.lockedIds,
+    favoriteBusyIds,
     fetchItems,
     filterByTag,
     filters,

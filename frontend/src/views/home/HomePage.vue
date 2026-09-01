@@ -55,8 +55,9 @@
           </form>
 
           <div class="hot-words rise rise-3">
-            <span class="lab" title="热门搜索" aria-label="热门搜索">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <span class="lab" title="热门搜索">
+              <span class="visually-hidden">热门搜索：</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-5 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.5-2.9 1.5-4 .3 1.5 1 2.5 2 2.5Z" />
               </svg>
             </span>
@@ -82,12 +83,12 @@
         </button>
       </section>
 
-      <div class="cat-row" role="tablist" aria-label="商品大类筛选">
-        <button class="cat-chip" :class="{ active: !filters.categoryId }" @click="selectCategory('')">
+      <div class="cat-row" role="group" aria-label="商品大类筛选">
+        <button class="cat-chip" :class="{ active: !filters.categoryId }" :aria-pressed="!filters.categoryId" @click="selectCategory('')">
           <CategoryIcon name="全部" />
           全部
         </button>
-        <button v-for="category in categories" :key="category.id" class="cat-chip" :class="{ active: filters.categoryId === category.id }" @click="selectCategory(category.id)">
+        <button v-for="category in categories" :key="category.id" class="cat-chip" :class="{ active: filters.categoryId === category.id }" :aria-pressed="filters.categoryId === category.id" @click="selectCategory(category.id)">
           <CategoryIcon :name="category.name" />
           {{ category.name }}
         </button>
@@ -146,26 +147,35 @@
       </section>
 
       <div class="hall">
-        <!-- section+名称 形成命名 region：保留读屏"商品列表"跳转锚点，且不与布局层 main landmark 重复 -->
-        <section aria-label="商品列表">
+        <!-- section+命名 region：保留读屏"商品列表"跳转锚点，且不与布局层 main landmark 重复；
+             隐藏 h2 由标题命名（aria-labelledby），同时补上专题横幅不在场时的文档大纲层级
+             （否则首屏直达为 h1 → h3，卡片标题会越级） -->
+        <section aria-labelledby="goods-list-title">
+          <h2 id="goods-list-title" class="visually-hidden">商品列表</h2>
           <div class="sort-row">
-            <div class="sort-tabs" role="tablist" aria-label="排序方式">
-              <button :class="{ active: filters.sort === 'random' }" @click="filters.sort = 'random'">智能推荐</button>
-              <button :class="{ active: filters.sort === 'latest' }" @click="filters.sort = 'latest'">最新发布</button>
-              <button :class="{ active: filters.sort === 'priceAsc' }" @click="filters.sort = 'priceAsc'">价格 ↑</button>
-              <button :class="{ active: filters.sort === 'priceDesc' }" @click="filters.sort = 'priceDesc'">价格 ↓</button>
+            <!-- 切换按钮组（无方向键导航，不冒充 tablist——那会让读屏播报"0 个选项卡"且承诺未实现的键盘模式） -->
+            <div class="sort-tabs" role="group" aria-label="排序方式">
+              <button :class="{ active: filters.sort === 'random' }" :aria-pressed="filters.sort === 'random'" @click="filters.sort = 'random'">智能推荐</button>
+              <button :class="{ active: filters.sort === 'latest' }" :aria-pressed="filters.sort === 'latest'" @click="filters.sort = 'latest'">最新发布</button>
+              <button :class="{ active: filters.sort === 'priceAsc' }" :aria-pressed="filters.sort === 'priceAsc'" @click="filters.sort = 'priceAsc'">价格 ↑</button>
+              <button :class="{ active: filters.sort === 'priceDesc' }" :aria-pressed="filters.sort === 'priceDesc'" @click="filters.sort = 'priceDesc'">价格 ↓</button>
             </div>
             <span class="muted goods-total">
               <strong>{{ estimatedTotal }}</strong>
               件在售
-              <span title="首屏估算值，非精确计数">（约）</span>
+              <span title="首屏估算值，非精确计数">（约<span class="visually-hidden">首屏估算值，非精确计数</span>）</span>
             </span>
           </div>
 
-          <el-skeleton v-if="loading && !items.length" :rows="8" animated />
+          <PageSkeleton v-if="loading && !items.length" variant="goods" />
 
           <div v-else-if="items.length" class="goods-grid">
-            <article v-for="(item, index) in items" :key="item.id" class="goods-card rise" @click="goDetail(item.id)">
+            <router-link
+              v-for="(item, index) in items"
+              :key="item.id"
+              :to="ROUTE_PATH.item(item.id)"
+              class="goods-card rise"
+            >
               <!-- 图钉：纸条被钉在布告栏上的视觉锚点（纯装饰） -->
               <i class="pushpin" :class="pushpinTone(item.type)" aria-hidden="true"></i>
               <div class="goods-card__img" :class="placeholderClass(item.id)">
@@ -175,7 +185,7 @@
                 </span>
               </div>
               <div class="goods-card__body">
-                <h2 class="goods-card__title">{{ item.title }}</h2>
+                <h3 class="goods-card__title">{{ item.title }}</h3>
                 <TagList :tags="item.tags" :limit="3" @select="searchByTag" />
                 <div class="goods-card__relations">
                   <span v-if="item.dormitoryRelation === 'SAME_BUILDING'" class="neighbor-badge">
@@ -206,7 +216,7 @@
                     :class="{ active: item.favoriteByCurrentUser }"
                     :disabled="favoriteBusyIds.has(item.id)"
                     :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
-                    @click.stop="handleFavorite(item)"
+                    @click.stop.prevent="handleFavorite(item)"
                   >
                     <svg class="heart-icon" viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
                       <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
@@ -223,7 +233,7 @@
                   <span class="muted">浏览 {{ item.viewCount || 0 }}</span>
                 </div>
               </div>
-            </article>
+            </router-link>
           </div>
 
           <div v-else class="empty-state">
@@ -307,6 +317,7 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import CategoryIcon from '@/components/common/CategoryIcon.vue'
 import ItemPrice from '@/components/common/ItemPrice.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
+import PageSkeleton from '@/components/common/PageSkeleton.vue'
 import TagList from '@/components/common/TagList.vue'
 import { typeBadgeClass } from '@/utils/trade'
 import { ITEM_TYPE, type ItemType } from '@/constants/domain'

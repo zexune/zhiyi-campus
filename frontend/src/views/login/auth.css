@@ -161,14 +161,16 @@
   text-underline-offset: 3px;
 }
 
-/* 步骤条（注册两步 / 找回密码三步共用） */
-.steps {
+/* 步骤条（注册两步 / 找回密码三步共用）。
+   本文件非 scoped，类名一律带 auth- 前缀：裸的 .steps/.step/.done 会命中
+   任何其他页面的同名元素（scoped 样式挡不住全局规则） */
+.auth-steps {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 22px;
 }
-.step {
+.auth-step {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -176,7 +178,7 @@
   font-weight: 700;
   color: var(--ink-soft);
 }
-.step__no {
+.auth-step__no {
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -186,18 +188,18 @@
   font-size: 13px;
   background: var(--white);
 }
-.step.done .step__no {
+.auth-step--done .auth-step__no {
   background: var(--green);
   color: #fff;
 }
-.step.current {
+.auth-step--current {
   color: var(--ink);
 }
-.step.current .step__no {
+.auth-step--current .auth-step__no {
   background: var(--primary-bg);
   box-shadow: var(--shadow-s);
 }
-.step-line {
+.auth-step__line {
   flex: 1;
   height: 2px;
   background: var(--line-strong);

@@ -1,7 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { nextTick } from 'vue'
+import { createRouter, createWebHistory, START_LOCATION } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { getRole, isLoggedIn } from '@/utils/auth'
 import { ROUTE_NAME, ROUTE_PATH } from '@/constants/routes'
+import { announceRoute } from '@/utils/routeAnnouncer'
 
 /**
  * 路由表 —— 统一在此注册所有页面
@@ -39,6 +42,9 @@ const routes: RouteRecordRaw[] = [
     path: '/item/:id',
     name: ROUTE_NAME.ITEM_DETAIL,
     component: () => import('@/views/item/ItemDetailPage.vue'),
+    // 免登录可读需后端配合：详情/榜单接口强依赖登录态（@RequestAttribute userId +
+    // SchoolScopeGuard 跨校隔离），仅放开前端路由会让分享链接得到 401 + 登录跳转，
+    // 体验更差。待后端定义匿名访客的跨校策略后再两端同步放开。
     meta: { title: '商品详情', requireAuth: true }
   },
   {
@@ -135,7 +141,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: ROUTE_PATH.ADMIN_CHAT,
     name: ROUTE_NAME.ADMIN_CHAT,
-    component: () => import('@/views/admin/ChatPage.vue'),
+    component: () => import('@/views/admin/AdminChatInboxPage.vue'),
     meta: { title: '客服收件箱', requireAuth: true, requireAdmin: true }
   },
   {
@@ -175,7 +181,12 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior: () => ({ top: 0 })
+  // 返回/前进恢复原滚动位置（从详情返回大厅不再被拉回顶部）；
+  // 仅 query 变化的同路径导航（如聊天切会话）不滚动，交给页面自管
+  scrollBehavior(to, from, savedPosition) {
+    if (!savedPosition && to.path === from.path) return false
+    return savedPosition ?? { top: 0 }
+  }
 })
 
 declare module 'vue-router' {
@@ -267,10 +278,25 @@ router.onError((error, to) => {
 })
 
 /** 导航成功后复位该目标的重放预算，后续再次进入仍可享受完整兜底 */
-router.afterEach((to) => {
+router.afterEach((to, from) => {
   chunkReplayCounts.delete(to.fullPath)
   // 成功到达即清除整页直达预算（正常导航到此页不再受限）
   if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === to.fullPath) sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+
+  // 路由切换反馈三件套（仅真实换页；同路径 query 变化不重复播报/移焦点）：
+  // 1) live region 播报新页面标题；2) 焦点移到 <main>（tabindex=-1），
+  //    读屏与键盘用户不必再从全局导航 Tab 穿一遍。
+  // 焦点必须包在 nextTick 里：afterEach 触发时 router-view 的响应式 DOM 更新
+  // 尚未 flush，同步 focus 会落在即将卸载的旧页 <main> 上，下一 tick 元素被移除、
+  // 焦点丢失回 body。首屏直达（from === START_LOCATION）不打断初始焦点——
+  // 直接比较起始路由对象，避免"首次点击导航不移动焦点"的累加状态缺陷
+  // （首屏打开 / 时初始导航 to.path === from.path，若用布尔标记会漏掉下一次导航）
+  if (to.path !== from.path) {
+    if (to.meta.title) announceRoute(`${to.meta.title}，已加载`)
+    if (from !== START_LOCATION) {
+      nextTick(() => document.querySelector<HTMLElement>('main')?.focus())
+    }
+  }
 })
 
 export default router

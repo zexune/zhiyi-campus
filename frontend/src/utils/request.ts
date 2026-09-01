@@ -1,4 +1,5 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
+import { ElMessage } from 'element-plus'
 import { clearAuth, getAuthEpoch, getRole } from '@/utils/auth'
 
 /**
@@ -218,6 +219,19 @@ export function resetAuthRedirect(): void {
   authRedirecting = false
 }
 
+/* —— 错误 toast 去重：首屏并发请求遇网络抖动会同时弹多条相同文案叠满小屏。
+   同一文案在窗口期内只弹一次，不同文案互不影响 —— */
+const TOAST_DEDUPE_MS = 2000
+const recentErrorToasts = new Map<string, number>()
+
+function notifyError(message: string): void {
+  const now = Date.now()
+  const lastShownAt = recentErrorToasts.get(message) ?? 0
+  if (now - lastShownAt < TOAST_DEDUPE_MS) return
+  recentErrorToasts.set(message, now)
+  ElMessage.error(message)
+}
+
 interface InterceptorErrorPayload {
   response?: {
     status?: number
@@ -240,11 +254,11 @@ instance.interceptors.response.use(
     // 登录态失效信号（P0-1）——只有真实 HTTP 401 才清理登录态。
     const failure = classifyFailureEnvelope(res)
     if (failure !== null) {
-      ElMessage.error(failure.message)
+      notifyError(failure.message)
       return Promise.reject(new ApiError(failure.message, failure.code, response.status, dispositionOfFailure(failure), failure.data))
     }
     // 残缺/非信封 2xx：协议违约，按传输层保守失败处理
-    ElMessage.error('服务器响应格式异常')
+    notifyError('服务器响应格式异常')
     return Promise.reject(new ApiError('Invalid API response envelope', -1, response.status, 'RETAIN'))
   },
   (error: InterceptorErrorPayload) => {
@@ -256,6 +270,7 @@ instance.interceptors.response.use(
     // P0-1：会话失效的唯一依据是真实 HTTP 401（后端拦截器直写并已清除 Cookie）。
     // 登录态清理与幂等处置相互独立：残缺信封的 401 仍清理登录态，但幂等键 RETAIN。
     if (httpStatus === 401) {
+      // 401 的提示由 handleUnauthorized 单飞处理（每个鉴权周期至多一条），不重复走去重通道
       handleUnauthorized(failure?.message || '登录已失效，请重新登录', error.config, isAuthRedirectSkipped(error.config))
       return Promise.reject(new ApiError(failure?.message || '登录已失效', failure?.code ?? 401, 401, disposition, failure?.data))
     }
@@ -263,13 +278,13 @@ instance.interceptors.response.use(
       // 完整信封：code/message/detail 可信；Retry-After 只从标准响应头解析
       const retryAfterHeader = (error as AxiosError).response?.headers?.['retry-after']
       const retryAfterSeconds = typeof retryAfterHeader === 'string' && retryAfterHeader.trim() !== '' && Number.isFinite(Number(retryAfterHeader)) ? Number(retryAfterHeader) : undefined
-      ElMessage.error(backoffHint(failure.message, retryAfterSeconds))
+      notifyError(backoffHint(failure.message, retryAfterSeconds))
       return Promise.reject(new ApiError(failure.message, failure.code, httpStatus, disposition, failure.data, retryAfterSeconds))
     }
     // 残缺失败形态（缺 code/message/data、非 JSON、代理 HTML）：不信任 body
     // 中的业务码、message、detail，按传输层错误保守处理（结果不明，RETAIN）
     const message = isTimeout ? '请求超时，请稍后重试' : '网络错误，请稍后再试'
-    ElMessage.error(message)
+    notifyError(message)
     return Promise.reject(new ApiError(message, -1, httpStatus, 'RETAIN'))
   }
 )

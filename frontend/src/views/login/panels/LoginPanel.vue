@@ -54,6 +54,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { login } from '@/api/auth'
 import { rememberSchoolId, useSchoolOptions } from '@/composables/useSchoolOptions'

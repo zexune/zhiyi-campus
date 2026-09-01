@@ -1,7 +1,10 @@
 <template>
-  <div v-if="visibleTags.length" class="tag-list" :class="{ 'tag-list--compact': compact }" aria-label="商品标签">
-    <button v-for="tag in visibleTags" :key="tag" type="button" class="tag-list__item" :title="`搜索标签：${tag}`" @click.stop="emit('select', tag)">#{{ tag }}</button>
-  </div>
+  <ul v-if="visibleTags.length" class="tag-list" :class="{ 'tag-list--compact': compact }" aria-label="商品标签">
+    <li v-for="tag in visibleTags" :key="tag" class="tag-list__entry">
+      <!-- stop+prevent：标签按钮常嵌在 router-link 卡片内，仅 stop 挡不住浏览器对祖先锚点的默认导航 -->
+      <button type="button" class="tag-list__item" :title="`搜索标签：${tag}`" @click.stop.prevent="emit('select', tag)">#{{ tag }}</button>
+    </li>
+  </ul>
 </template>
 
 <script setup lang="ts">
@@ -21,12 +24,18 @@ const visibleTags = computed(() => {
 </script>
 
 <style scoped>
+/* ul/li：读屏按列表播报条目数；此前是无角色 div，aria-label 会被直接丢弃 */
 .tag-list {
   min-width: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 5px;
+}
+.tag-list__entry {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
 }
 .tag-list__item {
   max-width: 100%;
@@ -48,10 +57,9 @@ const visibleTags = computed(() => {
     border-color 0.15s,
     color 0.15s;
 }
+/* 不覆盖全局焦点环：1px 边框变色不足以标识焦点位置（WCAG 2.4.7） */
 .tag-list__item:hover,
 .tag-list__item:focus-visible {
-  outline: none;
-  border-style: solid;
   border-color: var(--ink);
   background: var(--yellow);
   color: var(--ink);

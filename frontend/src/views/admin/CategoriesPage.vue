@@ -53,6 +53,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { createCategory, deleteCategory, getAdminCategories, updateCategory } from '@/api/admin'
 import type { Category } from '@/types/models'

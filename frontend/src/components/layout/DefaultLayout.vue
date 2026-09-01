@@ -1,5 +1,10 @@
 <template>
   <div class="layout">
+    <!-- 键盘用户跳过导航直达主内容（:focus 时才展开，WCAG 2.4.1）。
+         click.prevent + 手动 focus：直接激活 href="#main-content" 会向 history
+         插入一条 hash 记录，返回键只移除 hash 而页面不动，表现为"返回失灵"；
+         href 保留作为无 JS/降级锚点 -->
+    <a href="#main-content" class="skip-link" @click.prevent="skipToMain">跳到主内容</a>
     <!-- 顶部导航栏（demo 设计：布告栏 topbar） -->
     <header class="topbar">
       <div class="topbar__inner">
@@ -55,7 +60,7 @@
             </router-link>
             <el-dropdown trigger="click" popper-class="app-dropdown">
               <span class="user-entry">
-                <UserAvatar :nickname="nickname" :user-id="userId" size="s" :src="avatar" />
+                <UserAvatar :nickname="nickname" :user-id="userId" size="s" :src="avatar" eager />
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -174,8 +179,8 @@
       </nav>
     </header>
 
-    <!-- 页面内容 -->
-    <main class="layout-main">
+    <!-- 页面内容：tabindex=-1 供路由切换后接收焦点（不会进入 Tab 序） -->
+    <main id="main-content" ref="mainRef" class="layout-main" tabindex="-1">
       <slot />
     </main>
 
@@ -213,7 +218,12 @@ const avatar = computed(() => userStore.user?.avatar || null)
 
 const unreadCount = ref(0)
 const mobileNavOpen = ref(false)
+const mainRef = ref<HTMLElement | null>(null)
 let unreadRefreshTimer: number | undefined
+
+function skipToMain(): void {
+  mainRef.value?.focus()
+}
 
 function isActive(prefix: string) {
   if (prefix === '/') return route.path === '/'
@@ -308,6 +318,31 @@ onUnmounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* 跳转链接：平时不占视觉，获得键盘焦点时展开成首个 Tab 停留点 */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: var(--z-skip);
+  padding: 8px 14px;
+  border-radius: var(--r-s);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.layout-main:focus {
+  outline: none;
 }
 
 .layout-main {

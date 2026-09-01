@@ -3,14 +3,14 @@
     <h2>创建账号</h2>
     <p class="sub">仅限本校学生，学号即账号</p>
 
-    <div class="steps" aria-label="注册步骤">
-      <span class="step" :class="stepClass(1)">
-        <span class="step__no">{{ step > 1 ? '✓' : '1' }}</span>
+    <div class="auth-steps" aria-label="注册步骤">
+      <span class="auth-step" :class="stepClass(1)">
+        <span class="auth-step__no">{{ step > 1 ? '✓' : '1' }}</span>
         账号信息
       </span>
-      <span class="step-line"></span>
-      <span class="step" :class="stepClass(2)">
-        <span class="step__no">2</span>
+      <span class="auth-step__line"></span>
+      <span class="auth-step" :class="stepClass(2)">
+        <span class="auth-step__no">2</span>
         密保设置
       </span>
     </div>
@@ -114,6 +114,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { getSecurityQuestions, register } from '@/api/auth'
 import { readSavedSchoolId, rememberSchoolId, useSchoolOptions } from '@/composables/useSchoolOptions'
@@ -212,7 +213,7 @@ function randomQuestion() {
 }
 
 function stepClass(n: number) {
-  return { done: step.value > n, current: step.value === n }
+  return { 'auth-step--done': step.value > n, 'auth-step--current': step.value === n }
 }
 
 async function handleNext() {

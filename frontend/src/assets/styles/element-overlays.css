@@ -183,7 +183,7 @@ html:has(> body.el-message-box-parent--hidden) {
 
 .el-message-box__status.el-message-box-icon--warning {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 
 .el-message-box__status.el-message-box-icon--error {
@@ -215,6 +215,9 @@ html:has(> body.el-message-box-parent--hidden) {
   font-size: 14px;
   font-weight: 400;
   line-height: 1.7;
+  /* 调用方用 \n 分段的确认文案（下单确认等）按换行呈现：
+     pre-line 保留显式换行、折叠多余连续空格 */
+  white-space: pre-line;
 }
 
 .el-message-box__btns {
@@ -552,7 +555,7 @@ html:has(> body.el-message-box-parent--hidden) {
 .app-date-picker .el-date-picker__header-label:hover,
 .app-date-picker .el-date-picker__header-label.active {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 
 .app-date-picker .el-picker-panel__icon-btn {

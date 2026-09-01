@@ -1,5 +1,7 @@
 <template>
   <div class="admin-shell">
+    <!-- click.prevent + 手动 focus：避免 href hash 进入 history（返回键失灵）；href 保留作降级锚点 -->
+    <a href="#admin-main-content" class="skip-link" @click.prevent="skipToMain">跳到主内容</a>
     <header class="admin-header">
       <div class="admin-header__inner">
         <router-link class="admin-brand" :to="ROUTE_PATH.ADMIN_DASHBOARD" aria-label="智易校园管理后台">
@@ -10,7 +12,8 @@
           </span>
         </router-link>
 
-        <nav class="admin-nav" aria-label="管理后台导航">
+        <!-- 横向可滚动的导航容器：tabindex 让纯键盘用户也能滚动查看右侧导航项（WCAG 2.1.1）；nav 地标已有 aria-label 命名 -->
+        <nav class="admin-nav" aria-label="管理后台导航" tabindex="0">
           <router-link :to="ROUTE_PATH.ADMIN_DASHBOARD">
             <svg class="an-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="7" height="9" rx="1.5" />
@@ -75,7 +78,7 @@
       </div>
     </header>
 
-    <main class="admin-main"><slot /></main>
+    <main id="admin-main-content" ref="mainRef" class="admin-main" tabindex="-1"><slot /></main>
 
     <footer class="admin-footer">智易校园管理后台</footer>
 
@@ -99,6 +102,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getNickname } from '@/utils/auth'
 import { changeAdminPassword } from '@/api/admin'
@@ -106,10 +110,15 @@ import { ROUTE_PATH } from '@/constants/routes'
 
 const router = useRouter()
 const userStore = useUserStore()
+const mainRef = ref<HTMLElement | null>(null)
 const nickname = computed(() => userStore.user?.nickname || getNickname() || '管理员')
 const passwordDialogVisible = ref(false)
 const passwordSaving = ref(false)
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+function skipToMain(): void {
+  mainRef.value?.focus()
+}
 
 /** 登出：必须等本地登录态清理完成后再导航，否则守卫仍视为已登录会把 /admin/login 弹回仪表盘 */
 async function logout() {
@@ -147,21 +156,56 @@ async function changePassword() {
 .admin-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-nav);
   border-bottom: var(--bw) solid var(--line);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: var(--ink);
+  /* 与 C 端 topbar 同一标准：iPhone 横屏/iPad 刘海避让（此前缺失会被状态栏裁切） */
+  padding-top: var(--safe-top);
 }
 .admin-header__inner {
   width: min(1440px, 100%);
   min-height: 60px;
   margin: 0 auto;
-  padding: 8px 22px;
+  padding: 8px var(--gutter-right);
+  padding-left: var(--gutter-left);
   display: flex;
   align-items: center;
   gap: 24px;
+}
+
+/* 键盘跳转链接（与 C 端同款） */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: var(--z-skip);
+  padding: 8px 14px;
+  border-radius: var(--r-s);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.admin-main:focus {
+  outline: none;
+}
+
+/* 可滚动导航容器获得键盘焦点时给出可见提示 */
+.admin-nav:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  border-radius: var(--r-s);
 }
 .admin-brand {
   display: inline-flex;

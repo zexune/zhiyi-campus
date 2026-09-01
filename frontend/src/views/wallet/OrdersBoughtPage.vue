@@ -104,6 +104,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import OrderReviewDialog from '@/components/trade/OrderReviewDialog.vue'
 import { getBoughtOrders, confirmReceipt, cancelOrder, reviewOrder } from '@/api/order'

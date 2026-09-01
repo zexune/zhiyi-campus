@@ -16,8 +16,10 @@
           <!-- 图钉：上架登记表被钉在布告栏上（纯装饰） -->
           <i class="pushpin" aria-hidden="true"></i>
           <el-form-item prop="type" class="type-form-item">
-            <div class="type-switch" role="radiogroup" aria-label="发布类型">
-              <button class="type-option" :class="{ selected: form.type === ITEM_TYPE.SELL }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.SELL" @click="setType(ITEM_TYPE.SELL)">
+            <!-- radiogroup 键盘模式：roving tabindex（仅选中项可 Tab 停留）+ 左右方向键切换，
+                 未实现前 4 个按钮全部 tabindex=0 会让键盘用户 Tab 四次穿过一组单选 -->
+            <div class="type-switch" role="radiogroup" aria-label="发布类型" @keydown="onTypeKeydown">
+              <button class="type-option" :class="{ selected: form.type === ITEM_TYPE.SELL }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.SELL" :tabindex="form.type === ITEM_TYPE.SELL ? 0 : -1" @click="setType(ITEM_TYPE.SELL)">
                 <span class="t-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
@@ -35,6 +37,7 @@
                 type="button"
                 role="radio"
                 :aria-checked="form.type === ITEM_TYPE.BUY"
+                :tabindex="form.type === ITEM_TYPE.BUY ? 0 : -1"
                 @click="setType(ITEM_TYPE.BUY)"
               >
                 <span class="t-icon">
@@ -54,6 +57,7 @@
                 type="button"
                 role="radio"
                 :aria-checked="form.type === ITEM_TYPE.SWAP"
+                :tabindex="form.type === ITEM_TYPE.SWAP ? 0 : -1"
                 @click="setType(ITEM_TYPE.SWAP)"
               >
                 <span class="t-icon">
@@ -70,6 +74,7 @@
                 type="button"
                 role="radio"
                 :aria-checked="form.type === ITEM_TYPE.ERRAND"
+                :tabindex="form.type === ITEM_TYPE.ERRAND ? 0 : -1"
                 @click="setType(ITEM_TYPE.ERRAND)"
               >
                 <span class="t-icon">
@@ -242,6 +247,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
@@ -251,6 +257,7 @@ import type { Category, PublishItemPayload } from '@/types/models'
 import { ITEM_TYPE, MODERATION_STATUS } from '@/constants/domain'
 import type { ItemType } from '@/constants/domain'
 import { ROUTE_PATH } from '@/constants/routes'
+import { compressImage } from '@/utils/imageCompress'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -405,6 +412,25 @@ function setType(type: ItemType): void {
   formRef.value?.clearValidate(['price', 'tradeLocation', 'pickupLocation', 'deliveryLocation'])
   formRef.value?.validateField('type')
 }
+
+/** radiogroup 方向键：左右/上下在四种发布类型间移动焦点（roving tabindex 的另一半） */
+const TYPE_ORDER: ItemType[] = [ITEM_TYPE.SELL, ITEM_TYPE.BUY, ITEM_TYPE.SWAP, ITEM_TYPE.ERRAND]
+
+function onTypeKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  if (event.isComposing) return
+  const current = TYPE_ORDER.indexOf(form.type as ItemType)
+  if (current < 0) return
+  event.preventDefault()
+  const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1
+  const next = TYPE_ORDER[(current + step + TYPE_ORDER.length) % TYPE_ORDER.length]
+  setType(next)
+  // 焦点跟随 roving tabindex 的唯一停留点（在事件源容器内查找，避免全局选择器）
+  const group = event.currentTarget as HTMLElement | null
+  void nextTick(() => {
+    group?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')?.focus()
+  })
+}
 function validateImage(file: File): boolean {
   if (!IMAGE_TYPES.includes(file.type)) {
     ElMessage.error('仅支持 jpg、png、webp 图片')
@@ -425,7 +451,9 @@ async function handleFileChange(uploadFile: UploadFile): Promise<void> {
   if (!file || !validateImage(file)) return
   uploading.value = true
   try {
-    const res = await uploadItemImage(file)
+    // 上传前客户端压缩：长边 1600px / 质量 0.85，把手机原图从 MB 级压到数百 KB
+    const payload = await compressImage(file)
+    const res = await uploadItemImage(payload)
     form.images.push(res.data.url)
     formRef.value?.validateField('images')
     ElMessage.success('图片上传成功')
@@ -438,7 +466,8 @@ function removeImage(index: number): void {
   formRef.value?.validateField('images')
 }
 function saveDraft(): void {
-  localStorage.setItem('zhiyi-publish-draft', JSON.stringify({ ...form, images: [] }))
+  // 完整保存（含已上传图片 URL）：图片已在服务端，回填直接可用
+  localStorage.setItem('zhiyi-publish-draft', JSON.stringify({ ...form }))
   ElMessage.success('草稿已保存在本机')
 }
 async function handleSubmit(): Promise<void> {
@@ -448,7 +477,12 @@ async function handleSubmit(): Promise<void> {
   if (!valid) {
     ElMessage.warning('请检查并补全标红的必填项')
     await nextTick()
-    document.querySelector('.pub-card .el-form-item.is-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // 用表单实例的字段列表找首个错误项，交给 EP 的 scrollToField。
+    // 注意版本敏感性：fields 与 validateMessage 都不是 FormInstance 的公开文档契约
+    // （EP 2.x 实测存在），升级大版本时需回归这条路径；比 querySelector('.is-error')
+    // 强在不受 DOM 类名重构影响
+    const firstInvalid = formRef.value.fields.find((field) => field.validateMessage)
+    if (firstInvalid?.prop) formRef.value.scrollToField(String(firstInvalid.prop))
     return
   }
   submitting.value = true
@@ -482,6 +516,20 @@ async function handleSubmit(): Promise<void> {
     submitting.value = false
   }
 }
+/** 发布表单的干净初值：丢弃草稿时整体回滚（与上方 reactive 初始化保持同源语义） */
+const EMPTY_FORM: PublishForm = {
+  type: ITEM_TYPE.SELL,
+  title: '',
+  description: '',
+  categoryId: '',
+  price: 1,
+  images: [],
+  tags: [],
+  tradeLocation: '',
+  pickupLocation: '',
+  deliveryLocation: ''
+}
+
 onMounted(async () => {
   await fetchCategories()
   if (editMode.value) {
@@ -496,6 +544,19 @@ onMounted(async () => {
         // 草稿是本机 JSON，按字段名回填；经 unknown 中转后整体按记录写入
         if (Object.hasOwn(saved, key)) (form as unknown as Record<string, unknown>)[key] = saved[key]
       })
+      // 可放弃的恢复：confirm 是明确的"丢弃"操作；Esc/关闭/继续编辑均保留草稿，
+      // 避免误触把已回填的内容清掉。丢弃后回滚到干净初值并移除本机存储
+      try {
+        await ElMessageBox.confirm(`已恢复上次保存的草稿${Array.isArray(saved.images) && saved.images.length ? '（含图片）' : ''}。`, '已恢复草稿', {
+          confirmButtonText: '丢弃草稿',
+          cancelButtonText: '继续编辑',
+          type: 'info'
+        })
+        localStorage.removeItem('zhiyi-publish-draft')
+        Object.assign(form, { ...EMPTY_FORM, images: [], tags: [] })
+      } catch {
+        // 继续编辑（或关闭弹窗）：保留已回填的草稿
+      }
     } catch {
       localStorage.removeItem('zhiyi-publish-draft')
     }
@@ -609,7 +670,7 @@ onMounted(async () => {
   background: var(--blue);
 }
 .type-option--swap.selected {
-  background: #8b5cf6;
+  background: var(--purple);
 }
 .type-option--errand.selected {
   background: var(--green);
@@ -825,11 +886,6 @@ onMounted(async () => {
 @keyframes submit-spin {
   to {
     transform: rotate(360deg);
-  }
-}
-@media (max-width: 1000px) {
-  .pub-wrap {
-    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 700px) {

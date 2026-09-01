@@ -248,6 +248,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
@@ -575,7 +576,8 @@ onMounted(async () => {
   margin-bottom: 14px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-left: 4px solid var(--yellow-deep, #d4a017);
+  /* 不带 fallback：--yellow-deep 令牌必然存在于 global.css，带错值 fallback 反而会在变量缺失时突变 */
+  border-left: 4px solid var(--yellow-deep);
   border-radius: 8px;
   background: var(--paper-deep);
   font-size: 13px;

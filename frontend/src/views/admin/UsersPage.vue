@@ -46,7 +46,8 @@
       </div>
 
       <!-- 用户列表：语义化表格，列宽由同一张表统一解算，天然跨行对齐 -->
-      <div v-else class="card table-card">
+      <!-- tabindex：窄屏横向滚动容器对键盘可达（“操作”列在最右侧，WCAG 2.1.1） -->
+      <div v-else class="card table-card" tabindex="0" role="region" aria-label="用户列表表格，可左右滚动">
         <table class="user-table">
           <thead>
             <tr>
@@ -94,10 +95,11 @@
 
       <el-pagination v-if="total > pageSize" v-model:current-page="currentPage" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="fetchList" />
 
-      <!-- 封禁弹窗传送到 body，避免 rise 动画形成的局部层叠上下文盖住浮层。 -->
+      <!-- 封禁弹窗传送到 body，避免 rise 动画形成的局部层叠上下文盖住浮层。
+           焦点管理（Esc/Tab 循环/焦点归还）由 useModalA11y 提供 -->
       <Teleport to="body">
-        <div v-if="banDialog.visible" class="modal-overlay" @click.self="closeBanDialog">
-          <div class="modal-card card" role="dialog" aria-modal="true" aria-label="账号封禁">
+          <div v-if="banDialog.visible" class="modal-overlay" @click.self="closeBanDialog">
+            <div :ref="banModal.bindSheet" class="modal-card card" role="dialog" aria-modal="true" aria-label="账号封禁">
             <h3 class="modal-title">封禁用户「{{ banDialog.target?.nickname }}」</h3>
             <div class="form-pair">
               <div class="field">
@@ -126,7 +128,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
@@ -136,13 +139,13 @@ import { BAN_ACTION, USER_STATUS, USER_STATUS_LABELS } from '@/constants/domain'
 import type { UserStatus } from '@/constants/domain'
 import { formatDateTime } from '@/utils/format'
 import { usePagedList } from '@/composables/usePagedList'
+import { useModalA11y } from '@/composables/useModalA11y'
 import { useSchoolOptions } from '@/composables/useSchoolOptions'
 
 const BAN_TYPE_OPTIONS = [
   { label: '限时封禁', value: BAN_ACTION.TEMPORARY },
   { label: '永久封禁', value: BAN_ACTION.PERMANENT }
 ]
-
 /** 表单里的筛选值（'' 表示不筛选；提交前清洗为接口载荷） */
 const filters = reactive({ schoolId: null as number | null, studentId: '', nickname: '', email: '', phone: '' })
 /** 点击「搜索」时固化的筛选快照，分页翻页沿用同一份 */
@@ -249,6 +252,15 @@ function closeBanDialog() {
   banDialog.target = null
 }
 
+// 封禁弹窗的焦点管理（Esc 关闭 / Tab 循环 / 焦点归还）：此前自绘 modal 三件套全缺
+const banVisible = computed({
+  get: () => banDialog.visible,
+  set: (value: boolean) => {
+    banDialog.visible = value
+  }
+})
+const banModal = useModalA11y(banVisible, closeBanDialog)
+
 async function submitBan() {
   const target = banDialog.target
   if (!target) return
@@ -339,6 +351,11 @@ onMounted(() => {
 /* ---- 列表：语义化表格，列宽由同一张表统一解算，天然跨行对齐 ---- */
 .table-card {
   overflow-x: auto;
+}
+/* 键盘滚动区域获得焦点时的可见提示（窄屏下“操作”列需滚动到达） */
+.table-card:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
 }
 .user-table {
   width: 100%;

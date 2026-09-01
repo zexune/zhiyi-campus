@@ -17,7 +17,7 @@
       :placeholder="atMax ? `最多 ${max} 个标签` : placeholder"
       :disabled="atMax"
       :aria-label="`添加标签，最多 ${max} 个`"
-      @keydown.enter.prevent="commitDraft"
+      @keydown.enter="onEnter"
       @keydown.,="commitDraft"
       @keydown.backspace="removeLastOnEmpty"
       @blur="commitDraft"
@@ -35,11 +35,13 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useImeSafeEnter } from '@/composables/useImeSafeEnter'
 
 /**
  * 标签输入组件 —— 发布页与专题配置共用。
  * 支持回车/逗号/失焦提交自定义标签、点击建议一键选用、删除与上限控制。
  * 提交前做 trim 与去重（忽略大小写），超长输入由 maxlength 截断。
+ * 回车走 IME 安全通道：中文输入法组词选字的 Enter 不触发提交。
  */
 const props = withDefaults(
   defineProps<{
@@ -79,6 +81,8 @@ function commitDraft(): void {
   addTag(draft.value)
   draft.value = ''
 }
+
+const { onEnter } = useImeSafeEnter(commitDraft)
 
 function removeTag(tag: string): void {
   emitValue(props.modelValue.filter((t) => t !== tag))

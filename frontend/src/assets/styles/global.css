@@ -79,6 +79,24 @@
   /* 黄族此前只有亮调（--yellow 仅作底色），补 deep/press 两档 */
   --yellow-deep: #e0a925;
   --yellow-press: #d9a016;
+  /* 黄底可读文字（--yellow-bg 之上的深棕，对比 ≥4.5:1）：
+     此前各页面散落 #8a5a00 硬编码，统一收口到这一档 */
+  --yellow-ink: #8a5a00;
+  /* 紫族：换物类型的选中态专用（#8b5cf6 白字仅 3.9:1 不达 AA，
+     基调取深一档的 #7c3aed，白字 4.7:1） */
+  --purple: #7c3aed;
+  --purple-deep: #6d28d9;
+  --purple-press: #5b21b6;
+  /* 奖牌档位：榜单 TOP2/3 的号牌底与奖牌描色（银/铜各两档） */
+  --silver: #dcd6cb;
+  --silver-deep: #b9b1a4;
+  --silver-ink: #777067;
+  --bronze: #f0c9a8;
+  --bronze-deep: #c99b6e;
+  --bronze-ink: #b76b32;
+  /* 金牌描色：装饰图形也按非文本 3:1（WCAG 1.4.11）选档，
+     原 #d99b00 对白底仅 2.43:1，取深金 #b8860b（≈3.25:1） */
+  --gold: #b8860b;
   /* 图钉球面径向渐变的亮调端与暗调端 */
   --green-bright: #22a355;
   --blue-bright: #3f66e8;
@@ -93,6 +111,8 @@
   --z-nav: 50;
   --z-drop: 40;
   --z-modal: 60;
+  --z-progress: 100; /* 路由进度条：压在一切内容层之上 */
+  --z-skip: 200; /* 键盘跳转链接：必须是 DOM 中最顶层的可交互元素 */
 
   /* —— 触控目标（WCAG 2.2 / 用户标准：触屏下最小 44×44） —— */
   --tap-target: 44px;
@@ -274,6 +294,9 @@ ol {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* 无限动画（提交 spinner、骨架 shimmer）在 0.01ms 时长下会以极高频率
+       重绘成抽搐；压成单次迭代后稳定停在其终帧 */
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
   html {
@@ -668,7 +691,7 @@ ol {
 }
 .badge--lv4 {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 .badge--lv5 {
   background: var(--primary);
@@ -688,7 +711,7 @@ ol {
 }
 .badge--errand {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 .badge--ok {
   background: var(--green-bg);
@@ -696,7 +719,7 @@ ol {
 }
 .badge--warn {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 .badge--danger {
   background: var(--red);
@@ -1303,7 +1326,9 @@ ol {
 
 /* ============ 触控目标（菲茨定律 / WCAG 2.2 Target Size） ============ */
 /* 触屏设备（含触屏笔记本）与窄屏下，高频操作目标统一提升至 ≥44×44；
-   桌面鼠标端维持紧凑尺寸，避免 hover 界面被无谓放大。 */
+   桌面鼠标端维持紧凑尺寸，避免 hover 界面被无谓放大。
+   除 .btn/.icon-btn 等基础类外，同时兜底各页面自绘的圆形操作钮与小 chip——
+   类名虽定义在页面文件里，元素本身仍匹配这里的全局选择器（scoped 只约束页面自身规则）。 */
 @media (pointer: coarse), (max-width: 768px) {
   .btn,
   .btn--sm,
@@ -1320,6 +1345,35 @@ ol {
   }
   .seg-tabs > * {
     min-height: var(--tap-target);
+  }
+  /* 页面自绘圆形操作钮（收藏/删除图片/移除标签）：min 尺寸撑大命中区，
+     图标视觉尺寸不变（place-items 居中） */
+  .fav-button,
+  .favorite-button,
+  .fav-remove,
+  .tag-input__remove,
+  .del {
+    min-width: var(--tap-target);
+    min-height: var(--tap-target);
+  }
+  /* 删除图片的 .del 定位在缩略图角落，44px 会盖住整张小图，收到 32px 折中 */
+  .del {
+    min-width: 32px;
+    min-height: 32px;
+  }
+  /* 各类 chip（分类/标签/热搜）：用 min-height + inline-flex 撑开可点区域而非放大字号 */
+  .cat-chip,
+  .tag,
+  .tag-cloud__chip,
+  .tag-list__item,
+  .trending-tag,
+  .crumb-link {
+    min-height: var(--tap-target);
+  }
+  /* 面包屑链接是行内按钮，min-height 需要弹性盒上下文才生效 */
+  .crumb-link {
+    display: inline-flex;
+    align-items: center;
   }
   .el-pagination {
     --el-pagination-button-height: var(--tap-target);

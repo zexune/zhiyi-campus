@@ -146,12 +146,48 @@
                     <text :x="tooltipX(i) + 52" :y="tooltipY(i) + 50" text-anchor="middle" class="chart-tip-val">¥{{ p.totalAmount }}</text>
                   </g>
 
-                  <!-- ★ 不可见大热区 —— 必须放在最后，渲染在最顶层，只有它拦截鼠标事件 -->
-                  <circle :cx="xFor(i)" :cy="yFor(p.count)" r="18" fill="transparent" style="cursor: pointer" @mouseenter="hoveredIndex = i" @mouseleave="hoveredIndex = null" />
+                  <!-- ★ 不可见大热区 —— 必须放在最后，渲染在最顶层，只有它拦截事件。
+                      同时是键盘可达的数据点：Tab 聚焦/失焦复用悬停浮层，
+                      aria-label 给出完整数据（日期/笔数/金额），读屏不依赖图形 -->
+                  <circle
+                    :cx="xFor(i)"
+                    :cy="yFor(p.count)"
+                    r="18"
+                    fill="transparent"
+                    tabindex="0"
+                    role="img"
+                    :aria-label="`${fmtDateCN(p.date)}，${p.count} 笔交易，金额 ¥${p.totalAmount}`"
+                    style="cursor: pointer"
+                    @mouseenter="hoveredIndex = i"
+                    @mouseleave="hoveredIndex = null"
+                    @focus="hoveredIndex = i"
+                    @blur="hoveredIndex = null"
+                  />
                 </g>
               </svg>
             </div>
             <div v-else class="trend-empty muted">暂无交易数据</div>
+
+            <!-- 图表数据的等价文本形式（读屏/键盘用户的非图形替代） -->
+            <table v-if="trendPoints.length" class="visually-hidden">
+              <caption>
+                近 7 日交易趋势数据
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">日期</th>
+                  <th scope="col">交易笔数</th>
+                  <th scope="col">交易金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in trendPoints" :key="p.date">
+                  <th scope="row">{{ fmtDateCN(p.date) }}</th>
+                  <td>{{ p.count }}</td>
+                  <td>¥{{ p.totalAmount }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -438,7 +474,7 @@ function violationBadge(type: string | undefined) {
 }
 .stat-card__icon--yellow {
   background: var(--yellow-bg);
-  color: #8a5a00;
+  color: var(--yellow-ink);
 }
 .stat-card__icon--green {
   background: var(--green-bg);
