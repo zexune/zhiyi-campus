@@ -88,7 +88,14 @@
           <CategoryIcon name="全部" />
           全部
         </button>
-        <button v-for="category in categories" :key="category.id" class="cat-chip" :class="{ active: filters.categoryId === category.id }" :aria-pressed="filters.categoryId === category.id" @click="selectCategory(category.id)">
+        <button
+          v-for="category in categories"
+          :key="category.id"
+          class="cat-chip"
+          :class="{ active: filters.categoryId === category.id }"
+          :aria-pressed="filters.categoryId === category.id"
+          @click="selectCategory(category.id)"
+        >
           <CategoryIcon :name="category.name" />
           {{ category.name }}
         </button>
@@ -163,19 +170,18 @@
             <span class="muted goods-total">
               <strong>{{ estimatedTotal }}</strong>
               件在售
-              <span title="首屏估算值，非精确计数">（约<span class="visually-hidden">首屏估算值，非精确计数</span>）</span>
+              <span title="首屏估算值，非精确计数">
+                （约
+                <span class="visually-hidden">首屏估算值，非精确计数</span>
+                ）
+              </span>
             </span>
           </div>
 
           <PageSkeleton v-if="loading && !items.length" variant="goods" />
 
           <div v-else-if="items.length" class="goods-grid">
-            <router-link
-              v-for="(item, index) in items"
-              :key="item.id"
-              :to="ROUTE_PATH.item(item.id)"
-              class="goods-card rise"
-            >
+            <router-link v-for="(item, index) in items" :key="item.id" :to="ROUTE_PATH.item(item.id)" class="goods-card rise">
               <!-- 图钉：纸条被钉在布告栏上的视觉锚点（纯装饰） -->
               <i class="pushpin" :class="pushpinTone(item.type)" aria-hidden="true"></i>
               <div class="goods-card__img" :class="placeholderClass(item.id)">

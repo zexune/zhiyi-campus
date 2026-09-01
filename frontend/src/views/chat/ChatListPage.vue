@@ -89,16 +89,7 @@
           <div class="visually-hidden" role="status" aria-live="polite">{{ incomingAnnouncement }}</div>
 
           <footer class="chat-input">
-            <el-input
-              v-model="draft"
-              type="textarea"
-              :rows="3"
-              maxlength="1000"
-              show-word-limit
-              resize="none"
-              placeholder="输入消息，Enter 发送，Shift + Enter 换行"
-              @keydown.enter.exact="onEnter"
-            />
+            <el-input v-model="draft" type="textarea" :rows="3" maxlength="1000" show-word-limit resize="none" placeholder="输入消息，Enter 发送，Shift + Enter 换行" @keydown.enter.exact="onEnter" />
             <button class="btn btn--green" :disabled="sending || !draft.trim()" @click="handleSend">
               发送
               <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">

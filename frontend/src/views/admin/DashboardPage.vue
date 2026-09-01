@@ -170,9 +170,7 @@
 
             <!-- 图表数据的等价文本形式（读屏/键盘用户的非图形替代） -->
             <table v-if="trendPoints.length" class="visually-hidden">
-              <caption>
-                近 7 日交易趋势数据
-              </caption>
+              <caption>近 7 日交易趋势数据</caption>
               <thead>
                 <tr>
                   <th scope="col">日期</th>

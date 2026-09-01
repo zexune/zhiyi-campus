@@ -19,7 +19,15 @@
             <!-- radiogroup 键盘模式：roving tabindex（仅选中项可 Tab 停留）+ 左右方向键切换，
                  未实现前 4 个按钮全部 tabindex=0 会让键盘用户 Tab 四次穿过一组单选 -->
             <div class="type-switch" role="radiogroup" aria-label="发布类型" @keydown="onTypeKeydown">
-              <button class="type-option" :class="{ selected: form.type === ITEM_TYPE.SELL }" type="button" role="radio" :aria-checked="form.type === ITEM_TYPE.SELL" :tabindex="form.type === ITEM_TYPE.SELL ? 0 : -1" @click="setType(ITEM_TYPE.SELL)">
+              <button
+                class="type-option"
+                :class="{ selected: form.type === ITEM_TYPE.SELL }"
+                type="button"
+                role="radio"
+                :aria-checked="form.type === ITEM_TYPE.SELL"
+                :tabindex="form.type === ITEM_TYPE.SELL ? 0 : -1"
+                @click="setType(ITEM_TYPE.SELL)"
+              >
                 <span class="t-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />

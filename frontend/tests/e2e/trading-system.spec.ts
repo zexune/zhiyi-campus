@@ -52,7 +52,9 @@ test('@system 真实前后端完成交易闭环，并在用户与管理界面呈
 
   await expect(page.getByText('管理后台', { exact: false }).first()).toBeVisible()
   await expect(page.getByText('用户总数', { exact: true })).toBeVisible()
-  await expect(page.getByText('近 7 日交易趋势', { exact: false })).toBeVisible()
+  // 趋势区断言收窄到标题元素：区块内的读屏等价数据表（caption"近 7 日交易趋势数据"）
+  // 是刻意保留在 DOM/a11y 树中的，按子串匹配会命中两处触发 strict mode 冲突
+  await expect(page.getByRole('heading', { name: '近 7 日交易趋势' })).toBeVisible()
 
   // 用户管理页（原内容管理拆分）：筛选区与表格行渲染，本旅程注册的买家/卖家应出现在表中
   await page.goto('/admin/users')

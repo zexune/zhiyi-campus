@@ -98,8 +98,8 @@
       <!-- 封禁弹窗传送到 body，避免 rise 动画形成的局部层叠上下文盖住浮层。
            焦点管理（Esc/Tab 循环/焦点归还）由 useModalA11y 提供 -->
       <Teleport to="body">
-          <div v-if="banDialog.visible" class="modal-overlay" @click.self="closeBanDialog">
-            <div :ref="banModal.bindSheet" class="modal-card card" role="dialog" aria-modal="true" aria-label="账号封禁">
+        <div v-if="banDialog.visible" class="modal-overlay" @click.self="closeBanDialog">
+          <div :ref="banModal.bindSheet" class="modal-card card" role="dialog" aria-modal="true" aria-label="账号封禁">
             <h3 class="modal-title">封禁用户「{{ banDialog.target?.nickname }}」</h3>
             <div class="form-pair">
               <div class="field">

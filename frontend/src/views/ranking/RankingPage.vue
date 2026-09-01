@@ -66,13 +66,7 @@
           <!-- DOM/焦点顺序保持 1→2→3，第 2 名的居中偏移交给 CSS order（视觉 2-1-3），
                读屏与键盘顺序不再与视觉顺序互相打架（WCAG 1.3.2）。
                不加 aria-label：它会整体覆盖链接的可访问名，价格/卖家/收藏数将无法朗读 -->
-          <router-link
-            v-for="entry in podiumEntries"
-            :key="entry.item.id"
-            :to="ROUTE_PATH.item(entry.item.id)"
-            class="podium-card rise"
-            :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]"
-          >
+          <router-link v-for="entry in podiumEntries" :key="entry.item.id" :to="ROUTE_PATH.item(entry.item.id)" class="podium-card rise" :class="[`podium-card--${entry.rank}`, `rise-${entry.rank}`]">
             <span class="podium-card__rank">TOP {{ entry.rank }}</span>
             <div class="podium-card__image" :class="placeholderClass(entry.item.id)">
               <img v-if="entry.item.coverImage" :src="entry.item.coverImage" :alt="entry.item.title" loading="lazy" decoding="async" />

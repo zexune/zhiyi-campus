@@ -5,12 +5,7 @@
 
       <template v-if="items.length">
         <div class="fav-grid">
-          <router-link
-            v-for="item in items"
-            :key="item.id"
-            :to="ROUTE_PATH.item(item.id)"
-            class="card card--hover fav-card"
-          >
+          <router-link v-for="item in items" :key="item.id" :to="ROUTE_PATH.item(item.id)" class="card card--hover fav-card">
             <div class="fav-card__img" :class="placeholderClass(item.id)">
               <img v-if="mainImage(item)" :src="mainImage(item)" :alt="item.title" loading="lazy" decoding="async" />
               <span v-if="displayStatus(item) !== ITEM_STATUS.ON_SALE" class="badge badge--muted fav-card__state">
