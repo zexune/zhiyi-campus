@@ -250,7 +250,7 @@ test('SSE resync（重连/恢复可见）整段重拉会话与当前线程', asy
   }
 })
 
-/** 在基准线程（最后一条 id=12）后追加一条新消息，构造静默轮询的返回 */
+/** 在基准线程（最后一条 id=12）后追加一条新消息，构造静默刷新的返回 */
 function threadWithAppended(message: { id: number; content: string; mine: boolean }) {
   const base = thread().messages as unknown as Array<Record<string, unknown>>
   return thread({

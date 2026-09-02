@@ -149,6 +149,8 @@ const msgContainer = ref<HTMLElement | null>(null)
 const incomingAnnouncement = ref('')
 /** 已确认读到的最后一条接收消息 ID */
 let lastAckedMessageId: number | null = null
+/** 是否已向前翻页（组件内状态，随会话切换作废——M11 修复同口径） */
+let earlierLoaded = false
 
 // F3 根因修复：管理端聊天接入同一上下文守卫协议（contextId + generation + 同会话请求序号）
 const sessionGuard = useContextGuard<string>()
@@ -166,6 +168,7 @@ async function openSession(session: Conversation) {
   inputText.value = ''
   hasEarlier.value = false
   lastAckedMessageId = null
+  earlierLoaded = false
   await loadMessages()
   scrollToBottom()
 }
@@ -192,7 +195,17 @@ async function loadMessages({ announce = false }: { announce?: boolean } = {}) {
       peerId: activePeer.value?.id
     })
     if (!sessionGuard.isCurrent(conversationId, gen, seq)) return
-    messages.value = res.data?.messages || []
+    const fresh = res.data?.messages || []
+    if (!earlierLoaded) {
+      // 未向前翻页：最新一页就是完整视图
+      messages.value = fresh
+    } else if (fresh.length) {
+      // 已加载更早消息：只追加新消息，避免 SSE 刷新把翻页结果重置回最新一页
+      const existingIds = new Set(messages.value.map((item) => item.id))
+      for (const item of fresh) {
+        if (!existingIds.has(item.id)) messages.value.push(item)
+      }
+    }
     hasEarlier.value = !!res.data?.hasMore
     ackVisibleMessages(conversationId)
     // 新消息播报：仅 SSE 推送驱动的刷新、且最后一条是对方新消息时写一条
@@ -226,6 +239,7 @@ async function loadEarlier() {
     })
     if (!sessionGuard.isCurrent(conversationId, gen)) return
     const older = res.data?.messages || []
+    earlierLoaded = true
     hasEarlier.value = !!res.data?.hasMore
     if (older.length) {
       const container = msgContainer.value

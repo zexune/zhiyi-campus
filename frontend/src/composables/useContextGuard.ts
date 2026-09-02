@@ -7,7 +7,7 @@ import type { Ref } from 'vue'
  * 三重校验：
  * - contextId：当前会话（如 conversationId / sessionId）；
  * - generation：switchContext 推进代数，切走后的旧响应整体丢弃；
- * - requestSeq：同会话内的请求序号，旧轮询响应不覆盖新轮询结果
+ * - requestSeq：同会话内的请求序号，迟到的旧响应不覆盖新响应
  *   （加载更早历史等顺序无关的请求可只校验 gen + convId，不传 seq）。
  *
  * onUnmounted 自动失效。

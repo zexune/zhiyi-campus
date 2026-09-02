@@ -85,7 +85,7 @@
             <div v-else class="empty-chat"><p class="muted">还没有消息，打个招呼吧。</p></div>
           </div>
 
-          <!-- 屏幕阅读器专用的新消息播报区：仅在后台轮询发现"非自己"的新消息时写入一条 -->
+          <!-- 屏幕阅读器专用的新消息播报区：仅在后台静默刷新发现"非自己"的新消息时写入一条 -->
           <div class="visually-hidden" role="status" aria-live="polite">{{ incomingAnnouncement }}</div>
 
           <footer class="chat-input">
@@ -166,7 +166,7 @@ const threadLoading = ref(false)
 const sending = ref(false)
 const serviceLoading = ref(false)
 const messagePanel = ref<HTMLElement | null>(null)
-/** 屏幕阅读器新消息播报文本：仅后台轮询发现的非自己新消息写入，历史加载/切会话不播报 */
+/** 屏幕阅读器新消息播报文本：仅后台静默刷新发现的非自己新消息写入，历史加载/切会话不播报 */
 const incomingAnnouncement = ref('')
 const hasEarlier = ref(false)
 const earlierLoading = ref(false)
@@ -264,7 +264,7 @@ function ackVisibleMessages(conversationId: string) {
 async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
   const conversationId = selectedConversationId.value
   if (!conversationId) return
-  // 轮询请求携带同会话序号：旧轮询响应不覆盖新轮询结果（F7）
+  // 静默刷新请求携带同会话序号：旧刷新响应不覆盖新刷新结果（F7）
   const { gen, seq } = chatGuard.nextRequest()
   if (!silent) threadLoading.value = true
   try {
@@ -278,7 +278,7 @@ async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
       // 未向前翻页：最新一页就是完整视图
       messages.value = fresh
     } else if (fresh.length) {
-      // 已加载更早消息：只追加新消息，避免轮询把翻页结果重置回最新一页
+      // 已加载更早消息：只追加新消息，避免静默刷新把翻页结果重置回最新一页
       const existingIds = new Set(messages.value.map((item) => item.id))
       for (const item of fresh) {
         if (!existingIds.has(item.id)) messages.value.push(item)
@@ -295,7 +295,7 @@ async function fetchThread({ silent = false }: { silent?: boolean } = {}) {
     if (ownMessageArrived || wasNearBottom || !silent) {
       await scrollToBottom()
     }
-    // 新消息播报：仅后台静默轮询发现的、非自己发送的最后一条（历史加载/切会话/向上翻页不播报）
+    // 新消息播报：仅后台静默刷新发现的、非自己发送的最后一条（历史加载/切会话/向上翻页不播报）
     const incomingArrived = silent && !!lastMessage && lastMessage.id !== previousLastMessage?.id
     if (incomingArrived && !lastMessage.mine) {
       const peerName = thread.value?.peer?.nickname || conversation?.peer?.nickname || '对方'

@@ -138,6 +138,48 @@ test('SSE MESSAGE 事件（其他会话）只刷新会话列表', async () => {
   }
 })
 
+test('向前翻页后 SSE 刷新只追加新消息，不把已加载的更早消息冲掉', async () => {
+  // 初始线程带 hasMore：渲染"加载更早的消息"入口
+  vi.mocked(getAdminChatMessages).mockResolvedValue({ code: 200, message: 'ok', data: thread({ hasMore: true }) } as unknown as ApiResult<ChatThread>)
+  const wrapper = await mountWithOpenSession()
+  try {
+    // 翻页取回 id=8/9 两条更早消息
+    const olderPage = thread({
+      messages: [
+        { id: 8, conversationId: 'c1', senderId: 2, receiverId: 9, content: '更早一条', mine: false, createdAt: '2026-08-24T09:57:00' },
+        { id: 9, conversationId: 'c1', senderId: 2, receiverId: 9, content: '更早二条', mine: false, createdAt: '2026-08-24T09:58:00' }
+      ],
+      hasMore: false
+    })
+    vi.mocked(getAdminChatMessages).mockResolvedValue({ code: 200, message: 'ok', data: olderPage } as unknown as ApiResult<ChatThread>)
+
+    await wrapper.get('.load-earlier').trigger('click')
+    await flushPromises()
+    assert.equal(wrapper.findAll('.msg-bubble').length, 3)
+
+    // SSE 新消息：服务端最新一页只含 id=10/11，已加载的 8/9 不得被重置回最新页
+    const latestPage = thread({
+      messages: [
+        { id: 10, conversationId: 'c1', senderId: 2, receiverId: 9, content: '你好，订单有问题', mine: false, createdAt: '2026-08-24T09:59:00' },
+        { id: 11, conversationId: 'c1', senderId: 2, receiverId: 9, content: '麻烦看一下', mine: false, createdAt: '2026-08-24T10:01:00' }
+      ],
+      hasMore: false
+    })
+    vi.mocked(getAdminChatMessages).mockResolvedValue({ code: 200, message: 'ok', data: latestPage } as unknown as ApiResult<ChatThread>)
+
+    streamMessageHandlers.forEach((handler) => handler({ type: 'MESSAGE', conversationId: 'c1', messageId: 11 }))
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    assert.equal(wrapper.findAll('.msg-bubble').length, 4)
+    assert.match(wrapper.text(), /更早一条/)
+    assert.match(wrapper.text(), /更早二条/)
+    assert.match(wrapper.text(), /麻烦看一下/)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
 test('SSE resync 整段重拉会话与当前线程', async () => {
   await mountWithOpenSession()
   try {

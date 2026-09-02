@@ -157,7 +157,7 @@ const instance = axios.create({
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
-    /** 标记该请求失败时不触发全局登录跳转（后台轮询等静默请求使用） */
+    /** 标记该请求失败时不触发全局登录跳转（后台静默刷新等请求使用） */
     skipAuthRedirect?: boolean
     /** 请求发起时的鉴权周期（请求拦截器写入，401 处理使用） */
     authEpoch?: number
