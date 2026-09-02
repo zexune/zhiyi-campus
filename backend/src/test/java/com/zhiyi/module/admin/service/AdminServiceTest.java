@@ -143,7 +143,7 @@ class AdminServiceTest {
             ViolationReport report = pendingReport("USER_REPORT");
             report.setReporterId(11L);
             report.setMatchedRules(List.of());
-            report.setRuleVersion("2026.1");
+            report.setRuleVersion("2026.2");
             Page<ViolationReport> page = new Page<>(1, 10, 1);
             page.setRecords(List.of(report));
             SysUser seller = user(10L, "卖家张三");
@@ -160,7 +160,7 @@ class AdminServiceTest {
             assertEquals("卖家张三", vo.getSellerName());
             assertEquals("举报人李四", vo.getReporterName());
             assertEquals("USER_REPORT", vo.getSource());
-            assertEquals("2026.1", vo.getRuleVersion());
+            assertEquals("2026.2", vo.getRuleVersion());
             assertEquals("ON_SALE", vo.getItemStatus());
         }
 

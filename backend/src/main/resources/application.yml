@@ -66,7 +66,7 @@ zhiyi:
     secret: ${JWT_SECRET}
     expiration: ${JWT_EXPIRATION:24h}
   moderation:
-    rule-version: ${MODERATION_RULE_VERSION:2026.1}
+    rule-version: ${MODERATION_RULE_VERSION:2026.2}
     warning-points: ${CONTENT_WARNING_POINTS:5}
     appeal-window-days: ${APPEAL_WINDOW_DAYS:7}
   marketplace:

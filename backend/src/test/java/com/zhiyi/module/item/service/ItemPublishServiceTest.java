@@ -113,7 +113,7 @@ class ItemPublishServiceTest {
         arrangePublisherAndCategory();
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of("生活日用", "台灯", "出售")));
+                false, "", List.of(), "2026.2", List.of("生活日用", "台灯", "出售")));
         when(itemMapper.insert(any(Item.class))).thenAnswer(invocation -> {
             Item item = invocation.getArgument(0);
             item.setId(91L);
@@ -141,7 +141,7 @@ class ItemPublishServiceTest {
         arrangePublisherAndCategory();
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                true, "本地规则命中", List.of("ACADEMIC_MISCONDUCT"), "2026.1", List.of("生活日用")));
+                true, "本地规则命中", List.of("ACADEMIC_MISCONDUCT"), "2026.2", List.of("生活日用")));
         when(itemMapper.insert(any(Item.class))).thenAnswer(invocation -> {
             Item item = invocation.getArgument(0);
             item.setId(92L);
@@ -185,7 +185,7 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(category);
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of("Daily goods", "For sale")));
+                false, "", List.of(), "2026.2", List.of("Daily goods", "For sale")));
         // toReviewDTO 会带上商品现有标签（视为用户提供的 tags），需为清洗调用打桩
         when(itemTagService.tagsByItemIds(any())).thenReturn(Map.of());
         when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
@@ -227,7 +227,7 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(new Category());
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of()));
+                false, "", List.of(), "2026.2", List.of()));
         when(itemTagService.tagsByItemIds(any())).thenReturn(Map.of());
         when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
                 List.of(), false, "", List.of()));
@@ -258,7 +258,7 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(new Category());
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of()));
+                false, "", List.of(), "2026.2", List.of()));
         when(itemMapper.update(any(Item.class), any())).thenReturn(1);
         when(marketplaceService.getSnapshot(100L, 7L)).thenReturn(new ItemCardVO());
 
@@ -299,7 +299,7 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(new Category());
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of()));
+                false, "", List.of(), "2026.2", List.of()));
         when(itemMapper.update(any(Item.class), any())).thenReturn(0); // 并发下单抢先迁移
 
         BusinessException error = assertThrows(BusinessException.class,
@@ -332,7 +332,7 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(new Category());
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of()));
+                false, "", List.of(), "2026.2", List.of()));
         when(itemMapper.update(any(Item.class), any())).thenReturn(0); // 并发违规确认抢先投影 REJECTED
 
         BusinessException error = assertThrows(BusinessException.class,
@@ -373,7 +373,7 @@ class ItemPublishServiceTest {
         when(categoryMapper.selectById(3L)).thenReturn(new Category());
         arrangeListingRevision();
         when(contentAnalyzer.analyze(any(), any())).thenReturn(new LocalContentAnalyzer.AnalysisResult(
-                false, "", List.of(), "2026.1", List.of()));
+                false, "", List.of(), "2026.2", List.of()));
         when(itemTagService.tagsByItemIds(any())).thenReturn(Map.of());
         when(contentAnalyzer.sanitizeUserTags(any())).thenReturn(new LocalContentAnalyzer.TagCheck(
                 List.of(), false, "", List.of()));

@@ -1,21 +1,33 @@
 package com.zhiyi.module.item.service;
 
+import com.github.promeg.pinyinhelper.Pinyin;
 import com.zhiyi.common.enums.ItemType;
 import com.zhiyi.module.item.dto.PublishItemDTO;
 import com.zhiyi.module.item.entity.Category;
+import org.ahocorasick.trie.Emit;
+import org.ahocorasick.trie.Trie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * 完全本地、确定性的内容分析器：只做文本规则匹配与普通标签提取，不评价价格。
+ * 完全本地、确定性的内容分析器：关键词经 Aho–Corasick 自动机单趟匹配；
+ * 只做文本规则匹配与普通标签提取，不评价价格。
+ *
+ * 拼音的唯一用途是把汉字关键词展开出全拉丁拼写变体（daixie≈代写）并入同一
+ * 模式集——拉丁拼音串在正文里出现本身就是刻意规避，无日常用语碰撞问题。
+ * 同音汉字判定（带写≈代写）曾实测误报不可接受后移除：无声调音节空间里
+ * 双音节关键词与高频合法用语大面积碰撞（读博≈赌博、菠菜≈博彩、电子眼≈
+ * 电子烟、强制≈枪支、悦跑≈约炮等），语义级同音识别属于后续本地小模型的范畴。
  */
 @Service
 public class LocalContentAnalyzer {
@@ -51,8 +63,42 @@ public class LocalContentAnalyzer {
     /** 用户自定义标签的单个长度上限 */
     public static final int MAX_TAG_LENGTH = 12;
 
-    @Value("${zhiyi.moderation.rule-version:2026.1}")
-    private String ruleVersion = "2026.1";
+    /** 一次命中的完整上下文：evidence 为展示给审核员的实际命中文本。 */
+    private record KeywordHit(String ruleCode, String ruleLabel, String keyword,
+                              boolean pinyinSpelling, String evidence) {
+    }
+
+    /** 单一字面域模式集：归一化关键词 + 全拉丁拼音拼写变体。 */
+    private static final Trie KEYWORD_TRIE;
+    /** 模式串 → 命中信息。 */
+    private static final Map<String, KeywordHit> PATTERN_INDEX;
+
+    static {
+        Map<String, KeywordHit> patterns = new LinkedHashMap<>();
+        for (Rule rule : RULES) {
+            for (String keyword : rule.keywords()) {
+                String normalizedKeyword = normalizeForMatching(keyword);
+                if (!patterns.containsKey(normalizedKeyword)) {
+                    patterns.put(normalizedKeyword, new KeywordHit(
+                            rule.code(), rule.label(), keyword, false, normalizedKeyword));
+                }
+                if (containsHan(normalizedKeyword)) {
+                    String spelled = latinPinyinSpelling(normalizedKeyword);
+                    if (!patterns.containsKey(spelled)) {
+                        patterns.put(spelled, new KeywordHit(
+                                rule.code(), rule.label(), keyword, true, spelled));
+                    }
+                }
+            }
+        }
+        PATTERN_INDEX = Map.copyOf(patterns);
+        var builder = Trie.builder();
+        patterns.keySet().forEach(builder::addKeyword);
+        KEYWORD_TRIE = builder.build();
+    }
+
+    @Value("${zhiyi.moderation.rule-version:2026.2}")
+    private String ruleVersion = "2026.2";
 
     public AnalysisResult analyze(PublishItemDTO dto, Category category) {
         String visibleText = String.join(" ", safe(dto.getTitle()), safe(dto.getDescription()),
@@ -78,11 +124,15 @@ public class LocalContentAnalyzer {
             return new TagCheck(List.of(), false, "", List.of());
         }
         Set<String> unique = new LinkedHashSet<>();
+        Set<String> seenIgnoreCase = new LinkedHashSet<>();
         for (String raw : rawTags) {
             if (raw == null) continue;
             String tag = raw.trim();
             if (tag.length() < 2 || tag.length() > MAX_TAG_LENGTH) continue;
-            unique.add(tag);
+            // 忽略大小写去重，保留首次出现的原始写法（与落库层 tag.normalizedName 同规则口径）
+            if (seenIgnoreCase.add(tag.toLowerCase(Locale.ROOT))) {
+                unique.add(tag);
+            }
             if (unique.size() >= MAX_USER_TAGS) break;
         }
         if (unique.isEmpty()) {
@@ -108,23 +158,34 @@ public class LocalContentAnalyzer {
         return generateTags(dto, category, safe(dto.getTitle()));
     }
 
+    /** 归一化文本过单一 Trie；同一规则保留最强证据（字面 > 拼音拼写）。 */
     private RuleMatches matchRules(String normalizedText) {
-        List<String> matchedCodes = new ArrayList<>();
-        List<String> matchedLabels = new ArrayList<>();
-        for (Rule rule : RULES) {
-            String matchedKeyword = rule.keywords().stream()
-                    .filter(keyword -> normalizedText.contains(normalizeForMatching(keyword)))
-                    .findFirst()
-                    .orElse(null);
-            if (matchedKeyword != null) {
-                matchedCodes.add(rule.code());
-                matchedLabels.add(rule.label() + "（" + matchedKeyword + "）");
-            }
+        Map<String, KeywordHit> bestByRule = new LinkedHashMap<>();
+        for (Emit emit : KEYWORD_TRIE.parseText(normalizedText)) {
+            offerHit(bestByRule, PATTERN_INDEX.get(emit.getKeyword()));
         }
-        return new RuleMatches(List.copyOf(matchedCodes), List.copyOf(matchedLabels));
+        List<String> codes = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (KeywordHit hit : bestByRule.values()) {
+            codes.add(hit.ruleCode());
+            labels.add(hit.pinyinSpelling()
+                    ? hit.ruleLabel() + "（" + hit.keyword() + "·拼音「" + hit.evidence() + "」）"
+                    : hit.ruleLabel() + "（" + hit.keyword() + "）");
+        }
+        return new RuleMatches(codes, labels);
     }
 
-    String normalizeForMatching(String value) {
+    private static void offerHit(Map<String, KeywordHit> bestByRule, KeywordHit hit) {
+        if (hit == null) {
+            return;
+        }
+        KeywordHit existing = bestByRule.get(hit.ruleCode());
+        if (existing == null || (existing.pinyinSpelling() && !hit.pinyinSpelling())) {
+            bestByRule.put(hit.ruleCode(), hit);
+        }
+    }
+
+    static String normalizeForMatching(String value) {
         String normalized = Normalizer.normalize(safe(value), Normalizer.Form.NFKC)
                 .toLowerCase(Locale.ROOT);
         StringBuilder result = new StringBuilder(normalized.length());
@@ -132,6 +193,23 @@ public class LocalContentAnalyzer {
                 .filter(Character::isLetterOrDigit)
                 .forEach(result::appendCodePoint);
         return result.toString();
+    }
+
+    /** 汉字逐字替换为无声调拼音（多音字取常用读音），其余字符原样保留。 */
+    private static String latinPinyinSpelling(String normalizedKeyword) {
+        StringBuilder spelled = new StringBuilder(normalizedKeyword.length() * 2);
+        for (int i = 0; i < normalizedKeyword.length(); i++) {
+            char character = normalizedKeyword.charAt(i);
+            spelled.append(Pinyin.isChinese(character)
+                    ? Pinyin.toPinyin(character).toLowerCase(Locale.ROOT)
+                    : character);
+        }
+        return spelled.toString();
+    }
+
+    private static boolean containsHan(String value) {
+        return value.codePoints().anyMatch(codePoint ->
+                codePoint <= 0xFFFF && Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN);
     }
 
     private List<String> generateTags(PublishItemDTO dto, Category category, String text) {
@@ -160,7 +238,7 @@ public class LocalContentAnalyzer {
         return tags.stream().limit(6).toList();
     }
 
-    private String safe(String value) {
+    private static String safe(String value) {
         return value == null ? "" : value;
     }
 
