@@ -58,11 +58,13 @@ npx playwright install chromium
 npm run test:system
 ```
 
+`test:system` 与 `test:e2e` 都会由 `tests/run-e2e.mjs` 在宿主 `127.0.0.1:3000` 起静态服务；开发容器的 Vite 运行时已占用宿主 3000（`compose.yaml` 将容器 3000 发布到宿主），须先停掉容器内的 Vite，否则宿主监听失败并抛出 `EADDRINUSE`。
+
 系统测试会注册带随机后缀的卖家和买家，并写入真实业务数据。不要对保存开发或生产数据的数据库运行该命令；本地建议使用可随时重建的专用测试库。CI 会自动创建隔离的 MySQL 服务并完成初始化。
 
 ## 覆盖率门禁
 
-- 后端 `mvn verify` 要求全项目行覆盖率不低于 60%、分支覆盖率不低于 45%；HTML 报告位于 `backend/target/site/jacoco/index.html`。
+- 后端 `mvn verify` 要求全项目行覆盖率不低于 60%、分支覆盖率不低于 45%；HTML 报告位于 `backend/target/site/jacoco/index.html`。开发容器内 `backend/target` 挂在命名卷（`compose.yaml`），宿主侧不可见，需 `docker compose cp dev:/repo/backend/target/site/jacoco ./jacoco` 拷出后再打开。
 - 前端 `npm run test:coverage` 要求全源码语句/函数/行覆盖率不低于 12%，分支覆盖率不低于 8%；评价弹窗、钱包、买入订单、后台大盘和交易工具函数，以及展示格式化、表单校验、分页列表组合式函数与路由路径常量等基础模块另设 65%–100% 的定向门禁。HTML 报告位于 `frontend/coverage/index.html`。
 - 覆盖率是回归下限，不是完成标准。涉及资金、权限、状态机或事务的改动，即使覆盖率未下降，也必须补充能验证业务结果和失败回滚的断言。
 

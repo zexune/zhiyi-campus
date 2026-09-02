@@ -8,7 +8,6 @@
 - [技术栈](#技术栈)
 - [性能与数据模型](#性能与数据模型)
 - [快速开始](#快速开始)
-- [容器化](#容器化)
 - [常用命令](#常用命令)
 - [测试体系](#测试体系)
 - [项目目录结构](#项目目录结构)
@@ -48,9 +47,37 @@
 
 ## 快速开始
 
-> 宿主机不想安装 JDK / Maven / Node / MySQL？可直接使用[容器化](#容器化)的开发机，或用 Dev Container 让 IDE 直连容器，这是更为推荐的方法。
+提供两种启动方式：**方式一**使用 Docker 开发容器，宿主机无需安装 JDK / Maven / Node / MySQL，避免版本兼容问题，是最为推荐的方法；**方式二**直接从源码运行，需要自行准备开发环境。
 
-### 1. 开发环境
+### 方式一：Docker 开发容器（推荐）
+
+```bash
+# —— 首次使用 ——
+cp .env.example .env          # JWT_SECRET 必填，Windows 用 Copy-Item 命令或手动复制
+# JWT_SECRET 密钥生成方式（以 bash/zsh 为例）：openssl rand -base64 32
+# PowerShell 可采用以下命令替代：
+# $b=New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+docker compose up -d          # 启动容器
+docker compose exec dev bash  # 进入 Docker 容器终端
+
+# —— 容器内，与普通机器完全一致 ——
+mysql -uroot < /repo/zhiyi_campus_init.sql    # 初始化数据库，仅首次需要
+cd frontend && npm ci && npm run dev          # 前端 http://localhost:3000
+cd backend  && mvn spring-boot:run            # 后端 http://localhost:8080
+
+# —— 停止 / 删除 / 重建 ——
+docker compose stop             # 停止容器
+docker compose restart          # 重启容器
+docker compose down             # 停止并删除容器
+docker compose down -v          # 停止并删除容器（包括数据卷）
+docker compose up -d --build    # 强制重新构建镜像
+```
+
+VS Code / GitHub Codespaces 用户直接 "Dev Containers: Reopen in Container"：进入时 MySQL 已就绪，集成终端跑上面同样的命令即可；调试配置见 `.vscode/launch.json`。关闭 VS Code 窗口会停掉容器，数据保留在数据卷中。
+
+### 方式二：源码运行
+
+宿主机需安装以下开发环境：
 
 - JDK 25
 - Maven 3.9.16
@@ -60,7 +87,7 @@
 
 以上为已验证的开发配置，并非最低兼容版本要求。
 
-### 2. 初始化数据库
+#### 1. 初始化数据库
 
 在项目根目录连接 MySQL：
 
@@ -78,20 +105,9 @@ SOURCE C:/path/to/zhiyi-campus/zhiyi_campus_init.sql;
 
 初始数据库包含一个默认管理员：后台账号 `admin`，初始密码 `123456`。
 
-### 3. 配置并启动后端
+#### 2. 配置并启动后端
 
-后端默认使用虚拟线程处理请求，敏感配置经环境变量注入。`JWT_SECRET` 没有默认值，必须是至少 32 字节随机数据的 Base64 编码，获取方法：
-
-```powershell
-$bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToBase64String($bytes)
-```
-
-```bash
-openssl rand -base64 32
-```
-后端启动示例：
+后端默认使用虚拟线程处理请求，敏感配置经环境变量注入；`JWT_SECRET` 没有默认值，必须是至少 32 字节随机数据的 Base64 编码。按所用终端选择下方任意一种示例，其中已包含生成方式。
 
 PowerShell 示例：
 
@@ -100,7 +116,7 @@ cd backend
 $env:MYSQL_USERNAME = "root"
 $env:MYSQL_PASSWORD = "<你的 MySQL 密码>"
 $jwtBytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($jwtBytes)
+[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($jwtBytes)
 $env:JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
 mvn spring-boot:run
 ```
@@ -117,7 +133,7 @@ mvn spring-boot:run
 
 完整配置项、环境变量与默认值见 [`backend/src/main/resources/application.yml`](backend/src/main/resources/application.yml)；后端默认监听 `http://localhost:8080`，MySQL 不在 `localhost:3306` 时修改其中的数据源 URL。
 
-### 4. 启动前端
+#### 3. 启动前端
 
 新开一个终端，在项目根目录执行：
 
@@ -128,45 +144,6 @@ npm run dev
 ```
 
 浏览器访问 `http://localhost:3000`。Vite 会将 `/api` 和 `/uploads` 请求代理到 `http://localhost:8080`。
-
-## 容器化
-
-推荐使用 Docker 开发和运行本项目，避免版本兼容问题。
-
-```bash
-# —— 首次使用 ——
-cp .env.example .env          # JWT_SECRET 必填，Windows开发环境使用 Copy-Item 命令或手动复制
-docker compose up -d          # 启动容器
-docker compose exec dev bash  # 进入 Docker 容器终端
-
-# —— 容器内，与普通机器完全一致 ——
-mysql -uroot < /repo/zhiyi_campus_init.sql    # 初始化数据库，仅首次需要
-cd frontend && npm ci && npm run dev          # 前端 http://localhost:3000
-cd backend  && mvn spring-boot:run            # 后端 http://localhost:8080
-
-# —— 停止 / 删除 / 重建 ——
-docker compose stop             # 停止（容器保留，数据不动）
-docker compose restart          # 重启整台"机器"
-docker compose down             # 停止并删除容器（数据卷保留，下次 up -d 数据照旧）
-docker compose down -v          # 连数据卷一起删（数据库、Maven 缓存、node_modules 全清，回到出厂）
-docker compose up -d --build    # 改了 Dockerfile 后重建镜像并重建容器；改 .env 只需 up -d
-```
-
-VS Code / GitHub Codespaces 用户直接 "Dev Containers: Reopen in Container"：进入时 MySQL 已就绪，集成终端跑上面同样的命令即可；调试配置见 `.vscode/launch.json`。关闭 VS Code 窗口会停掉容器，数据都在卷里不丢。
-
-数据与端口：
-
-- 端口：`3000` Vite、`8080` 后端直连、`5005` JDWP；MySQL 3306 不发布到宿主，root 默认无密码，宿主机上导入脚本用 `docker compose exec -T dev mysql -uroot < 脚本.sql`，交互操作用 `docker compose exec dev mysql -uroot`。
-- 数据库在 `zhiyi-campus_mysql-data`、Maven 缓存在 `zhiyi-campus_maven-repo` 命名卷；上传文件落在 `backend/uploads`（已 gitignore）。
-- 想给数据库设密码：`ALTER USER 'root'@'localhost' IDENTIFIED BY '...'`，把同一值填进 `.env` 的 `MYSQL_PASSWORD` 后 `docker compose up -d` 重建容器；彻底重置 = 删 `zhiyi-campus_mysql-data` 卷后重新 `up -d` 并重新导脚本。
-
-注意事项：
-
-- 首次 `npm ci` 必须在容器内执行（`node_modules` 是 Linux 二进制、存放在命名卷）；改动 `package.json` 后在容器内重跑一次即可。
-- 容器内不回写 `auto-imports.d.ts` / `components.d.ts`；新增 store/组件后在宿主机跑一次 `npm run build`（而非 `dev`）让完整声明入库。
-- `backend/target` 在命名卷里（宿主不可见）；需要 JaCoCo 报告时用 `docker compose cp dev:/repo/backend/target/site/jacoco ./jacoco`。
-- Windows 上若改 `.vue` 不触发 HMR，在 `frontend/vite.config.ts` 的 `server.watch` 加 `usePolling` 即可。
-- E2E / 系统测试在宿主机或 CI 跑（见 [测试体系](#测试体系)）：后端发布在宿主 8080，`run-e2e.mjs` 的代理目标无需改动；跑之前先停掉容器内的 Vite，避免 3000 端口冲突。
 
 ## 常用命令
 
