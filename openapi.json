@@ -9580,10 +9580,10 @@
                 }
               }
             },
-            "description": "1005：密码错误次数过多，请稍后再试。业务码 1005 附 Retry-After 响应头（建议退避秒数，数值为字符串）",
+            "description": "1005：密码错误次数过多，请稍后再试；1011：当前请求较多，请稍后重试。业务码 1005/1011 附 Retry-After 响应头（建议退避秒数，数值为字符串）",
             "headers": {
               "Retry-After": {
-                "description": "建议退避秒数（业务码 1005 携带）",
+                "description": "建议退避秒数（业务码 1005/1011 携带）",
                 "schema": {
                   "pattern": "^[0-9]+$",
                   "type": "string"
@@ -9591,10 +9591,12 @@
               }
             },
             "x-business-codes": [
-              "1005"
+              "1005",
+              "1011"
             ],
             "x-retry-after-business-codes": [
-              "1005"
+              "1005",
+              "1011"
             ]
           },
           "500": {
@@ -9620,10 +9622,12 @@
           "1003",
           "1005",
           "1006",
-          "1008"
+          "1008",
+          "1011"
         ],
         "x-retry-after-business-codes": [
-          "1005"
+          "1005",
+          "1011"
         ]
       }
     },
@@ -9841,6 +9845,31 @@
               "415"
             ]
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiFailure"
+                }
+              }
+            },
+            "description": "1011：当前请求较多，请稍后重试。业务码 1011 附 Retry-After 响应头（建议退避秒数，数值为字符串）",
+            "headers": {
+              "Retry-After": {
+                "description": "建议退避秒数（业务码 1011 携带）",
+                "schema": {
+                  "pattern": "^[0-9]+$",
+                  "type": "string"
+                }
+              }
+            },
+            "x-business-codes": [
+              "1011"
+            ],
+            "x-retry-after-business-codes": [
+              "1011"
+            ]
+          },
           "500": {
             "content": {
               "application/json": {
@@ -9861,7 +9890,11 @@
         ],
         "x-business-codes": [
           "1001",
-          "1008"
+          "1008",
+          "1011"
+        ],
+        "x-retry-after-business-codes": [
+          "1011"
         ]
       }
     },
@@ -9991,10 +10024,10 @@
                 }
               }
             },
-            "description": "1005：密码错误次数过多，请稍后再试。业务码 1005 附 Retry-After 响应头（建议退避秒数，数值为字符串）",
+            "description": "1005：密码错误次数过多，请稍后再试；1011：当前请求较多，请稍后重试。业务码 1005/1011 附 Retry-After 响应头（建议退避秒数，数值为字符串）",
             "headers": {
               "Retry-After": {
-                "description": "建议退避秒数（业务码 1005 携带）",
+                "description": "建议退避秒数（业务码 1005/1011 携带）",
                 "schema": {
                   "pattern": "^[0-9]+$",
                   "type": "string"
@@ -10002,10 +10035,12 @@
               }
             },
             "x-business-codes": [
-              "1005"
+              "1005",
+              "1011"
             ],
             "x-retry-after-business-codes": [
-              "1005"
+              "1005",
+              "1011"
             ]
           },
           "500": {
@@ -10032,10 +10067,12 @@
           "1005",
           "1006",
           "1007",
-          "1008"
+          "1008",
+          "1011"
         ],
         "x-retry-after-business-codes": [
-          "1005"
+          "1005",
+          "1011"
         ]
       }
     },

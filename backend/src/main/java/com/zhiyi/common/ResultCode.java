@@ -22,7 +22,7 @@ import java.util.Set;
  * - 409：状态/并发类失败（已被抢购、乐观冲突、幂等冲突、余额不足）；
  * - 405/406/413/415：MVC 传输协议拒绝（方法、Accept、载荷大小、Content-Type），
  *   保留真实 HTTP 状态并统一输出 ApiFailure；
- * - 429：限流与背压（登录失败锁定、交易准入繁忙），可退避时附 Retry-After；
+ * - 429：限流与背压（登录失败锁定、认证与交易准入繁忙），可退避时附 Retry-After；
  * - 400：参数与凭证内容错误（密码/密保答案错误刻意用 400 而非 401：
  *   401 保留给会话失效，不能被"密码输错"触发）。
  *
@@ -60,6 +60,11 @@ public enum ResultCode {
     USER_STATUS_ERROR(1009, HttpStatus.CONFLICT, "账户状态异常，无法完成操作"),
     /** 资料版本冲突（乐观并发）；前端应展示最新资料并要求确认 */
     PROFILE_CONFLICT(1010, HttpStatus.CONFLICT, "资料已被修改，请刷新后重试"),
+    /**
+     * 认证端点准入背压（登录/注册/密保重置共用）：闸门在触碰任何数据库之前
+     * 拒绝，请求确定未执行，按 Retry-After 退避重试即可（无幂等键，REJECTED 语义成立）。
+     */
+    AUTH_BUSY(1011, HttpStatus.TOO_MANY_REQUESTS, "当前请求较多，请稍后重试", 1),
     /** 会话失效（Token 版本/角色与主库不一致、改密后旧 Token）：认证层语义 → 401 + 清 Cookie */
     SESSION_INVALIDATED(1401, HttpStatus.UNAUTHORIZED, "登录状态已失效，请重新登录"),
     BALANCE_NOT_ENOUGH(3001, HttpStatus.CONFLICT, "余额不足"),

@@ -13,6 +13,7 @@ import com.zhiyi.module.user.dto.ResetPasswordDTO;
 import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
+import com.zhiyi.module.user.support.AuthAdmissionGate;
 import com.zhiyi.module.user.support.LoginAttemptService;
 import com.zhiyi.module.user.vo.LoginVO;
 import com.zhiyi.utils.JwtUtils;
@@ -24,10 +25,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,6 +47,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,10 +66,14 @@ class AuthServiceTest {
     private com.zhiyi.module.user.mapper.SchoolMapper schoolMapper;
     @Mock
     private LoginAttemptService loginAttemptService;
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     private SchoolService schoolService;
     private JwtUtils jwtUtils;
     private AuthService service;
+    /** 短事务实际开启次数（由透传 stub 递增），供事务边界回归断言 */
+    private final AtomicInteger txOpened = new AtomicInteger();
 
     @BeforeAll
     static void initializeMyBatisMetadata() {
@@ -75,12 +86,20 @@ class AuthServiceTest {
         jwtUtils = new JwtUtils(
                 "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
                 Duration.ofMinutes(1));
+        // 短事务直接透传回调：单元测试只关心回调内的语句编排
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            txOpened.incrementAndGet();
+            TransactionCallback<Object> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        });
         service = new AuthService(
                 userMapper,
                 passwordEncoder,
                 jwtUtils,
                 loginAttemptService,
-                schoolService);
+                schoolService,
+                transactionTemplate,
+                new AuthAdmissionGate(64, 0));
         lenient().when(schoolMapper.selectById(1L)).thenReturn(shu());
     }
 
@@ -374,6 +393,80 @@ class AuthServiceTest {
 
         assertEquals(4, jwtUtils.getTokenVersion(jwtUtils.parse(result.getToken())));
         verify(loginAttemptService).reset(eq("1:user01"));
+    }
+
+    @Test
+    void activeUserLoginNeverOpensTransaction() {
+        // 事务边界回归：普通 ACTIVE 登录路径不开启任何显式事务——
+        // BCrypt 期间不持有数据库连接，CPU 饱和不再级联耗尽连接池
+        SysUser user = activeUser(3L, "user01");
+        when(userMapper.selectOne(any())).thenReturn(user);
+        when(passwordEncoder.matches("secret", "old-hash")).thenReturn(true);
+        LoginDTO dto = new LoginDTO();
+        dto.setSchoolId(1L);
+        dto.setStudentId("user01");
+        dto.setPassword("secret");
+
+        service.login(dto);
+
+        assertEquals(0, txOpened.get());
+    }
+
+    @Test
+    void bannedTempRecoveryRunsInsideSingleShortTransaction() {
+        SysUser user = activeUser(3L, "user01");
+        user.setStatus(UserStatus.BANNED_TEMP);
+        user.setBanUntilTime(LocalDateTime.now().minusMinutes(1));
+        SysUser recovered = activeUser(3L, "user01");
+        recovered.setTokenVersion(5);
+        when(userMapper.selectOne(any())).thenReturn(user);
+        when(userMapper.update(any(), any())).thenReturn(1);
+        when(userMapper.selectByIdForUpdate(3L)).thenReturn(recovered);
+        when(passwordEncoder.matches("secret", "old-hash")).thenReturn(true);
+
+        service.login(loginDto("user01", "secret"));
+
+        assertEquals(1, txOpened.get());
+    }
+
+    @Test
+    void loginBeyondAdmissionSlotsFailsFastWithAuthBusy() throws Exception {
+        // 准入闸门在触碰任何数据库之前拒绝：第二个并发登录不进入 BCrypt、
+        // 不查库，快速收到 AUTH_BUSY（429 可退避），而非排队超时
+        CountDownLatch inFlight = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AuthService singleSlotService = new AuthService(
+                userMapper, passwordEncoder, jwtUtils, loginAttemptService,
+                schoolService, transactionTemplate, new AuthAdmissionGate(1, 0));
+        SysUser user = activeUser(3L, "user01");
+        when(userMapper.selectOne(any())).thenReturn(user);
+        when(passwordEncoder.matches("secret", "old-hash")).thenAnswer(invocation -> {
+            inFlight.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            return true;
+        });
+        Thread occupant = new Thread(() -> singleSlotService.login(loginDto("user01", "secret")));
+        try {
+            occupant.start();
+            assertTrue(inFlight.await(5, TimeUnit.SECONDS), "占位登录应已进入 BCrypt 段");
+            BusinessException busy = assertThrows(BusinessException.class,
+                    () -> singleSlotService.login(loginDto("user01", "secret")));
+            assertEquals(ResultCode.AUTH_BUSY.getCode(), busy.getCode());
+            verify(userMapper, times(1)).selectOne(any());
+            // 「先于任何数据库访问」钉死：限流协调器的独立短事务也只被占位者调用一次
+            verify(loginAttemptService, times(1)).isLocked(eq("1:user01"));
+        } finally {
+            release.countDown();
+            occupant.join(5000);
+        }
+    }
+
+    private LoginDTO loginDto(String studentId, String password) {
+        LoginDTO dto = new LoginDTO();
+        dto.setSchoolId(1L);
+        dto.setStudentId(studentId);
+        dto.setPassword(password);
+        return dto;
     }
 
     private SysUser activeUser(Long id, String studentId) {

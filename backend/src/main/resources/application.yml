@@ -82,6 +82,12 @@ zhiyi:
     cookie-name: ${AUTH_COOKIE_NAME:zhiyi_token}
     # 生产（HTTPS）部署时置 true，Cookie 仅经加密通道传输
     cookie-secure: ${AUTH_COOKIE_SECURE:false}
+    # 认证端点事务外准入：BCrypt 不持有数据库连接（见 AuthService 事务边界），
+    # 闸门再限制并发认证数防 CPU 打穿，超限快速 429（AUTH_BUSY）。
+    # slots 为 0/负数时按 2×CPU 核数自动推导；等待预算按一次完整认证
+    # （BCrypt + 数据库往返）的 P99 时延放大若干倍取值
+    admission-slots: ${AUTH_ADMISSION_SLOTS:0}
+    admission-wait-millis: ${AUTH_ADMISSION_WAIT_MILLIS:1000}
   trade:
     # 交易事务外有界准入：全局并发上限（须小于连接池并预留非交易请求空间）与等待预算
     admission-global-slots: ${TRADE_ADMISSION_GLOBAL_SLOTS:30}

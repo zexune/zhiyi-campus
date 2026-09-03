@@ -6547,10 +6547,10 @@ export interface operations {
                     "application/json": components["schemas"]["ApiFailure"];
                 };
             };
-            /** @description 1005：密码错误次数过多，请稍后再试。业务码 1005 附 Retry-After 响应头（建议退避秒数，数值为字符串） */
+            /** @description 1005：密码错误次数过多，请稍后再试；1011：当前请求较多，请稍后重试。业务码 1005/1011 附 Retry-After 响应头（建议退避秒数，数值为字符串） */
             429: {
                 headers: {
-                    /** @description 建议退避秒数（业务码 1005 携带） */
+                    /** @description 建议退避秒数（业务码 1005/1011 携带） */
                     "Retry-After"?: string;
                     [name: string]: unknown;
                 };
@@ -6728,6 +6728,17 @@ export interface operations {
                     "application/json": components["schemas"]["ApiFailure"];
                 };
             };
+            /** @description 1011：当前请求较多，请稍后重试。业务码 1011 附 Retry-After 响应头（建议退避秒数，数值为字符串） */
+            429: {
+                headers: {
+                    /** @description 建议退避秒数（业务码 1011 携带） */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
             /** @description 服务器内部错误（幂等处置 UNKNOWN） */
             500: {
                 headers: {
@@ -6824,10 +6835,10 @@ export interface operations {
                     "application/json": components["schemas"]["ApiFailure"];
                 };
             };
-            /** @description 1005：密码错误次数过多，请稍后再试。业务码 1005 附 Retry-After 响应头（建议退避秒数，数值为字符串） */
+            /** @description 1005：密码错误次数过多，请稍后再试；1011：当前请求较多，请稍后重试。业务码 1005/1011 附 Retry-After 响应头（建议退避秒数，数值为字符串） */
             429: {
                 headers: {
-                    /** @description 建议退避秒数（业务码 1005 携带） */
+                    /** @description 建议退避秒数（业务码 1005/1011 携带） */
                     "Retry-After"?: string;
                     [name: string]: unknown;
                 };

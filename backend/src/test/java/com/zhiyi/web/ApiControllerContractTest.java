@@ -399,6 +399,23 @@ class ApiControllerContractTest {
     }
 
     @Test
+    @DisplayName("认证准入背压 429 附静态 Retry-After，meta REJECTED（闸门先于任何数据库访问）")
+    void authBusyReturns429WithRetryAfterAndRejectedMeta() throws Exception {
+        when(authService.login(any()))
+                .thenThrow(new BusinessException(ResultCode.AUTH_BUSY));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"schoolId":1,"studentId":"20260001","password":"123456"}
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value(1011))
+                .andExpect(jsonPath("$.meta.requestOutcome").value("REJECTED"))
+                .andExpect(header().string("Retry-After", "1"));
+    }
+
+    @Test
     @DisplayName("P1-3：系统错误 500 的 meta 标记结果不明（保留幂等键），无 Retry-After")
     void serverErrorMarksOutcomeUnknown() throws Exception {
         when(tradingEntryService.createOrder(eq(7L), any(), anyString()))

@@ -21,18 +21,23 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * 适配 v3.1 并发重构：注销先 selectByIdForUpdate 锁定本人行再检查，
  * 状态迁移为条件 UPDATE（同 SQL 推进 token_version）；UserStateCache/TagQueryService 已移除。
+ * 认证事务边界重构后：BCrypt 在事务/行锁外执行，写库小节经 TransactionTemplate 短事务。
  */
 @ExtendWith(MockitoExtension.class)
 class AccountSecurityServiceTest {
@@ -47,6 +52,8 @@ class AccountSecurityServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private LoginAttemptService loginAttemptService;
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     private AccountSecurityService service;
 
@@ -59,12 +66,18 @@ class AccountSecurityServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 短事务直接透传回调：单元测试只关心回调内的语句编排
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<Object> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        });
         service = new AccountSecurityService(
                 userMapper,
                 itemMapper,
                 orderMapper,
                 passwordEncoder,
-                loginAttemptService);
+                loginAttemptService,
+                transactionTemplate);
     }
 
     @Test
@@ -99,6 +112,8 @@ class AccountSecurityServiceTest {
 
     @Test
     void cancelledAccountMigratesStateAndOffShelvesItems() {
+        // 预校验读（无锁）与锁定读返回同一行：哈希未变，锁内不重跑 BCrypt
+        when(userMapper.selectById(1L)).thenReturn(normalUser());
         when(userMapper.selectByIdForUpdate(1L)).thenReturn(normalUser());
         when(passwordEncoder.matches("oldpass", "old-hash")).thenReturn(true);
         when(orderMapper.selectCount(any())).thenReturn(0L);
@@ -111,10 +126,13 @@ class AccountSecurityServiceTest {
         // 用户条件状态迁移（ACTIVE → CANCELLED，同 SQL 推进 token_version）
         verify(userMapper).update(any(), any());
         verify(userMapper, never()).bumpTokenVersion(any());
+        // 事务边界回归：预校验通过且哈希未变时，BCrypt 只跑一次（锁外）
+        verify(passwordEncoder, times(1)).matches(any(), any());
     }
 
     @Test
     void cancelWithActiveOrderChangesNothing() {
+        when(userMapper.selectById(1L)).thenReturn(normalUser());
         when(userMapper.selectByIdForUpdate(1L)).thenReturn(normalUser());
         when(passwordEncoder.matches("oldpass", "old-hash")).thenReturn(true);
         when(orderMapper.selectCount(any())).thenReturn(1L);
@@ -131,7 +149,8 @@ class AccountSecurityServiceTest {
 
     @Test
     void concurrentStateChangeBlocksCancellation() {
-        // 锁后重读发现已被封禁：仅 ACTIVE 可注销，条件迁移失败
+        // 预校验时正常；锁后重读发现已被封禁：仅 ACTIVE 可注销，条件迁移失败
+        when(userMapper.selectById(1L)).thenReturn(normalUser());
         SysUser banned = normalUser();
         banned.setStatus(UserStatus.BANNED_TEMP);
         when(userMapper.selectByIdForUpdate(1L)).thenReturn(banned);
@@ -150,11 +169,32 @@ class AccountSecurityServiceTest {
     void adminAccountCannotBeCancelled() {
         SysUser admin = normalUser();
         admin.setRole(UserRole.ADMIN);
+        when(userMapper.selectById(1L)).thenReturn(admin);
         when(userMapper.selectByIdForUpdate(1L)).thenReturn(admin);
+        when(passwordEncoder.matches("oldpass", "old-hash")).thenReturn(true);
 
         assertThrows(BusinessException.class, () -> service.cancelAccount(1L, cancelDto()));
 
         verify(orderMapper, never()).selectCount(any());
+    }
+
+    @Test
+    void passwordChangedBeforeLockIsReVerifiedInside() {
+        // 预校验与锁定读之间密码被并发修改：锁内哈希比对不一致 → 重跑 BCrypt 复核
+        SysUser rehashed = normalUser();
+        rehashed.setPassword("new-hash");
+        when(userMapper.selectById(1L)).thenReturn(normalUser());
+        when(userMapper.selectByIdForUpdate(1L)).thenReturn(rehashed);
+        when(passwordEncoder.matches("oldpass", "old-hash")).thenReturn(true);
+        when(passwordEncoder.matches("oldpass", "new-hash")).thenReturn(false);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.cancelAccount(1L, cancelDto()));
+
+        assertEquals(ResultCode.PASSWORD_ERROR.getCode(), exception.getCode());
+        verify(orderMapper, never()).selectCount(any());
+        verify(userMapper, never()).update(any(), any());
     }
 
     private ChangePasswordDTO changePasswordDto() {

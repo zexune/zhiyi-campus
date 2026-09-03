@@ -46,17 +46,18 @@ public class AuthController {
     private final AuthTokenCookieWriter cookieWriter;
 
     @PostMapping("/register")
-    @BusinessErrors({ResultCode.STUDENT_ID_EXISTS, ResultCode.USER_CANCELLED})
+    @BusinessErrors({ResultCode.STUDENT_ID_EXISTS, ResultCode.USER_CANCELLED, ResultCode.AUTH_BUSY})
     public ApiSuccess<LoginVO> register(@Valid @RequestBody RegisterDTO dto, HttpServletResponse response) {
         LoginVO vo = authService.register(dto);
         cookieWriter.write(response, vo.getToken());
         return ApiSuccess.ok("注册成功", vo);
     }
 
-    /** USER_NOT_FOUND：登录锁定窗口内账户被删除后重读为空的防御分支。 */
+    /** USER_NOT_FOUND：登录锁定窗口内账户被删除后重读为空的防御分支；AUTH_BUSY：认证准入背压。 */
     @PostMapping("/login")
     @BusinessErrors({ResultCode.PASSWORD_ERROR, ResultCode.LOGIN_LOCKED,
-            ResultCode.USER_BANNED, ResultCode.USER_CANCELLED, ResultCode.USER_NOT_FOUND})
+            ResultCode.USER_BANNED, ResultCode.USER_CANCELLED, ResultCode.USER_NOT_FOUND,
+            ResultCode.AUTH_BUSY})
     public ApiSuccess<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletResponse response) {
         LoginVO vo = authService.login(dto);
         cookieWriter.write(response, vo.getToken());
@@ -88,7 +89,7 @@ public class AuthController {
     @PostMapping("/reset-password")
     @BusinessErrors({ResultCode.USER_NOT_FOUND, ResultCode.USER_CANCELLED,
             ResultCode.PASSWORD_ERROR, ResultCode.SECURITY_ANSWER_ERROR, ResultCode.LOGIN_LOCKED,
-            ResultCode.SAME_AS_OLD_PASSWORD})
+            ResultCode.SAME_AS_OLD_PASSWORD, ResultCode.AUTH_BUSY})
     public ApiSuccess<Void> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
         authService.resetPassword(dto);
         return ApiSuccess.ok("密码重置成功，请重新登录", null);
