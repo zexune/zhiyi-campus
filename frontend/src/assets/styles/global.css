@@ -230,6 +230,13 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
+  /* 桌面端滚动条常驻：内容不足以滚动的页面也保留滚动条轨道（空轨道只显示
+     底色），避免路由切换时滚动条出现/消失导致整页 ~10px 横向跳动。
+     scrollbar-gutter: stable 在 Firefox 对根元素按规范生效，但 Chromium 有
+     已知怪癖（根元素 overflow-y:auto 时 stable 不预留），必须同时声明
+     overflow-y: scroll 才可靠；移动端为覆盖式滚动条，视觉无感知 */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 body {
   font-family: var(--font-body);
@@ -260,6 +267,35 @@ ol {
 ::selection {
   background: var(--yellow);
   color: var(--ink);
+}
+
+/* ============ 统一滚动条 ============ */
+/* Windows/桌面端默认滚动条粗且发灰，与暖纸视觉割裂；全站（文档与页内滚动区）
+   统一为细圆角暖色滑轨。Firefox 走 scrollbar-width/color，WebKit 走伪元素 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  /* 上下（或左右）留 2px 透明边，滑块呈胶囊形而不贴满滑轨 */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* 数字统一等宽呈现，避免跳动 */
@@ -1280,7 +1316,11 @@ ol {
   }
 }
 .rise {
-  animation: rise-in 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  /* backwards 而非 both：终帧（translate:0 0 / opacity:1）与自然状态完全一致，
+     无需 forwards 保留；且回落到 none 后不会让元素持续成为 fixed 后代的
+     包含块（非 none 的 translate 会改写 fixed 定位基准——详情页移动端
+     吸底操作栏曾因此被钉在信息面板底部而非视口底部） */
+  animation: rise-in 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
 }
 .rise-1 {
   animation-delay: 0.04s;

@@ -106,78 +106,87 @@
         </div>
       </div>
 
-      <!-- 移动端导航抽屉 -->
-      <nav v-show="mobileNavOpen" class="mobile-nav" aria-label="移动端导航">
-        <router-link :to="ROUTE_PATH.HOME" :class="{ active: isActive('/') }" :aria-current="isActive('/') ? 'page' : undefined" @click="closeMobileNav">
-          <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11 12 4l9 7" />
-            <path d="M5 10v10h14V10" />
-            <path d="M9 20v-6h6v6" />
-          </svg>
-          交易大厅
-        </router-link>
-        <router-link :to="ROUTE_PATH.RANKING" :class="{ active: isActive(ROUTE_PATH.RANKING) }" :aria-current="isActive(ROUTE_PATH.RANKING) ? 'page' : undefined" @click="closeMobileNav">
-          <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z" />
-            <path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" />
-          </svg>
-          爆款榜
-        </router-link>
-        <template v-if="loggedIn">
-          <router-link :to="ROUTE_PATH.PUBLISH" :class="{ active: isActive(ROUTE_PATH.PUBLISH) }" :aria-current="isActive(ROUTE_PATH.PUBLISH) ? 'page' : undefined" @click="closeMobileNav">
-            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            发布闲置
-          </router-link>
-          <router-link :to="ROUTE_PATH.CHAT" :class="{ active: isActive(ROUTE_PATH.CHAT) }" :aria-current="isActive(ROUTE_PATH.CHAT) ? 'page' : undefined" @click="closeMobileNav">
+      <!-- 移动端导航抽屉：下滑进场；点击抽屉外任意处关闭（遮罩在 header 外，见下） -->
+      <Transition name="drawer">
+        <nav v-show="mobileNavOpen" class="mobile-nav" aria-label="移动端导航">
+          <router-link :to="ROUTE_PATH.HOME" :class="{ active: isActive('/') }" :aria-current="isActive('/') ? 'page' : undefined" @click="closeMobileNav">
             <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+              <path d="M3 11 12 4l9 7" />
+              <path d="M5 10v10h14V10" />
+              <path d="M9 20v-6h6v6" />
             </svg>
-            消息
-            <span v-if="unreadCount > 0" class="dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            交易大厅
           </router-link>
-          <router-link :to="ROUTE_PATH.WALLET" :class="{ active: isActive(ROUTE_PATH.WALLET) }" :aria-current="isActive(ROUTE_PATH.WALLET) ? 'page' : undefined" @click="closeMobileNav">
+          <router-link :to="ROUTE_PATH.RANKING" :class="{ active: isActive(ROUTE_PATH.RANKING) }" :aria-current="isActive(ROUTE_PATH.RANKING) ? 'page' : undefined" @click="closeMobileNav">
             <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="6" width="18" height="13" rx="2" />
-              <path d="M3 10h18M16 15h.01" />
+              <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z" />
+              <path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" />
             </svg>
-            钱包·订单
+            爆款榜
           </router-link>
-          <span class="mobile-nav__divider" aria-hidden="true"></span>
-          <router-link :to="ROUTE_PATH.USER_PROFILE" :class="{ active: isActive(ROUTE_PATH.USER_PROFILE) }" @click="closeMobileNav">
-            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
-            </svg>
-            个人中心
-          </router-link>
-          <router-link :to="ROUTE_PATH.MY_ITEMS" @click="closeMobileNav">
-            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-              <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
-            </svg>
-            我的发布
-          </router-link>
-          <router-link :to="ROUTE_PATH.MY_FAVORITES" @click="closeMobileNav">
-            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
-            </svg>
-            我的收藏
-          </router-link>
-          <a href="#" @click.prevent="mobileLogout">
-            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <path d="m16 17 5-5-5-5M21 12H9" />
-            </svg>
-            退出登录
-          </a>
-        </template>
-        <template v-else>
-          <span class="mobile-nav__divider" aria-hidden="true"></span>
-          <router-link :to="ROUTE_PATH.LOGIN" @click="closeMobileNav">登录</router-link>
-          <router-link :to="ROUTE_PATH.REGISTER" @click="closeMobileNav">注册</router-link>
-        </template>
-      </nav>
+          <template v-if="loggedIn">
+            <router-link :to="ROUTE_PATH.PUBLISH" :class="{ active: isActive(ROUTE_PATH.PUBLISH) }" :aria-current="isActive(ROUTE_PATH.PUBLISH) ? 'page' : undefined" @click="closeMobileNav">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              发布闲置
+            </router-link>
+            <router-link :to="ROUTE_PATH.CHAT" :class="{ active: isActive(ROUTE_PATH.CHAT) }" :aria-current="isActive(ROUTE_PATH.CHAT) ? 'page' : undefined" @click="closeMobileNav">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+              </svg>
+              消息
+              <span v-if="unreadCount > 0" class="dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            </router-link>
+            <router-link :to="ROUTE_PATH.WALLET" :class="{ active: isActive(ROUTE_PATH.WALLET) }" :aria-current="isActive(ROUTE_PATH.WALLET) ? 'page' : undefined" @click="closeMobileNav">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 10h18M16 15h.01" />
+              </svg>
+              钱包·订单
+            </router-link>
+            <span class="mobile-nav__divider" aria-hidden="true"></span>
+            <router-link :to="ROUTE_PATH.USER_PROFILE" :class="{ active: isActive(ROUTE_PATH.USER_PROFILE) }" @click="closeMobileNav">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
+              </svg>
+              个人中心
+            </router-link>
+            <router-link :to="ROUTE_PATH.MY_ITEMS" @click="closeMobileNav">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              我的发布
+            </router-link>
+            <router-link :to="ROUTE_PATH.MY_FAVORITES" @click="closeMobileNav">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
+              </svg>
+              我的收藏
+            </router-link>
+            <a href="#" @click.prevent="mobileLogout">
+              <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="m16 17 5-5-5-5M21 12H9" />
+              </svg>
+              退出登录
+            </a>
+          </template>
+          <template v-else>
+            <span class="mobile-nav__divider" aria-hidden="true"></span>
+            <router-link :to="ROUTE_PATH.LOGIN" @click="closeMobileNav">登录</router-link>
+            <router-link :to="ROUTE_PATH.REGISTER" @click="closeMobileNav">注册</router-link>
+          </template>
+        </nav>
+      </Transition>
     </header>
+
+    <!-- 抽屉遮罩：置于 header 之外（topbar 的 backdrop-filter 会成为 fixed 后代的
+         包含块，遮罩会被压缩成 60px 高）；层级 39 低于 header(50) 内的抽屉(40)、
+         高于页面内容，点击任意处关闭 -->
+    <Transition name="drawer-fade">
+      <div v-show="mobileNavOpen" class="nav-overlay" aria-hidden="true" @click="closeMobileNav"></div>
+    </Transition>
 
     <!-- 页面内容：tabindex=-1 供路由切换后接收焦点（不会进入 Tab 序） -->
     <main id="main-content" ref="mainRef" class="layout-main" tabindex="-1">
@@ -343,6 +352,42 @@ onUnmounted(() => {
 
 .layout-main:focus {
   outline: none;
+}
+
+/* 抽屉遮罩：铺满视口，点击任意处关闭（仅抽屉展开时随 Transition 渲染）。
+   桌面端（>768px，抽屉本身被 global.css 收起）同步隐藏——否则移动端开抽屉后
+   拉宽窗口，遮罩会在抽屉已消失的情况下继续全屏拦截点击 */
+.nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-drop) - 1);
+  background: rgba(31, 27, 22, 0.28);
+}
+@media (min-width: 769px) {
+  .nav-overlay {
+    display: none;
+  }
+}
+
+/* 抽屉下滑进场/上收出场，遮罩同步淡入淡出（仅 transform/opacity） */
+.drawer-enter-active,
+.drawer-leave-active {
+  transition:
+    opacity 0.2s ease,
+    translate 0.2s ease;
+}
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+  translate: 0 -10px;
+}
+.drawer-fade-enter-active,
+.drawer-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.drawer-fade-enter-from,
+.drawer-fade-leave-to {
+  opacity: 0;
 }
 
 .layout-main {

@@ -134,23 +134,19 @@
                   <TagList :tags="item.tags" :limit="2" compact @select="goTag" />
                 </span>
                 <ItemPrice :type="item.type" :price="item.price" font-size="21px" swap-label="换物" />
-                <span class="ranking-row__favorites" title="收藏数">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
-                  </svg>
-                  {{ item.favoriteCount || 0 }}
-                </span>
+                <!-- 收藏按钮（含实时计数）：与首页商品卡同款胶囊形态，合并原「计数 + 心形按钮」 -->
                 <button
                   class="favorite-button"
                   :class="{ active: item.favoriteByCurrentUser }"
                   :disabled="favoriteBusyIds.has(item.id)"
                   :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
-                  :aria-label="item.favoriteByCurrentUser ? `取消收藏 ${item.title}` : `收藏 ${item.title}`"
+                  :aria-label="`${item.favoriteByCurrentUser ? '取消收藏' : '收藏'} ${item.title}（${item.favoriteCount || 0}人收藏）`"
                   @click.stop.prevent="handleFavorite(item)"
                 >
                   <svg viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
                   </svg>
+                  <span class="favorite-count-num">{{ item.favoriteCount || 0 }}</span>
                 </button>
                 <svg class="ranking-row__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </router-link>
@@ -628,7 +624,9 @@ onMounted(fetchRanking)
 .ranking-row {
   min-height: 96px;
   display: grid;
-  grid-template-columns: 44px 62px minmax(0, 1fr) 110px 105px 38px 20px;
+  /* 6 轨对 6 子项（收藏计数 span 已并入按钮）。按钮列定宽而非 auto：
+     各行计数位数不同，auto 轨道会让 1fr 之后的列起点逐行漂移、箭头对不齐 */
+  grid-template-columns: 44px 62px minmax(0, 1fr) 110px 72px 20px;
   align-items: center;
   gap: 14px;
   padding: 11px 18px;
@@ -681,41 +679,46 @@ onMounted(fetchRanking)
   color: var(--ink-soft);
   font-size: 12px;
 }
-.ranking-row__favorites {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.ranking-row__favorites svg {
-  width: 16px;
-  height: 16px;
-  color: var(--red);
-}
 .favorite-button {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 5px;
+  height: 34px;
+  padding: 0 11px;
   border: var(--bw) solid var(--line);
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--white);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
 }
 .favorite-button:hover,
 .favorite-button.active {
-  background: var(--yellow);
+  background: var(--red-bg);
+  border-color: var(--red-bg);
   color: var(--red);
+}
+.favorite-button:active {
+  transform: scale(0.94);
 }
 .favorite-button:disabled {
   opacity: 0.55;
   cursor: wait;
 }
 .favorite-button svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
+}
+.favorite-count-num {
+  line-height: 1;
 }
 .ranking-row__arrow {
   width: 18px;
@@ -769,16 +772,13 @@ onMounted(fetchRanking)
     order: 0;
   }
   .ranking-row {
-    grid-template-columns: 40px 56px minmax(0, 1fr) 92px 38px 18px;
+    grid-template-columns: 40px 56px minmax(0, 1fr) 92px 72px 18px;
     gap: 10px;
     padding-inline: 12px;
   }
   .ranking-row__image {
     width: 56px;
     height: 56px;
-  }
-  .ranking-row__favorites {
-    display: none;
   }
 }
 
@@ -809,7 +809,7 @@ onMounted(fetchRanking)
     justify-content: flex-start;
   }
   .ranking-row {
-    grid-template-columns: 34px 50px minmax(0, 1fr) 36px;
+    grid-template-columns: 34px 50px minmax(0, 1fr) 44px;
   }
   .ranking-row__number {
     width: 30px;
@@ -822,6 +822,11 @@ onMounted(fetchRanking)
   }
   .ranking-row :deep(.price),
   .ranking-row__arrow {
+    display: none;
+  }
+  /* 窄屏收起计数、按钮回到图标态保住 1fr 主列宽度；
+     计数仍在 title/aria-label 里可感知。轨道 44px 对齐全局触控 min-width */
+  .favorite-count-num {
     display: none;
   }
 }

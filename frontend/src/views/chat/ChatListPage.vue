@@ -27,6 +27,9 @@
             <button v-if="!keyword.trim() && hasMoreConversations" class="btn btn--sm btn--ghost conv-more" :disabled="moreLoading" @click="loadMoreConversations">
               {{ moreLoading ? '加载中…' : '加载更多会话' }}
             </button>
+            <!-- 列表收底提示：避免会话较少时列表下方留大片空白显得未加载完
+                 （父级已保证列表非空，无需再验条件） -->
+            <p v-else class="conv-end muted" aria-hidden="true">— 只有这些会话啦 —</p>
           </div>
           <div v-else class="conv-empty">
             <p class="muted">还没有聊天记录</p>
@@ -508,11 +511,23 @@ onUnmounted(() => {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  /* 让收底提示的 margin:auto 生效（吸收会话较少时的剩余空间） */
+  display: flex;
+  flex-direction: column;
+}
+.conv-items > :not(.conv-end) {
+  flex-shrink: 0;
 }
 .conv-more {
   display: block;
   width: calc(100% - 24px);
   margin: 8px 12px 12px;
+}
+.conv-end {
+  margin: auto;
+  padding: 18px 0 14px;
+  font-size: 12px;
+  /* 上方留白由 margin:auto 吸收，把提示压在列表底部而非紧跟最后一条 */
 }
 .conv-empty,
 .chat-placeholder,

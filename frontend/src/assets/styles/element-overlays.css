@@ -15,10 +15,13 @@
   }
 }
 
-/* Element Plus 默认只锁 body；根滚动容器也同步锁定，避免窄屏遮罩旁残留滚动槽。 */
-html:has(> body.el-popup-parent--hidden),
-html:has(> body.el-message-box-parent--hidden) {
-  overflow: hidden;
+/* 弹窗背景滚动锁：不再把 html overflow 设为 hidden（经典滚动条会随之消失，
+   弹窗开合时整页横向跳动 ~10px，且与"滚动条常驻"策略冲突）。改为在遮罩层
+   本身阻断滚轮/触摸的滚动链——遮罩覆盖全屏时所有滚轮事件都落在 .el-overlay
+   上，contain 阻止其链到根滚动盒，背景页既不可滚、滚动位置也原样保留；
+   html 的 overflow-y: scroll 让滚动条轨道全程在位（无滑块、只显示底色） */
+.el-overlay {
+  overscroll-behavior: contain;
 }
 
 /* ============ 普通对话框 ============ */

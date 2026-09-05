@@ -515,7 +515,8 @@ watch(
   box-shadow: var(--shadow-s);
 }
 
-/* 价签吊牌：左缘一个拴绳孔（伪元素透出页面底色模拟打孔） */
+/* 价签吊牌：左缘一个拴绳孔（伪元素透出页面底色模拟打孔）。
+   孔缘用一圈细描边交代"冲孔"结构，避免看起来像没渲染完的残影 */
 .price-strip::before {
   content: '';
   position: absolute;
@@ -527,8 +528,8 @@ watch(
   border-radius: 50%;
   background: var(--paper);
   box-shadow:
-    inset 0 1.5px 2px rgba(31, 27, 22, 0.16),
-    0 0 0 2px rgba(31, 27, 22, 0.04);
+    inset 0 1.5px 2.5px rgba(31, 27, 22, 0.22),
+    0 0 0 1.5px var(--line);
   pointer-events: none;
 }
 
@@ -645,6 +646,12 @@ watch(
   flex: 0 0 auto;
 }
 
+/* 「查看详情」外链箭头：SVG 无固有尺寸，不约束会被弹性盒拉伸成巨图 */
+.seller-card__detail svg {
+  width: 15px;
+  height: 15px;
+}
+
 .desc-block {
   padding: 22px 24px;
   margin-bottom: 24px;
@@ -714,6 +721,36 @@ watch(
 
   .gallery {
     position: static;
+  }
+
+  /* 移动端操作吸底：购买/收藏是页面主行动，拇指热区固定在视口底部
+     （电商惯例）。用 fixed 而非 sticky：sticky 在滚动越过容器末尾（页脚区）
+     时会脱底；fixed 始终贴视口，页面补等高 padding 防止内容被遮。
+     通栏 + 底缘避让手势条。路由过渡期间页面根上的 translate 会使 fixed
+     短暂改为相对页面根定位，视觉差可忽略 */
+  .detail-page {
+    padding-bottom: calc(76px + var(--safe-bottom));
+  }
+
+  .action-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-drop);
+    margin: 0;
+    /* 左右避让按各自安全区取值（与 topbar/页脚同款），横屏刘海屏两侧 inset 可能不等 */
+    padding: 12px 0 calc(12px + var(--safe-bottom));
+    padding-left: var(--gutter-left);
+    padding-right: var(--gutter-right);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: var(--bw) solid var(--line);
+    box-shadow: 0 -4px 16px rgba(31, 27, 22, 0.06);
+  }
+  .action-bar .btn {
+    min-height: var(--tap-target);
   }
 }
 

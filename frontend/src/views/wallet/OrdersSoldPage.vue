@@ -11,9 +11,18 @@
         <span class="nav-tab active">我卖的</span>
       </div>
 
-      <!-- 状态筛选 -->
-      <div class="filter-bar seg-tabs">
-        <button v-for="f in filters" :key="f.value" type="button" :class="{ active: currentFilter === f.value }" @click="switchFilter(f.value)">{{ f.label }}</button>
+      <!-- 状态筛选 + 总数：紧凑工具行（原整宽灰带视觉过重） -->
+      <div class="list-toolbar">
+        <div class="filter-bar seg-tabs" role="group" aria-label="订单状态筛选">
+          <button v-for="f in filters" :key="f.value" type="button" :class="{ active: currentFilter === f.value }" :aria-pressed="currentFilter === f.value" @click="switchFilter(f.value)">
+            {{ f.label }}
+          </button>
+        </div>
+        <span class="order-total muted">
+          共
+          <strong>{{ total }}</strong>
+          单
+        </span>
       </div>
 
       <!-- 加载 / 空 / 错误 -->
@@ -181,12 +190,27 @@ onMounted(() => {
   box-shadow: var(--shadow-s);
 }
 
-/* 筛选栏 */
-.filter-bar {
+/* 筛选工具行：状态 seg-tabs 靠左，订单总数靠右 */
+.list-toolbar {
   display: flex;
-  gap: var(--spacing-sm);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: var(--spacing-md);
   flex-wrap: wrap;
+}
+
+.filter-bar {
+  gap: 2px;
+}
+
+.order-total {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.order-total strong {
+  color: var(--primary);
 }
 
 /* 状态卡片 */

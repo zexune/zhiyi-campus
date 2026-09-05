@@ -711,6 +711,15 @@
   object-fit: cover;
 }
 
+/* 封面淡入：未加载完成时透明（透出占位底色），load 后轻轻浮现 */
+.goods-card__img .img-fade {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.goods-card__img .img-fade.is-loaded {
+  opacity: 1;
+}
+
 .goods-card__type {
   position: absolute;
   top: 10px;
@@ -745,14 +754,6 @@
   justify-content: space-between;
   gap: var(--spacing-sm);
   margin-top: auto;
-}
-
-.goods-card__fav {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--ink-soft);
-  font-size: 13px;
 }
 
 .heart-icon {
@@ -819,31 +820,50 @@
 }
 
 .fav-button {
-  width: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   height: 34px;
-  display: grid;
-  place-items: center;
+  padding: 0 11px;
   border: var(--bw) solid var(--line);
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--white);
   color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
     color 0.15s,
     background-color 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    transform 0.15s;
 }
 
 .fav-button:hover {
-  border-color: var(--line-strong);
-  background: var(--paper-deep);
+  border-color: var(--red-bg);
+  background: var(--red-bg);
   color: var(--red);
+}
+
+.fav-button:active {
+  transform: scale(0.94);
 }
 
 .fav-button.active {
   background: var(--red-bg);
   border-color: var(--red-bg);
   color: var(--red);
+}
+
+/* 请求进行中：与爆款榜 .favorite-button:disabled 同款反馈 */
+.fav-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.fav-count {
+  line-height: 1;
 }
 
 .hall-aside__sticky {

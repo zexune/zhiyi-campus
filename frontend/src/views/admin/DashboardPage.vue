@@ -336,23 +336,18 @@ const PLOT_W = computed(() => SVG_W - PAD_L - PAD_R)
 const PLOT_R = computed(() => SVG_W - PAD_R)
 const PLOT_H = computed(() => SVG_H - PAD_T - PAD_B)
 
-// Y 轴最大值（至少为 1，向上取整到舒适的值）
+// Y 轴最大值：向上取整到 4 的倍数，保证 4 等分后的刻度值全是整数且互不重复
+// （此前 raw=1 时四等分刻度 round 后为 0/1/1/1，网格标签连排三个"1"）
 const maxY = computed(() => {
   const raw = Math.max(1, ...trendPoints.value.map((p) => p.count))
-  // 向上取整到最近的 nice number
-  if (raw <= 2) return raw
-  if (raw <= 5) return Math.ceil(raw)
-  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
-  const norm = raw / mag
-  const nice = norm <= 2 ? 2 : norm <= 5 ? 5 : 10
-  return nice * mag
+  return Math.max(4, Math.ceil(raw / 4) * 4)
 })
 
 // 4 条网格线（0%, 25%, 50%, 75%, 100% — 5 个刻度值）
 const gridLines = [0, 1, 2, 3, 4]
 
 function gridValue(i: number) {
-  return Math.round((maxY.value * i) / 4)
+  return (maxY.value * i) / 4
 }
 
 function xFor(i: number) {

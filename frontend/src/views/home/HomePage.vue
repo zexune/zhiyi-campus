@@ -107,7 +107,8 @@
             <span class="filter-panel__stamp">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v5l-4 2v-7Z" /></svg>
             </span>
-            <strong>精细筛选</strong>
+            <!-- 该开关只折叠下方的标签云（发布类型/价格区间是高频项，常驻右侧） -->
+            <strong>标签筛选</strong>
             <span class="filter-panel__chevron" :class="{ open: showTagCloud }">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6" /></svg>
             </span>
@@ -185,7 +186,16 @@
               <!-- 图钉：纸条被钉在布告栏上的视觉锚点（纯装饰） -->
               <i class="pushpin" :class="pushpinTone(item.type)" aria-hidden="true"></i>
               <div class="goods-card__img" :class="placeholderClass(item.id)">
-                <img v-if="item.coverImage" :src="item.coverImage" :alt="item.title" :loading="index < EAGER_COVER_COUNT ? 'eager' : 'lazy'" decoding="async" />
+                <img
+                  v-if="item.coverImage"
+                  :src="item.coverImage"
+                  :alt="item.title"
+                  :loading="index < EAGER_COVER_COUNT ? 'eager' : 'lazy'"
+                  decoding="async"
+                  class="img-fade"
+                  @load="onImgLoad"
+                  @error="onImgLoad"
+                />
                 <span class="badge goods-card__type" :class="typeBadgeClass(item.type)">
                   {{ itemTypeLabel(item.type) }}
                 </span>
@@ -211,22 +221,20 @@
                 </div>
                 <div class="goods-card__meta">
                   <ItemPrice :type="item.type" :price="item.price" font-size="22px" swap-label="换物" />
-                  <span class="goods-card__fav">
-                    <svg class="heart-icon" viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                      <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
-                    </svg>
-                    {{ item.favoriteCount || 0 }}
-                  </span>
+                  <!-- 收藏按钮（含实时计数）：合并原「计数 + 心形按钮」两个控件，
+                       计数随点击即时变化（useMarketplaceHome.handleFavorite 回写） -->
                   <button
                     class="fav-button"
                     :class="{ active: item.favoriteByCurrentUser }"
                     :disabled="favoriteBusyIds.has(item.id)"
                     :title="item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'"
+                    :aria-label="`${item.favoriteByCurrentUser ? '取消收藏' : '收藏商品'}（${item.favoriteCount || 0}人收藏）`"
                     @click.stop.prevent="handleFavorite(item)"
                   >
-                    <svg class="heart-icon" viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                    <svg class="heart-icon" viewBox="0 0 24 24" :fill="item.favoriteByCurrentUser ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2C10.5 3.5 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />
                     </svg>
+                    <span class="fav-count">{{ item.favoriteCount || 0 }}</span>
                   </button>
                 </div>
                 <div class="goods-card__seller">
@@ -347,6 +355,11 @@ const PUSHPIN_TONES: Record<ItemType, string> = {
  *  契约外的意外值落到 ''（默认柿橙图钉），不抛错 */
 function pushpinTone(type: string): string {
   return PUSHPIN_TONES[type as ItemType] ?? ''
+}
+
+/** 封面淡入：load/error 后都结束透明态——加载中透出占位底色，失败也透出 alt 文本而非永久占位色 */
+function onImgLoad(event: Event): void {
+  ;(event.target as HTMLImageElement).classList.add('is-loaded')
 }
 
 const {

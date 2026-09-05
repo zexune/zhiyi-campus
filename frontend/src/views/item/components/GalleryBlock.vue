@@ -1,6 +1,8 @@
 <template>
   <div class="gallery__main" :class="placeholder">
-    <img v-if="activeImage" :src="activeImage" :alt="alt" fetchpriority="high" decoding="async" />
+    <!-- 加载中保持透明（透出占位底色），load 后淡入，避免大图"啪"地弹出；
+         :key 随切换重建元素，否则复用元素上残留的 is-loaded 会让后续换图失去淡入 -->
+    <img v-if="activeImage" :key="activeImage" :src="activeImage" :alt="alt" fetchpriority="high" decoding="async" class="main-img" @load="markLoaded" @error="markLoaded" />
     <!-- 类型徽标等内容由父级经作用域插槽注入（绝对定位于主图左上角） -->
     <slot name="overlay" />
     <button v-if="images.length > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
@@ -9,7 +11,7 @@
   </div>
   <div v-if="images.length > 1" class="gallery__thumbs">
     <button v-for="image in images" :key="image" class="th" :class="{ active: image === activeImage }" @click="activeImage = image">
-      <img :src="image" :alt="alt" loading="lazy" decoding="async" />
+      <img :src="image" :alt="alt" loading="lazy" decoding="async" @load="markLoaded" @error="markLoaded" />
     </button>
   </div>
 </template>
@@ -50,6 +52,11 @@ function switchImage(offset: number): void {
   const nextIndex = (activeImageIndex.value + offset + props.images.length) % props.images.length
   activeImage.value = props.images[nextIndex]
 }
+
+/** load/error 后给图片补上淡入类：失败也结束透明态，透出 alt 文本而非永久占位色（主图与缩略图共用） */
+function markLoaded(event: Event): void {
+  ;(event.target as HTMLImageElement).classList.add('is-loaded')
+}
 </script>
 
 <style scoped>
@@ -68,6 +75,17 @@ function switchImage(offset: number): void {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* 主图/缩略图加载淡入：未就绪时透出占位底色 */
+.gallery__main .main-img,
+.th img {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.gallery__main .main-img.is-loaded,
+.th img.is-loaded {
+  opacity: 1;
 }
 
 .gallery__nav {
