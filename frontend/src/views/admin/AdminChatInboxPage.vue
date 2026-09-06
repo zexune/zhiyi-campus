@@ -354,7 +354,7 @@ onUnmounted(() => {
   display: flex;
   height: 580px;
   overflow: hidden;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-l);
 }
 @media (max-width: 700px) {
@@ -385,7 +385,7 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 14px 16px;
   border-bottom: var(--bw) solid var(--line);
-  background: linear-gradient(180deg, #fff 0%, #f7f9fc 100%);
+  background: linear-gradient(180deg, #fff 0%, #faf7f2 100%);
 }
 .sidebar-title {
   font-family: var(--font-display);
@@ -512,7 +512,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+  background: linear-gradient(180deg, #faf7f2 0%, #f1ece2 100%);
 }
 .load-earlier {
   align-self: center;

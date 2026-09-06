@@ -126,7 +126,7 @@ const emit = defineEmits<{
   display: grid;
   place-items: center;
   border: 2px solid var(--white);
-  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 2px 7px rgba(31, 27, 22, 0.14);
 }
 @media (max-width: 760px) {
   .conv-item {

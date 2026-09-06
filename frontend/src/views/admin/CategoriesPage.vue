@@ -272,13 +272,13 @@ onMounted(load)
 .category-list,
 .category-form {
   padding: 28px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }
 .category-row {
   min-height: 64px;
-  border-color: #e2e8f0;
+  border-color: #e3dbcc;
   border-radius: 12px;
 }
 @media (max-width: 850px) {

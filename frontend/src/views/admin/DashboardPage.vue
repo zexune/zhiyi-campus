@@ -670,7 +670,7 @@ function violationBadge(type: string | undefined) {
 }
 .stat-card {
   padding: 30px 24px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }
@@ -681,7 +681,7 @@ function violationBadge(type: string | undefined) {
 .trend-card,
 .heatmap-card,
 .logs-section {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }

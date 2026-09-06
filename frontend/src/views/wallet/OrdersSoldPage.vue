@@ -359,8 +359,8 @@ onMounted(() => {
 }
 .nav-tabs {
   margin-top: 18px;
-  border: 1px solid #e2e8f0;
-  background: #eef2f7;
+  border: 1px solid #e3dbcc;
+  background: #f1ece2;
 }
 .nav-tab {
   min-height: 40px;
@@ -374,7 +374,7 @@ onMounted(() => {
   gap: 18px;
 }
 .order-item {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }

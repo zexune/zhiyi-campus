@@ -840,11 +840,11 @@ onMounted(fetchRanking)
 }
 .trending-panel {
   padding: 22px 24px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-m);
 }
 .podium-card {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }
@@ -853,7 +853,7 @@ onMounted(fetchRanking)
   box-shadow: var(--shadow-m);
 }
 .ranking-row {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: 12px;
 }
 @media (max-width: 900px) {

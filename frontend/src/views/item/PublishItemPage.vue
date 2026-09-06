@@ -932,7 +932,7 @@ onMounted(async () => {
 }
 .pub-card {
   padding: 34px 36px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: 18px;
   box-shadow: var(--shadow-m);
 }
@@ -942,7 +942,7 @@ onMounted(async () => {
 }
 .type-option {
   padding: 18px 20px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: 14px;
 }
 .type-option:hover {

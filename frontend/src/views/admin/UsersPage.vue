@@ -494,7 +494,7 @@ onMounted(() => {
 }
 .filter-card {
   padding: 22px 24px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }
@@ -502,7 +502,7 @@ onMounted(() => {
   gap: 16px;
 }
 .table-card {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }

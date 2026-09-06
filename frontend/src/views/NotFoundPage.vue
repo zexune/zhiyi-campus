@@ -27,7 +27,7 @@
   flex-direction: column;
   gap: 16px;
   align-items: center;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-l);
   box-shadow: var(--shadow-l);
 }

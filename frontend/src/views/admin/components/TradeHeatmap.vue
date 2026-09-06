@@ -41,7 +41,7 @@ function heatColor(i: number) {
 }
 .heatmap-grid {
   padding: 20px 24px;
-  background: linear-gradient(145deg, #fff 0%, #f8fafc 100%);
+  background: linear-gradient(145deg, #fff 0%, #f7f4ee 100%);
 }
 .heatmap-bar-row {
   display: flex;
@@ -64,17 +64,17 @@ function heatColor(i: number) {
 .heatmap-bar-wrap {
   flex: 1;
   height: 12px;
-  background: #e8edf3;
+  background: #ece5d8;
   border-radius: 999px;
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 2px rgba(31, 27, 22, 0.08);
 }
 .heatmap-bar {
   height: 100%;
   border-radius: 999px;
   min-width: 4px;
   transition: width 0.4s ease;
-  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 2px 5px rgba(31, 27, 22, 0.15);
 }
 .heatmap-count {
   width: 50px;

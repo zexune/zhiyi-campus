@@ -70,8 +70,8 @@ function onError() {
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.92);
   box-shadow:
-    0 0 0 1px rgba(23, 32, 51, 0.12),
-    0 3px 10px rgba(23, 32, 51, 0.12);
+    0 0 0 1px rgba(31, 27, 22, 0.12),
+    0 3px 10px rgba(31, 27, 22, 0.12);
   isolation: isolate;
 }
 

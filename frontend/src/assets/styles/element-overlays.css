@@ -979,8 +979,8 @@
 }
 
 .el-skeleton {
-  --el-skeleton-color: #e9eef4;
-  --el-skeleton-to-color: #f8fafc;
+  --el-skeleton-color: #ece5d8;
+  --el-skeleton-to-color: #f7f4ee;
 }
 .el-skeleton__item {
   border-radius: 8px;
@@ -1029,7 +1029,7 @@
 /* 浮层刷新：更轻的遮罩、更明确的弹窗层级，移动端仍保留满宽触控按钮。 */
 .app-modal,
 .el-overlay.is-message-box {
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(31, 27, 22, 0.42);
 }
 .app-dialog.el-dialog,
 .el-message-box,
@@ -1037,8 +1037,8 @@
 .app-select-popper.el-popper,
 .app-date-picker.el-popper {
   border-radius: 18px;
-  border-color: #dbe3ec;
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+  border-color: #ddd3c2;
+  box-shadow: 0 22px 48px rgba(31, 27, 22, 0.16);
 }
 .app-dialog .el-dialog__header,
 .el-message-box__header {
@@ -1046,7 +1046,7 @@
 }
 .app-dialog .el-dialog__footer,
 .el-message-box__btns {
-  background: #fbfcfe;
+  background: #faf7f2;
 }
 .app-dropdown .el-dropdown-menu__item,
 .app-select-popper .el-select-dropdown__item {
@@ -1066,16 +1066,16 @@
    这里把所有对话框统一落到同一套“校园工作台”表面，避免某个页面回退到
    Element Plus 的默认白盒、默认蓝色焦点和默认圆角。 */
 .el-overlay:not(.is-message-box) {
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(31, 27, 22, 0.42);
 }
 
 .el-dialog {
   position: relative;
   overflow: hidden;
-  border: 1px solid #dbe3ec;
+  border: 1px solid #ddd3c2;
   border-radius: 18px;
   background: var(--white);
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 22px 48px rgba(31, 27, 22, 0.16);
   color: var(--ink);
 }
 
@@ -1090,7 +1090,7 @@
   position: relative;
   margin: 0;
   padding: 22px 58px 13px 26px;
-  border-bottom: 1px solid #edf1f5;
+  border-bottom: 1px solid #ece5d8;
 }
 
 .el-dialog__title {
@@ -1137,8 +1137,8 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 15px 26px 21px;
-  border-top: 1px solid #edf1f5;
-  background: #fbfcfe;
+  border-top: 1px solid #ece5d8;
+  background: #faf7f2;
 }
 
 .el-dialog__footer .btn,
@@ -1210,8 +1210,8 @@
 .campus-confirm .el-message-box__btns {
   gap: 10px;
   padding: 15px 26px 21px;
-  border-top: 1px solid #edf1f5;
-  background: #fbfcfe;
+  border-top: 1px solid #ece5d8;
+  background: #faf7f2;
 }
 
 .campus-confirm .el-message-box__btns .el-button {

@@ -277,14 +277,14 @@ async function submit() {
 
 /* 管理员入口与后台数据页共用清晰的中性画布与高对比操作层。 */
 .admin-login-page {
-  background: radial-gradient(circle at 9% 18%, rgba(251, 146, 60, 0.16), transparent 24rem), radial-gradient(circle at 90% 8%, rgba(96, 165, 250, 0.1), transparent 24rem), var(--paper);
+  background: radial-gradient(circle at 9% 18%, rgba(251, 146, 60, 0.16), transparent 24rem), radial-gradient(circle at 90% 8%, rgba(255, 201, 77, 0.1), transparent 24rem), var(--paper);
 }
 .login-header {
   min-height: 72px;
   background: rgba(255, 255, 255, 0.84);
   box-shadow:
-    0 1px 0 rgba(15, 23, 42, 0.04),
-    0 8px 24px rgba(15, 23, 42, 0.045);
+    0 1px 0 rgba(31, 27, 22, 0.04),
+    0 8px 24px rgba(31, 27, 22, 0.045);
 }
 .login-main {
   width: min(1120px, calc(100% - 48px));
@@ -309,12 +309,12 @@ async function submit() {
 }
 .login-scope li {
   min-height: 38px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-s);
 }
 .login-card {
   padding: 38px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-l);
 }
 .login-card h2 {

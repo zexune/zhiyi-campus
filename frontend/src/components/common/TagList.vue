@@ -44,7 +44,7 @@ const visibleTags = computed(() => {
   overflow-wrap: anywhere;
   border: var(--bw) solid var(--line);
   border-radius: 999px;
-  background: linear-gradient(180deg, #f7f9fc 0%, var(--paper-deep) 100%);
+  background: linear-gradient(180deg, #faf7f2 0%, var(--paper-deep) 100%);
   color: var(--ink-soft);
   font-size: 11px;
   font-weight: 700;

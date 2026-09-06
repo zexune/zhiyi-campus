@@ -103,7 +103,7 @@ function removeLastOnEmpty(): void {
   padding: 10px 12px 11px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+  background: linear-gradient(180deg, #fff 0%, #faf7f2 100%);
 }
 .tag-input__selected {
   display: flex;

@@ -850,11 +850,11 @@ onMounted(async () => {
 }
 .id-card {
   padding: 28px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-m);
 }
 .panel {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }

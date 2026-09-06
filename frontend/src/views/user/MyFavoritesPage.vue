@@ -194,7 +194,7 @@ onMounted(fetchFavorites)
   gap: 20px;
 }
 .fav-card {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
   transition:
@@ -208,7 +208,7 @@ onMounted(fetchFavorites)
   box-shadow: var(--shadow-m);
 }
 .fav-card__img {
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #e3dbcc;
 }
 .fav-card__body {
   padding: 15px 16px 16px;

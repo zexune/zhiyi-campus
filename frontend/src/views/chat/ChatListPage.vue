@@ -717,11 +717,11 @@ onUnmounted(() => {
 /* 对话页刷新：明确“会话列表 / 当前对话”两层结构，降低边界噪音。 */
 .chat-shell {
   grid-template-columns: 340px minmax(0, 1fr);
-  border-color: #dbe3ec;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+  border-color: #ddd3c2;
+  box-shadow: 0 18px 42px rgba(31, 27, 22, 0.1);
 }
 .conv-list {
-  background: linear-gradient(180deg, #f7f9fc 0%, var(--paper) 100%);
+  background: linear-gradient(180deg, #faf7f2 0%, var(--paper) 100%);
 }
 .conv-list__head {
   padding: 22px 22px 14px;
@@ -732,11 +732,11 @@ onUnmounted(() => {
 }
 .conv-search input {
   min-height: 42px;
-  border-color: #d8e0ea;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.035);
+  border-color: #ddd3c2;
+  box-shadow: 0 2px 8px rgba(31, 27, 22, 0.035);
 }
 .chat-pane {
-  background: #eef2f7;
+  background: #f1ece2;
 }
 .chat-pane__head {
   min-height: 70px;
@@ -747,7 +747,7 @@ onUnmounted(() => {
   gap: 18px;
 }
 .msg__bubble {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: 15px;
 }
 .chat-input {

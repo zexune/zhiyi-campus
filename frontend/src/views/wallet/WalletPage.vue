@@ -360,8 +360,8 @@ onMounted(() => {
 }
 .nav-tabs {
   margin-top: 18px;
-  border: 1px solid #e2e8f0;
-  background: #eef2f7;
+  border: 1px solid #e3dbcc;
+  background: #f1ece2;
 }
 .nav-tab {
   min-height: 40px;
@@ -371,7 +371,7 @@ onMounted(() => {
 .balance-card {
   margin-top: 24px;
   padding: 24px 26px;
-  border: 1px solid #dbe3ec;
+  border: 1px solid #ddd3c2;
   border-left: 4px solid var(--green);
   box-shadow: var(--shadow-m);
 }

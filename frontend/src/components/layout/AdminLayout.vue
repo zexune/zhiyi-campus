@@ -332,13 +332,13 @@ async function changePassword() {
 
 /* 后台壳层刷新：提高导航层级，给数据页留出更宽的呼吸空间。 */
 .admin-shell {
-  background: radial-gradient(circle at 90% -10%, rgba(59, 130, 246, 0.055), transparent 28rem), var(--paper);
+  background: radial-gradient(circle at 90% -10%, rgba(255, 201, 77, 0.055), transparent 28rem), var(--paper);
 }
 .admin-header {
   background: rgba(255, 255, 255, 0.86);
   box-shadow:
-    0 1px 0 rgba(15, 23, 42, 0.04),
-    0 8px 24px rgba(15, 23, 42, 0.045);
+    0 1px 0 rgba(31, 27, 22, 0.04),
+    0 8px 24px rgba(31, 27, 22, 0.045);
 }
 .admin-header__inner {
   min-height: 72px;

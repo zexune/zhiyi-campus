@@ -215,7 +215,7 @@ onMounted(async () => {
 <style scoped>
 .tool-card {
   padding: 28px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-m);
 }
 .tool-card__head {
@@ -296,7 +296,7 @@ onMounted(async () => {
   align-items: center;
   gap: 16px;
   padding: 12px 14px;
-  border-color: #e2e8f0;
+  border-color: #e3dbcc;
   transition:
     border-color 0.15s,
     box-shadow 0.15s,

@@ -651,7 +651,7 @@ onMounted(async () => {
 .review-card,
 .appeal-card,
 .empty-card {
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-radius: var(--r-m);
   box-shadow: var(--shadow-s);
 }

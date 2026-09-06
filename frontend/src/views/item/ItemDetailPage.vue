@@ -785,19 +785,19 @@ watch(
 .price-strip {
   margin: 22px 0;
   padding: 18px 22px 18px 44px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-m);
 }
 .seller-card {
   margin: 24px 0;
   padding: 18px 20px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   border-left-width: 4px;
   box-shadow: var(--shadow-s);
 }
 .desc-block {
   padding: 24px 26px;
-  border-color: #dbe3ec;
+  border-color: #ddd3c2;
   box-shadow: var(--shadow-s);
 }
 .action-bar {
