@@ -1,7 +1,7 @@
 <template>
-  <span class="badge" :class="`badge--lv${clampedLevel}`">
-    Lv.{{ level }}
-    <template v-if="showTitle && title">{{ title }}</template>
+  <span class="badge level-badge" :class="`badge--lv${clampedLevel}`" :aria-label="showTitle && title ? `Lv.${level} ${title}` : `Lv.${level}`">
+    <span class="level-badge__level">Lv.{{ level }}</span>
+    <span v-if="showTitle && title" class="level-badge__title">{{ title }}</span>
   </span>
 </template>
 
@@ -23,3 +23,25 @@ const props = defineProps({
 
 const clampedLevel = computed(() => Math.min(Math.max(props.level, 1), 5))
 </script>
+
+<style scoped>
+.level-badge {
+  gap: 5px;
+  padding-inline: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  letter-spacing: 0.01em;
+}
+
+.level-badge__level {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.level-badge__title {
+  padding-left: 5px;
+  border-left: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  font-size: 0.92em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+</style>

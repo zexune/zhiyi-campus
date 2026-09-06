@@ -100,6 +100,10 @@ function removeLastOnEmpty(): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 10px 12px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
 }
 .tag-input__selected {
   display: flex;
@@ -119,8 +123,8 @@ function removeLastOnEmpty(): void {
   line-height: 1.7;
 }
 .tag-input__remove {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   border: none;
@@ -139,13 +143,14 @@ function removeLastOnEmpty(): void {
 }
 .tag-input__field {
   width: 100%;
+  min-height: 42px;
   padding: 9px 12px;
   font-family: inherit;
   font-size: 14px;
   color: var(--ink);
   background: var(--white);
   border: var(--bw) solid var(--line-strong);
-  border-radius: var(--r-s);
+  border-radius: 10px;
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -174,6 +179,7 @@ function removeLastOnEmpty(): void {
   color: var(--ink-soft);
 }
 .tag-input__suggestion {
+  min-height: 30px;
   padding: 3px 11px;
   border: var(--bw) solid var(--line);
   border-radius: 999px;
@@ -185,6 +191,11 @@ function removeLastOnEmpty(): void {
     color 0.15s,
     background-color 0.15s,
     border-color 0.15s;
+}
+.tag-input__suggestion:focus-visible,
+.tag-input__remove:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 .tag-input__suggestion:hover {
   background: var(--primary-bg);

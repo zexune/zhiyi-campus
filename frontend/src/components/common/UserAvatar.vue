@@ -1,13 +1,11 @@
 <template>
-  <span class="avatar" :class="[`avatar--${size}`, `avatar--${color}`]" :title="nickname">
+  <span class="avatar" :class="[`avatar--${size}`, `avatar--${color}`]" :title="nickname" role="img" :aria-label="alt ?? nickname">
     <template v-if="showImage">
       <!-- src 非空且未加载失败：圆形图片填充容器；加载失败回退文字头像。
            eager 供首屏可见头像（顶栏/当前会话头）跳过 lazy，避免推迟加载与滚动闪烁 -->
       <img class="avatar__img" :src="src || ''" :alt="alt ?? nickname" :loading="eager ? 'eager' : 'lazy'" decoding="async" @error="onError" />
     </template>
-    <template v-else>
-      {{ initial }}
-    </template>
+    <template v-else>{{ initial }}</template>
   </span>
 </template>
 
@@ -70,6 +68,11 @@ function onError() {
      这里补充图片态所需的作用域样式，避免污染全局。 */
   position: relative;
   overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(23, 32, 51, 0.12),
+    0 3px 10px rgba(23, 32, 51, 0.12);
+  isolation: isolate;
 }
 
 .avatar__img {

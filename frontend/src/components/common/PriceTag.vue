@@ -1,7 +1,7 @@
 <template>
-  <span class="price" :style="{ fontSize }">
+  <span class="price price-tag" :style="{ fontSize }">
     <span class="rmb">¥</span>
-    {{ formatted }}
+    <span class="price-tag__value">{{ formatted }}</span>
   </span>
 </template>
 
@@ -22,3 +22,17 @@ const formatted = computed(() => {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 })
 </script>
+
+<style scoped>
+.price-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-tag__value {
+  font-weight: 800;
+}
+</style>

@@ -34,6 +34,15 @@ defineProps<{
   border-radius: var(--r-m);
   padding: 10px 14px;
   box-shadow: var(--shadow-s);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.related-item:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-m);
+  transform: translateY(-1px);
 }
 .related-item__thumb {
   width: 46px;
@@ -58,6 +67,10 @@ defineProps<{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.related-item :deep(.price) {
+  margin-top: 2px;
+  font-weight: 800;
 }
 @media (max-width: 760px) {
   .related-item {

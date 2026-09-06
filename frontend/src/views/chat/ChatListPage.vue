@@ -713,4 +713,63 @@ onUnmounted(() => {
     align-items: stretch;
   }
 }
+
+/* 对话页刷新：明确“会话列表 / 当前对话”两层结构，降低边界噪音。 */
+.chat-shell {
+  grid-template-columns: 340px minmax(0, 1fr);
+  border-color: #dbe3ec;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+}
+.conv-list {
+  background: linear-gradient(180deg, #f7f9fc 0%, var(--paper) 100%);
+}
+.conv-list__head {
+  padding: 22px 22px 14px;
+}
+.conv-list__head h1 {
+  font-size: 24px;
+  letter-spacing: -0.35px;
+}
+.conv-search input {
+  min-height: 42px;
+  border-color: #d8e0ea;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.035);
+}
+.chat-pane {
+  background: #eef2f7;
+}
+.chat-pane__head {
+  min-height: 70px;
+  padding-inline: 24px;
+}
+.msg-flow {
+  padding: 24px;
+  gap: 18px;
+}
+.msg__bubble {
+  border-color: #dbe3ec;
+  border-radius: 15px;
+}
+.chat-input {
+  padding: 18px 24px;
+}
+.chat-input :deep(.el-textarea__inner) {
+  border-color: var(--line-strong);
+  background: var(--white);
+}
+@media (max-width: 760px) {
+  .chat-shell {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 18px;
+  }
+  .conv-list__head {
+    padding: 16px 16px 10px;
+  }
+  .chat-pane__head,
+  .msg-flow,
+  .chat-input {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
 </style>

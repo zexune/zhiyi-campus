@@ -1,11 +1,21 @@
 <template>
-  <el-dialog v-model="dialogVisible" title="举报商品" width="min(520px, 92vw)" :close-on-click-modal="!submitting">
+  <el-dialog
+    v-model="dialogVisible"
+    class="app-dialog report-dialog"
+    modal-class="app-modal"
+    title="举报商品"
+    width="min(520px, 92vw)"
+    :close-on-click-modal="!submitting"
+    append-to-body
+    destroy-on-close
+  >
     <div class="report-form">
-      <label>
+      <p class="report-intro">帮助我们维护校园交易秩序，提交后将由管理员尽快核实。</p>
+      <label class="report-field">
         <span>举报类型</span>
         <AppSelect v-model="type" :options="REPORT_TYPE_OPTIONS" />
       </label>
-      <label>
+      <label class="report-field">
         <span>补充说明</span>
         <el-input v-model="details" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="请说明具体问题；选择“其他”时必填" />
       </label>
@@ -88,10 +98,27 @@ async function submitReport(): Promise<void> {
   flex-direction: column;
   gap: 18px;
 }
+.report-intro {
+  margin: -2px 0 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--red-bg);
+  color: var(--red-deep);
+  font-size: 13px;
+  line-height: 1.6;
+}
 .report-form label {
   display: flex;
   flex-direction: column;
   gap: 7px;
   font-weight: 600;
+}
+.report-form label > span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.report-form :deep(.el-textarea__inner) {
+  min-height: 112px;
 }
 </style>

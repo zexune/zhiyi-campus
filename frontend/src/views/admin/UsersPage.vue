@@ -129,7 +129,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
@@ -212,10 +213,14 @@ function isBanned(user: AdminUser) {
 
 async function handleResetPassword(user: AdminUser) {
   try {
-    await ElMessageBox.confirm(`确认将「${user.nickname}」（${user.studentId}）的密码重置为 123456？该用户将被强制下线。`, '强制重置密码', {
-      confirmButtonText: '确认重置',
-      cancelButtonText: '取消',
-      type: 'warning'
+    await confirmAction({
+      title: '强制重置密码',
+      description: '确认将该用户的密码重置为 123456？用户将被强制下线。',
+      subject: `${user.nickname}（${user.studentId}）`,
+      subjectLabel: '用户',
+      confirmText: '确认重置',
+      cancelText: '取消',
+      tone: 'danger'
     })
   } catch {
     return
@@ -297,7 +302,15 @@ async function submitBan() {
 async function handleUnban(user: AdminUser) {
   const restoringCancelled = user.status === USER_STATUS.CANCELLED
   try {
-    await ElMessageBox.confirm(`确认${restoringCancelled ? '恢复已注销的账号' : '解除用户'}「${user.nickname}」的限制？`, restoringCancelled ? '恢复账号' : '解除封禁', { type: 'info' })
+    await confirmAction({
+      title: restoringCancelled ? '恢复账号' : '解除封禁',
+      description: `确认${restoringCancelled ? '恢复已注销的账号' : '解除该用户的限制'}？`,
+      subject: user.nickname,
+      subjectLabel: '用户',
+      confirmText: restoringCancelled ? '确认恢复' : '确认解封',
+      cancelText: '取消',
+      tone: 'success'
+    })
   } catch {
     return
   }
@@ -471,6 +484,38 @@ onMounted(() => {
 @media (max-width: 520px) {
   .filter-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 用户管理刷新：利用后台壳层统一版心，筛选区与表格成为两个可扫描表面。 */
+.users-page {
+  max-width: 1280px;
+  padding-inline: 0;
+}
+.filter-card {
+  padding: 22px 24px;
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.filter-grid {
+  gap: 16px;
+}
+.table-card {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.user-table th,
+.user-table td {
+  padding: 14px 16px;
+}
+@media (max-width: 520px) {
+  .users-page {
+    padding-inline: 0;
+  }
+  .filter-card {
+    padding: 18px;
   }
 }
 </style>

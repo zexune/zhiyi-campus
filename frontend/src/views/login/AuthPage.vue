@@ -298,4 +298,55 @@ onMounted(() => {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }
+
+/* 认证页刷新：在不改变三面板逻辑的情况下，强化品牌区与表单区的层级。 */
+.auth-page {
+  background: radial-gradient(circle at 12% 8%, rgba(251, 146, 60, 0.14), transparent 22rem), radial-gradient(circle at 86% 18%, rgba(96, 165, 250, 0.1), transparent 24rem), var(--paper);
+}
+.auth-wrap {
+  max-width: 1180px;
+  gap: clamp(44px, 7vw, 88px);
+  margin-top: 56px;
+  margin-bottom: 56px;
+}
+.auth-side h1 {
+  font-size: clamp(38px, 4.6vw, 58px);
+  letter-spacing: -1.2px;
+}
+.auth-side p {
+  max-width: 460px;
+  line-height: 1.8;
+}
+.feature-list {
+  gap: 16px;
+}
+.feature-item {
+  max-width: 480px;
+  padding: 16px 20px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-s);
+}
+.auth-card {
+  max-width: 480px;
+  min-height: 580px;
+  padding: 40px 40px 34px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-l);
+}
+.auth-tabs {
+  margin-bottom: 30px;
+}
+.auth-tabs button {
+  min-height: 42px;
+  border-radius: 9px;
+}
+@media (max-width: 900px) {
+  .auth-wrap {
+    margin-top: 28px;
+    margin-bottom: 28px;
+  }
+  .auth-card {
+    min-height: 0;
+  }
+}
 </style>

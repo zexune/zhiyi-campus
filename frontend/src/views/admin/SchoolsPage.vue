@@ -110,7 +110,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getSchools, createSchool, updateSchool, deleteSchool } from '@/api/admin'
 import type { School } from '@/types/models'
@@ -238,7 +239,15 @@ async function handleSave() {
 
 async function handleDelete(school: School) {
   try {
-    await ElMessageBox.confirm(`确认删除学校“${school.name}”？仅无用户和商品关联的学校可以删除。`, '删除学校', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' })
+    await confirmAction({
+      title: '删除学校',
+      description: '确认删除这所学校？仅无用户和商品关联的学校可以删除。',
+      subject: school.name,
+      subjectLabel: '学校名称',
+      confirmText: '确认删除',
+      cancelText: '取消',
+      tone: 'danger'
+    })
   } catch {
     return
   }
@@ -409,5 +418,39 @@ onMounted(fetchSchools)
   background: var(--ink);
   color: var(--paper);
   box-shadow: var(--shadow-s);
+}
+
+/* 学校管理刷新：列表行提供更清晰的状态对比和操作命中区。 */
+.schools-page {
+  max-width: 1280px;
+  padding-inline: 0;
+}
+.school-list {
+  gap: 12px;
+}
+.school-row {
+  min-height: 68px;
+  padding: 16px 20px;
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.school-row.active {
+  box-shadow:
+    0 0 0 2px rgba(194, 65, 12, 0.12),
+    var(--shadow-s);
+}
+@media (max-width: 520px) {
+  .schools-page {
+    padding-inline: 0;
+  }
+  .school-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .school-row__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 </style>

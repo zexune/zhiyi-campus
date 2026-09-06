@@ -830,4 +830,35 @@ onMounted(fetchRanking)
     display: none;
   }
 }
+
+/* 榜单刷新：让主题提示、前三名和长榜单使用一致的卡片表面。 */
+.ranking-page {
+  gap: 30px;
+}
+.ranking-header {
+  padding-top: 2px;
+}
+.trending-panel {
+  padding: 22px 24px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-m);
+}
+.podium-card {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.podium-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-m);
+}
+.ranking-row {
+  border-color: #dbe3ec;
+  border-radius: 12px;
+}
+@media (max-width: 900px) {
+  .trending-panel {
+    padding: 20px;
+  }
+}
 </style>

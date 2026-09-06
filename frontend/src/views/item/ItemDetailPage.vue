@@ -160,7 +160,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import LevelBadge from '@/components/common/LevelBadge.vue'
 import ItemPrice from '@/components/common/ItemPrice.vue'
@@ -370,10 +371,17 @@ async function handleBuy(): Promise<void> {
   if (!requireLogin()) return
   if (!item.value) return // 同上：仅类型收窄
   try {
-    await ElMessageBox.confirm(`确认购买「${item.value.title}」？\n\n金额：¥${Number(item.value.price).toFixed(2)}\n确认后资金将由平台担保冻结，当面验货满意后再确认收货。`, '确认下单', {
-      confirmButtonText: '确认购买',
-      cancelButtonText: '再想想',
-      type: 'warning'
+    await confirmAction({
+      title: '确认下单',
+      context: '校园交易单',
+      description: '好物即将交接，请核对本次交易。',
+      subject: item.value.title,
+      subjectLabel: '心仪好物',
+      amount: Number(item.value.price),
+      amountLabel: '本次应付',
+      note: '资金由平台担保冻结。确认收货后，钱款自动转给卖家。',
+      confirmText: '确认购买',
+      cancelText: '再想想'
     })
   } catch {
     return // 用户取消
@@ -763,6 +771,44 @@ watch(
   .seller-card__detail {
     width: calc(100% - 78px);
     margin-left: 78px;
+  }
+}
+
+/* 商品详情刷新：价格、卖家与行动区形成清晰的信息优先级。 */
+.detail {
+  gap: 40px;
+}
+.info-head h1 {
+  font-size: clamp(24px, 3vw, 32px);
+  letter-spacing: -0.45px;
+}
+.price-strip {
+  margin: 22px 0;
+  padding: 18px 22px 18px 44px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-m);
+}
+.seller-card {
+  margin: 24px 0;
+  padding: 18px 20px;
+  border-color: #dbe3ec;
+  border-left-width: 4px;
+  box-shadow: var(--shadow-s);
+}
+.desc-block {
+  padding: 24px 26px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-s);
+}
+.action-bar {
+  gap: 12px;
+}
+@media (max-width: 860px) {
+  .detail {
+    gap: 24px;
+  }
+  .action-bar {
+    padding-top: 14px;
   }
 }
 </style>

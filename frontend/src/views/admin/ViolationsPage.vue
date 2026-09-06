@@ -186,7 +186,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { approveAppeal, confirmViolation, dismissViolation, getAppeals, getViolations, rejectAppeal } from '@/api/admin'
 import { APPEAL_STATUS, VIOLATION_STATUS } from '@/constants/domain'
@@ -349,10 +350,14 @@ async function submitConfirm() {
 
 async function dismissReview(review: ViolationReview) {
   try {
-    await ElMessageBox.confirm(`确认放行「${review.originalTitle}」？本次审核记录会标记为已放行。`, '放行内容', {
-      confirmButtonText: '确认放行',
-      cancelButtonText: '取消',
-      type: 'info'
+    await confirmAction({
+      title: '放行内容',
+      description: '确认放行该内容？本次审核记录会标记为已放行。',
+      subject: review.originalTitle,
+      subjectLabel: '内容标题',
+      confirmText: '确认放行',
+      cancelText: '取消',
+      tone: 'success'
     })
   } catch {
     return
@@ -636,6 +641,31 @@ onMounted(async () => {
   .review-card__actions {
     justify-content: stretch;
     flex-direction: column;
+  }
+}
+
+/* 内容治理刷新：审核任务用高密度卡片承载，操作区保持明显的主次关系。 */
+.page-head {
+  margin-bottom: 24px;
+}
+.review-card,
+.appeal-card,
+.empty-card {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.review-card,
+.appeal-card {
+  padding: 22px 24px;
+}
+.review-card__actions .btn {
+  min-width: 96px;
+}
+@media (max-width: 760px) {
+  .review-card,
+  .appeal-card {
+    padding: 18px;
   }
 }
 </style>

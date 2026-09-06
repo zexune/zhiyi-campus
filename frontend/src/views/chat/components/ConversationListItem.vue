@@ -1,5 +1,5 @@
 <template>
-  <button class="conv-item" :class="{ active }" @click="emit('select')">
+  <button type="button" class="conv-item" :class="{ active }" :aria-current="active ? 'true' : undefined" @click="emit('select')">
     <UserAvatar :nickname="conversation.peer?.nickname || '同学'" :user-id="conversation.peer?.id || 0" size="m" :src="conversation.peer?.avatar || null" />
     <span class="conv-item__body">
       <span class="conv-item__top">
@@ -52,12 +52,15 @@ const emit = defineEmits<{
   color: var(--ink);
   text-align: left;
   position: relative;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .conv-item:hover {
   background: var(--paper-deep);
 }
 .conv-item.active {
-  background: var(--yellow);
+  background: var(--primary-bg);
   box-shadow: inset 5px 0 0 var(--primary);
 }
 .conv-item__body {
@@ -122,7 +125,8 @@ const emit = defineEmits<{
   font-weight: 800;
   display: grid;
   place-items: center;
-  border: var(--bw) solid var(--line);
+  border: 2px solid var(--white);
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.14);
 }
 @media (max-width: 760px) {
   .conv-item {

@@ -354,6 +354,43 @@ onMounted(() => {
   gap: var(--spacing-sm);
 }
 
+/* 钱包页刷新：余额是首要信息，操作保持同一行级别并在小屏自然换行。 */
+.wallet-page {
+  max-width: 920px;
+}
+.nav-tabs {
+  margin-top: 18px;
+  border: 1px solid #e2e8f0;
+  background: #eef2f7;
+}
+.nav-tab {
+  min-height: 40px;
+  padding-inline: 20px;
+  border-radius: 9px;
+}
+.balance-card {
+  margin-top: 24px;
+  padding: 24px 26px;
+  border: 1px solid #dbe3ec;
+  border-left: 4px solid var(--green);
+  box-shadow: var(--shadow-m);
+}
+.balance-card__amount .price {
+  font-size: 44px;
+  letter-spacing: -1px;
+}
+@media (max-width: 560px) {
+  .balance-card {
+    padding: 20px;
+  }
+  .balance-card__actions {
+    width: 100%;
+  }
+  .balance-card__actions .btn {
+    flex: 1;
+  }
+}
+
 /* 充值弹窗 */
 .recharge-form {
   padding: var(--spacing-sm) 0;

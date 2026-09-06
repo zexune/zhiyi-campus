@@ -1,7 +1,7 @@
 <template>
-  <strong v-if="isSwap" class="price price--swap" :style="{ fontSize }">{{ swapLabel }}</strong>
+  <strong v-if="isSwap" class="price price--swap" :style="{ fontSize }" :aria-label="swapLabel">{{ swapLabel }}</strong>
   <PriceTag v-else-if="hasValidPrice" :value="validPrice" :font-size="fontSize" />
-  <strong v-else class="price price--invalid" :style="{ fontSize }">{{ invalidLabel }}</strong>
+  <strong v-else class="price price--invalid" :style="{ fontSize }" :aria-label="invalidLabel">{{ invalidLabel }}</strong>
 </template>
 
 <script setup lang="ts">
@@ -49,9 +49,14 @@ const validPrice = computed(() => Number(props.price))
 .price--swap {
   color: var(--primary, inherit);
   font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .price--invalid {
   color: var(--red, #c0392b);
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
 }
 </style>

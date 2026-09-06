@@ -113,7 +113,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import OrderReviewDialog from '@/components/trade/OrderReviewDialog.vue'
 import { getBoughtOrders, confirmReceipt, cancelOrder, reviewOrder } from '@/api/order'
@@ -184,7 +185,19 @@ async function handleConfirm(order: Order) {
   if (actingId.value !== null) return
   actingId.value = order.id
   try {
-    await ElMessageBox.confirm(`确认已收到「${order.itemTitle}」？确认后钱款将打给卖家，不可撤销。`, '确认收货', { confirmButtonText: '确认收货', cancelButtonText: '取消', type: 'warning' })
+    await confirmAction({
+      title: '确认收货',
+      context: '校园交易单',
+      description: '已经见面，并确认商品符合预期了吗？',
+      subject: order.itemTitle,
+      subjectLabel: '本次好物',
+      amount: Number(order.price),
+      amountLabel: '打款给卖家',
+      note: '确认后平台将把担保资金转给卖家，此操作不可撤销。',
+      confirmText: '确认收货',
+      cancelText: '尚未验收',
+      tone: 'success'
+    })
   } catch {
     actingId.value = null
     return // 用户取消
@@ -214,10 +227,17 @@ async function handleCancel(order: Order) {
   if (actingId.value !== null) return
   actingId.value = order.id
   try {
-    await ElMessageBox.confirm(`确定取消「${order.itemTitle}」的订单？取消后钱款将退回你的钱包，商品将重新上架。`, '取消订单', {
-      confirmButtonText: '确认取消',
-      cancelButtonText: '返回',
-      type: 'warning'
+    await confirmAction({
+      title: '取消订单',
+      context: '校园交易单',
+      description: '取消这次交易，给好物一次新的相遇。',
+      subject: order.itemTitle,
+      subjectLabel: '本次好物',
+      amount: Number(order.price),
+      amountLabel: '退回钱包',
+      note: '担保资金将退回你的钱包，商品会重新上架。',
+      confirmText: '确认取消',
+      cancelText: '保留订单'
     })
   } catch {
     actingId.value = null
@@ -466,5 +486,31 @@ onMounted(() => {
     justify-content: flex-end;
     align-items: center;
   }
+}
+
+/* 订单页视觉层级（放在响应式规则之后，保证桌面与移动端都生效）。 */
+.orders-page {
+  max-width: 920px;
+}
+.nav-tabs {
+  margin-top: 18px;
+  border: 1px solid #e2e8f0;
+  background: #eef2f7;
+}
+.nav-tab {
+  min-height: 40px;
+  padding-inline: 20px;
+  border-radius: 9px;
+}
+.list-toolbar {
+  margin-top: 20px;
+}
+.order-list {
+  gap: 18px;
+}
+.order-item {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
 }
 </style>

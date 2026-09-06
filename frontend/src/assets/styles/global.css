@@ -25,7 +25,7 @@
   --ink-soft: #6b6053; /* 次级文字（白底 6.1:1） */
   --ink-faint: #a39a8c; /* 占位/禁用文字 */
   --line: #e3dbcc; /* 常规分隔线/卡片描边 */
-  --line-strong: #8f8577; /* 表单控件描边（白底 3.5:1，满足非文本对比） */
+  --line-strong: #756a5c; /* 控件描边与焦点前状态；最终冷灰蓝主题在下方统一覆盖 */
   --primary: #c2410c; /* 柿橙：主行动/价格/链接强调 */
   --primary-deep: #9a3412; /* 柿橙 hover/按下 */
   --primary-bright: #ea580c; /* 柿橙亮调：仅限非文本装饰 */
@@ -1364,6 +1364,37 @@ ol {
   }
 }
 
+/* ============ 组件微调：校园识别色与统一状态 ============ */
+.badge {
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  letter-spacing: 0.01em;
+}
+.badge--lv5,
+.badge--danger {
+  border-color: transparent;
+}
+.muted {
+  color: var(--ink-soft);
+}
+.btn:disabled,
+.btn.is-disabled {
+  opacity: 0.7;
+}
+.btn[aria-busy='true'] {
+  cursor: wait;
+}
+
+input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
 /* ============ 触控目标（菲茨定律 / WCAG 2.2 Target Size） ============ */
 /* 触屏设备（含触屏笔记本）与窄屏下，高频操作目标统一提升至 ≥44×44；
    桌面鼠标端维持紧凑尺寸，避免 hover 界面被无谓放大。
@@ -1432,5 +1463,173 @@ ol {
     flex-wrap: wrap;
     row-gap: 8px;
     justify-content: center;
+  }
+}
+
+/* ============ 2026 visual refresh ============
+   统一的中性画布、较大的触控节奏和更柔和的层次，让 C 端、认证页和后台
+   共享同一套视觉语言。组件仍然使用上面的语义令牌，因此页面级样式无需重复维护。 */
+:root {
+  --paper: #f8fafc;
+  --paper-deep: #f1f5f9;
+  --ink: #172033;
+  --ink-soft: #5b6475;
+  --ink-faint: #94a3b8;
+  --line: #e2e8f0;
+  /* 以 slate-500 作为控件边界，白底约 4.7:1，满足非文本对比目标。 */
+  --line-strong: #64748b;
+  --primary: #c2410c;
+  --primary-deep: #9a3412;
+  --primary-bright: #f97316;
+  --primary-bg: #fff1eb;
+  --green-bg: #e8f6ee;
+  --blue-bg: #edf2ff;
+  --red-bg: #fff0f0;
+  --yellow-bg: #fff8e1;
+  --shadow-s: 0 1px 2px rgba(15, 23, 42, 0.04), 0 3px 10px rgba(15, 23, 42, 0.035);
+  --shadow-m: 0 2px 4px rgba(15, 23, 42, 0.04), 0 10px 24px rgba(15, 23, 42, 0.08);
+  --shadow-l: 0 4px 8px rgba(15, 23, 42, 0.04), 0 22px 48px rgba(15, 23, 42, 0.12);
+  --r-s: 10px;
+  --r-m: 16px;
+  --r-l: 22px;
+  --page-pad: clamp(16px, 3.2vw, 28px);
+  --el-color-primary: #c2410c;
+  --el-color-primary-rgb: 194, 65, 12;
+  --el-color-success: #15803d;
+  --el-color-success-rgb: 21, 128, 61;
+  --el-color-warning: #b45309;
+  --el-color-warning-rgb: 180, 83, 9;
+  --el-color-danger: #dc2626;
+  --el-color-danger-rgb: 220, 38, 38;
+  --el-text-color-primary: #172033;
+  --el-text-color-regular: #3f4a5d;
+  --el-text-color-secondary: #5b6475;
+  --el-text-color-placeholder: #94a3b8;
+  --el-border-color: #dbe3ec;
+  --el-border-color-light: #e2e8f0;
+  --el-border-color-lighter: #edf1f5;
+  --el-fill-color: #f1f5f9;
+  --el-fill-color-light: #f7f9fc;
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f8fafc;
+  --el-mask-color: rgba(15, 23, 42, 0.42);
+}
+
+body {
+  background-color: var(--paper);
+  background-image: radial-gradient(circle at 6% -12%, rgba(234, 88, 12, 0.07), transparent 31rem), radial-gradient(circle at 96% 0%, rgba(59, 130, 246, 0.045), transparent 25rem);
+}
+
+.topbar {
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.03),
+    0 8px 24px rgba(15, 23, 42, 0.045);
+}
+.topbar__inner {
+  height: 68px;
+  gap: 28px;
+}
+.logo {
+  font-size: 20px;
+  letter-spacing: -0.2px;
+}
+.logo__img {
+  width: 32px;
+  height: 32px;
+  box-shadow:
+    0 0 0 2px var(--white),
+    0 2px 8px rgba(194, 65, 12, 0.2);
+}
+.nav-links {
+  gap: 4px;
+}
+.nav-links a {
+  padding: 9px 14px;
+  border-radius: 11px;
+  font-size: 14px;
+}
+.nav-links a.active {
+  box-shadow: none;
+  background: var(--primary-bg);
+}
+.user-entry {
+  padding: 4px;
+  border-radius: 12px;
+  transition: background-color 0.15s ease;
+}
+.user-entry:hover {
+  background: var(--paper-deep);
+}
+
+.btn {
+  min-height: 42px;
+  padding: 9px 18px;
+  border-radius: 11px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.btn:hover {
+  box-shadow: var(--shadow-m);
+}
+.btn--sm {
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 10px;
+}
+.btn--lg {
+  min-height: 48px;
+  border-radius: 13px;
+}
+.card {
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.input,
+.textarea {
+  min-height: 44px;
+  border-radius: 11px;
+  border-color: var(--line-strong);
+}
+.textarea {
+  min-height: 124px;
+}
+.icon-btn {
+  border-radius: 11px;
+}
+.empty-state {
+  min-height: 280px;
+  border-radius: var(--r-m);
+}
+.page-title {
+  font-size: 26px;
+  letter-spacing: -0.35px;
+  margin-bottom: 20px;
+}
+.footer {
+  margin-top: 56px;
+  background: rgba(255, 255, 255, 0.72);
+}
+.footer__inner {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+@media (max-width: 768px) {
+  .topbar__inner {
+    height: 60px;
+    gap: 12px;
+  }
+  .nav-toggle {
+    border-radius: 11px;
+  }
+  .mobile-nav {
+    padding: 12px 16px 18px;
+    border-radius: 0 0 16px 16px;
+  }
+  .mobile-nav a {
+    border-radius: 11px;
+  }
+  .page-title {
+    font-size: 23px;
   }
 }

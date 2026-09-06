@@ -354,6 +354,8 @@ onUnmounted(() => {
   display: flex;
   height: 580px;
   overflow: hidden;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-l);
 }
 @media (max-width: 700px) {
   .chat-layout {
@@ -383,6 +385,7 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 14px 16px;
   border-bottom: var(--bw) solid var(--line);
+  background: linear-gradient(180deg, #fff 0%, #f7f9fc 100%);
 }
 .sidebar-title {
   font-family: var(--font-display);
@@ -418,7 +421,8 @@ onUnmounted(() => {
   background: var(--paper-deep);
 }
 .session-item.active {
-  background: var(--paper-deep);
+  background: var(--primary-bg);
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 .session-item__info {
   flex: 1;
@@ -490,6 +494,7 @@ onUnmounted(() => {
   padding: 14px 20px;
   border-bottom: var(--bw) solid var(--line);
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.96);
 }
 .chat-header__info {
   display: flex;
@@ -507,6 +512,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
 }
 .load-earlier {
   align-self: center;
@@ -526,11 +532,14 @@ onUnmounted(() => {
   border-radius: var(--r-s);
   background: var(--white);
   box-shadow: var(--shadow-s);
+  border-bottom-left-radius: 4px;
 }
 .msg-bubble--mine .msg-bubble__text {
-  background: var(--blue);
+  background: var(--green);
   color: #fff;
-  border-color: var(--ink);
+  border-color: var(--green-deep);
+  border-bottom-left-radius: var(--r-s);
+  border-bottom-right-radius: 4px;
 }
 .msg-bubble__time {
   font-size: 11px;
@@ -551,6 +560,7 @@ onUnmounted(() => {
   padding: 14px 20px;
   border-top: var(--bw) solid var(--line);
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.96);
 }
 .chat-input {
   flex: 1;
@@ -565,9 +575,34 @@ onUnmounted(() => {
   outline: none;
 }
 .chat-input:focus {
-  box-shadow: var(--shadow-s);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
 }
 .chat-input::placeholder {
   color: #b3a893;
+}
+
+@media (max-width: 520px) {
+  .chat-admin-page {
+    padding-inline: 0;
+  }
+  .chat-layout {
+    border-radius: 16px;
+  }
+  .chat-sidebar {
+    max-height: 320px;
+  }
+  .chat-header {
+    padding-inline: 14px;
+  }
+  .chat-messages {
+    padding: 14px;
+  }
+  .msg-bubble {
+    max-width: 88%;
+  }
+  .chat-input-bar {
+    padding: 12px 14px;
+  }
 }
 </style>

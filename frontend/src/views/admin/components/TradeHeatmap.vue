@@ -3,7 +3,7 @@
     <span class="muted">暂无交易地点数据</span>
   </div>
   <div v-else class="heatmap-grid card">
-    <div v-for="(h, i) in entries" :key="i" class="heatmap-bar-row">
+    <div v-for="(h, i) in entries" :key="i" class="heatmap-bar-row" role="img" :aria-label="`${h.location}，${h.count} 笔交易`">
       <span class="heatmap-loc">{{ h.location }}</span>
       <div class="heatmap-bar-wrap">
         <div class="heatmap-bar" :style="{ width: heatmapWidth(h.count) + '%' }" :class="heatColor(i)"></div>
@@ -41,6 +41,7 @@ function heatColor(i: number) {
 }
 .heatmap-grid {
   padding: 20px 24px;
+  background: linear-gradient(145deg, #fff 0%, #f8fafc 100%);
 }
 .heatmap-bar-row {
   display: flex;
@@ -62,16 +63,18 @@ function heatColor(i: number) {
 }
 .heatmap-bar-wrap {
   flex: 1;
-  height: 22px;
-  background: var(--paper-deep);
-  border-radius: 4px;
+  height: 12px;
+  background: #e8edf3;
+  border-radius: 999px;
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 .heatmap-bar {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 999px;
   min-width: 4px;
   transition: width 0.4s ease;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.15);
 }
 .heatmap-count {
   width: 50px;
@@ -85,7 +88,7 @@ function heatColor(i: number) {
   background: var(--primary);
 }
 .heat--2 {
-  background: #e8852e;
+  background: #ea7a24;
 }
 .heat--3 {
   background: var(--yellow);
@@ -95,5 +98,17 @@ function heatColor(i: number) {
 }
 .heat--5 {
   background: var(--blue);
+}
+
+@media (max-width: 560px) {
+  .heatmap-grid {
+    padding-inline: 16px;
+  }
+  .heatmap-loc {
+    width: 96px;
+  }
+  .heatmap-bar-row {
+    gap: 9px;
+  }
 }
 </style>

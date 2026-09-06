@@ -18,19 +18,29 @@
   display: grid;
   place-items: center;
   padding: 20px;
+  background: radial-gradient(circle at 18% 18%, rgba(251, 146, 60, 0.14), transparent 20rem), var(--paper);
 }
 .nf-card {
-  padding: 56px 72px;
+  padding: 64px 76px;
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 16px;
   align-items: center;
+  border-color: #dbe3ec;
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-l);
 }
 .nf-code {
   font-family: var(--font-display);
-  font-size: 84px;
+  font-size: clamp(72px, 12vw, 110px);
   line-height: 1;
   color: var(--primary);
+}
+@media (max-width: 520px) {
+  .nf-card {
+    width: min(100%, 360px);
+    padding: 48px 24px;
+  }
 }
 </style>

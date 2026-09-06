@@ -53,7 +53,8 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { createCategory, deleteCategory, getAdminCategories, updateCategory } from '@/api/admin'
 import type { Category } from '@/types/models'
@@ -114,10 +115,14 @@ async function save() {
 async function remove() {
   if (form.id == null) return
   try {
-    await ElMessageBox.confirm(`确认删除分类“${form.name}”？`, '删除分类', {
-      type: 'warning',
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消'
+    await confirmAction({
+      title: '删除分类',
+      description: '确认删除这个分类？删除后分类下的商品将无法继续归类。',
+      subject: form.name,
+      subjectLabel: '分类名称',
+      confirmText: '确认删除',
+      cancelText: '取消',
+      tone: 'danger'
     })
   } catch {
     return
@@ -253,6 +258,33 @@ onMounted(load)
 @media (max-width: 850px) {
   .category-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 分类管理刷新：左右编辑关系在大屏清晰，小屏自动堆叠。 */
+.category-page {
+  padding-top: 0;
+}
+.category-layout {
+  gap: 28px;
+  margin-top: 28px;
+}
+.category-list,
+.category-form {
+  padding: 28px;
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.category-row {
+  min-height: 64px;
+  border-color: #e2e8f0;
+  border-radius: 12px;
+}
+@media (max-width: 850px) {
+  .category-list,
+  .category-form {
+    padding: 22px;
   }
 }
 </style>

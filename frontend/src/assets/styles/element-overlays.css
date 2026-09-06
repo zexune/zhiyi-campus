@@ -891,3 +891,522 @@
     animation: none;
   }
 }
+
+/* ============ Element Plus 基础控件二次统一 ============
+   页面仍保留 Element Plus 的校验与交互能力，但视觉统一落到智易校园令牌，
+   避免输入框、分页、骨架在不同页面出现一套默认蓝色。 */
+.el-form-item {
+  margin-bottom: 18px;
+}
+.el-form-item__label {
+  height: auto;
+  padding: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.el-form-item__content {
+  min-width: 0;
+  line-height: 1.6;
+}
+.el-form-item__error {
+  padding-top: 4px;
+  color: var(--red-deep);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.el-input__wrapper {
+  min-height: 44px;
+  padding: 7px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background: var(--white);
+  box-shadow: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+.el-input__wrapper:hover {
+  border-color: var(--ink-soft);
+  box-shadow: none;
+}
+.el-input__wrapper.is-focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+.el-input__inner {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+}
+.el-input__inner::placeholder {
+  color: var(--ink-faint);
+}
+.el-textarea__inner {
+  min-height: 112px;
+  padding: 11px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  line-height: 1.6;
+  box-shadow: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.el-textarea__inner:hover {
+  border-color: var(--ink-soft);
+}
+.el-textarea__inner:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+.el-textarea__inner::placeholder {
+  color: var(--ink-faint);
+}
+.el-input .el-input__count,
+.el-textarea .el-input__count {
+  right: 11px;
+  bottom: 5px;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.el-skeleton {
+  --el-skeleton-color: #e9eef4;
+  --el-skeleton-to-color: #f8fafc;
+}
+.el-skeleton__item {
+  border-radius: 8px;
+}
+
+.el-upload {
+  font-family: var(--font-body);
+}
+.el-upload-dragger {
+  border-color: var(--line-strong);
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.el-upload-dragger:hover {
+  border-color: var(--primary);
+}
+
+.el-pagination {
+  --el-pagination-hover-color: var(--primary);
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-button-disabled-bg-color: transparent;
+  color: var(--ink-soft);
+}
+.el-pagination .el-pager li,
+.el-pagination button {
+  border-radius: 9px;
+}
+.el-pagination button:focus-visible,
+.el-pagination .el-pager li:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+  .el-input__wrapper {
+    min-height: 46px;
+  }
+  .el-textarea__inner {
+    min-height: 106px;
+  }
+}
+
+/* 浮层刷新：更轻的遮罩、更明确的弹窗层级，移动端仍保留满宽触控按钮。 */
+.app-modal,
+.el-overlay.is-message-box {
+  background: rgba(15, 23, 42, 0.42);
+}
+.app-dialog.el-dialog,
+.el-message-box,
+.app-dropdown.el-popper,
+.app-select-popper.el-popper,
+.app-date-picker.el-popper {
+  border-radius: 18px;
+  border-color: #dbe3ec;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+}
+.app-dialog .el-dialog__header,
+.el-message-box__header {
+  padding-top: 22px;
+}
+.app-dialog .el-dialog__footer,
+.el-message-box__btns {
+  background: #fbfcfe;
+}
+.app-dropdown .el-dropdown-menu__item,
+.app-select-popper .el-select-dropdown__item {
+  border-radius: 9px;
+}
+.app-select .el-select__wrapper,
+.app-date-time .el-input__wrapper {
+  min-height: 44px;
+  border-radius: 11px;
+}
+.el-message {
+  border-radius: 12px;
+}
+
+/* ============ 全局浮层收口 ============
+   页面中的业务弹窗有些由 Element Plus 直接声明，没有显式 app-dialog 类。
+   这里把所有对话框统一落到同一套“校园工作台”表面，避免某个页面回退到
+   Element Plus 的默认白盒、默认蓝色焦点和默认圆角。 */
+.el-overlay:not(.is-message-box) {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.el-dialog {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dbe3ec;
+  border-radius: 18px;
+  background: var(--white);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+  color: var(--ink);
+}
+
+.el-dialog::before {
+  content: '';
+  display: block;
+  height: 5px;
+  background: linear-gradient(90deg, var(--primary) 0 42%, var(--yellow) 42% 68%, var(--green) 68% 100%);
+}
+
+.el-dialog__header {
+  position: relative;
+  margin: 0;
+  padding: 22px 58px 13px 26px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.el-dialog__title {
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+}
+
+.el-dialog__headerbtn {
+  top: 17px;
+  right: 18px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.el-dialog__headerbtn:hover {
+  border-color: var(--line-strong);
+  background: var(--white);
+  color: var(--ink);
+}
+
+.el-dialog__headerbtn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.el-dialog__body {
+  padding: 20px 26px;
+  color: var(--ink);
+}
+
+.el-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 15px 26px 21px;
+  border-top: 1px solid #edf1f5;
+  background: #fbfcfe;
+}
+
+.el-dialog__footer .btn,
+.el-dialog__footer .el-button {
+  min-height: 42px;
+  margin: 0;
+  border-radius: 11px;
+  font-weight: 700;
+}
+
+.el-dialog__footer .el-button--primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--white);
+}
+
+.el-dialog__footer .el-button--primary:hover {
+  border-color: var(--primary-deep);
+  background: var(--primary-deep);
+}
+
+/* 未指定 type 的确认框也保留一条品牌识别线；内容与 tone 由 confirmAction 统一提供。 */
+.el-message-box::before {
+  content: '';
+  display: block;
+  height: 5px;
+  background: linear-gradient(90deg, var(--primary), var(--yellow));
+}
+
+.el-message-box .el-message-box__header {
+  padding-top: 21px;
+}
+
+.campus-confirm.el-message-box {
+  width: min(520px, calc(100vw - 32px));
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.campus-confirm .el-message-box__header {
+  padding: 22px 58px 10px 26px;
+}
+
+.campus-confirm .el-message-box__title {
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.campus-confirm .el-message-box__content {
+  padding: 10px 26px 22px;
+}
+
+.campus-confirm .el-message-box__container {
+  display: block;
+}
+
+.campus-confirm .el-message-box__status {
+  display: none;
+}
+
+.campus-confirm .el-message-box__message {
+  padding: 0;
+}
+
+.campus-confirm .el-message-box__message > p {
+  margin: 0;
+}
+
+.campus-confirm .el-message-box__btns {
+  gap: 10px;
+  padding: 15px 26px 21px;
+  border-top: 1px solid #edf1f5;
+  background: #fbfcfe;
+}
+
+.campus-confirm .el-message-box__btns .el-button {
+  min-width: 112px;
+  min-height: 44px;
+  border-radius: 11px;
+  font-weight: 750;
+}
+
+.campus-confirm .el-message-box__btns .el-button--primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--white);
+  box-shadow: 0 3px 0 var(--primary-deep);
+}
+
+.campus-confirm .el-message-box__btns .el-button--primary:hover {
+  border-color: var(--primary-deep);
+  background: var(--primary-deep);
+}
+
+.campus-confirm--success .el-message-box__btns .el-button--primary {
+  border-color: var(--green);
+  background: var(--green);
+  box-shadow: 0 3px 0 var(--green-deep);
+}
+
+.campus-confirm--success .el-message-box__btns .el-button--primary:hover {
+  border-color: var(--green-deep);
+  background: var(--green-deep);
+}
+
+.campus-confirm--danger .el-message-box__btns .el-button--primary {
+  border-color: var(--red);
+  background: var(--red);
+  box-shadow: 0 3px 0 var(--red-press);
+}
+
+.campus-confirm--danger .el-message-box__btns .el-button--primary:hover {
+  border-color: var(--red-deep);
+  background: var(--red-deep);
+}
+
+.confirm-content {
+  display: grid;
+  gap: 13px;
+}
+
+.confirm-content__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.confirm-content__identity img {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 2px 4px rgba(194, 65, 12, 0.18));
+}
+
+.confirm-content__identity i {
+  color: var(--ink-faint);
+  font-style: normal;
+}
+
+.confirm-content__description {
+  margin: 1px 0 2px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.confirm-content__subject,
+.confirm-content__amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 16px;
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+
+.confirm-content__subject span,
+.confirm-content__amount span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.confirm-content__subject strong {
+  max-width: 72%;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirm-content__amount {
+  border-color: #f4d7c9;
+  background: linear-gradient(135deg, #fff8f4 0%, #fff1eb 100%);
+}
+
+.confirm-content__amount strong {
+  color: var(--primary);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.confirm-content__amount small {
+  margin-right: 2px;
+  font-size: 14px;
+}
+
+.confirm-content__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid #d7e8df;
+  border-radius: 11px;
+  background: #f3faf6;
+  color: var(--green-deep);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.confirm-content__note svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  color: var(--green);
+}
+
+@media (max-width: 560px) {
+  .campus-confirm.el-message-box {
+    width: calc(100vw - 24px);
+  }
+
+  .campus-confirm .el-message-box__header,
+  .campus-confirm .el-message-box__content {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .campus-confirm .el-message-box__btns {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .campus-confirm .el-message-box__btns .el-button {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .confirm-content__amount strong {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .el-dialog {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px);
+  }
+
+  .el-dialog__header {
+    padding: 18px 52px 12px 20px;
+  }
+
+  .el-dialog__title {
+    font-size: 17px;
+  }
+
+  .el-dialog__body {
+    padding: 16px 20px;
+  }
+
+  .el-dialog__footer {
+    gap: 10px;
+    padding: 13px 20px 18px;
+  }
+
+  .el-dialog__footer .btn,
+  .el-dialog__footer .el-button {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}

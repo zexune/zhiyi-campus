@@ -839,4 +839,33 @@ onMounted(async () => {
   margin-bottom: 16px;
   color: #8c1d1d;
 }
+
+/* 个人中心刷新：将身份卡与可编辑信息分成清晰的两级表面。 */
+.profile-page {
+  gap: 28px;
+}
+.profile-grid {
+  grid-template-columns: 400px minmax(0, 1fr);
+  gap: 28px;
+}
+.id-card {
+  padding: 28px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-m);
+}
+.panel {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.sec-form {
+  padding: 18px;
+  border-radius: 12px;
+}
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
 </style>

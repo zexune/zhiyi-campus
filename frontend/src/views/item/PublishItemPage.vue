@@ -255,8 +255,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import AppSelect from '@/components/common/AppSelect.vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import TagInput from '@/components/common/TagInput.vue'
@@ -555,10 +556,12 @@ onMounted(async () => {
       // 可放弃的恢复：confirm 是明确的"丢弃"操作；Esc/关闭/继续编辑均保留草稿，
       // 避免误触把已回填的内容清掉。丢弃后回滚到干净初值并移除本机存储
       try {
-        await ElMessageBox.confirm(`已恢复上次保存的草稿${Array.isArray(saved.images) && saved.images.length ? '（含图片）' : ''}。`, '已恢复草稿', {
-          confirmButtonText: '丢弃草稿',
-          cancelButtonText: '继续编辑',
-          type: 'info'
+        await confirmAction({
+          title: '已恢复草稿',
+          description: `已恢复上次保存的草稿${Array.isArray(saved.images) && saved.images.length ? '（含图片）' : ''}。要丢弃草稿并开始空白编辑吗？`,
+          confirmText: '丢弃草稿',
+          cancelText: '继续编辑',
+          tone: 'success'
         })
         localStorage.removeItem('zhiyi-publish-draft')
         Object.assign(form, { ...EMPTY_FORM, images: [], tags: [] })
@@ -913,6 +916,46 @@ onMounted(async () => {
   }
   .submit-actions .btn--primary {
     flex: 1;
+  }
+}
+
+/* 发布页刷新：先选类型，再填详情，步骤间用更明确的表面区分。 */
+.publish-page {
+  gap: 8px;
+}
+.publish-head {
+  margin-top: 0;
+  padding-top: 4px;
+}
+.pub-wrap {
+  margin-top: 26px;
+}
+.pub-card {
+  padding: 34px 36px;
+  border-color: #dbe3ec;
+  border-radius: 18px;
+  box-shadow: var(--shadow-m);
+}
+.type-switch {
+  gap: 14px;
+  margin-bottom: 30px;
+}
+.type-option {
+  padding: 18px 20px;
+  border-color: #dbe3ec;
+  border-radius: 14px;
+}
+.type-option:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-m);
+}
+.upload-add {
+  border-radius: 12px;
+}
+@media (max-width: 700px) {
+  .pub-card {
+    padding: 24px 18px;
+    border-radius: 16px;
   }
 }
 </style>

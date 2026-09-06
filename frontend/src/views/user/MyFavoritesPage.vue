@@ -184,4 +184,37 @@ onMounted(fetchFavorites)
   width: 16px;
   height: 16px;
 }
+
+/* 收藏页刷新：网格卡片留白更充足，图片与操作形成稳定的上下节奏。 */
+.fav-page {
+  gap: 24px;
+}
+.fav-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+.fav-card {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.fav-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-m);
+}
+.fav-card__img {
+  border-bottom-color: #e2e8f0;
+}
+.fav-card__body {
+  padding: 15px 16px 16px;
+}
+.fav-remove {
+  width: 38px;
+  height: 38px;
+}
 </style>

@@ -103,7 +103,8 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
 import ItemPrice from '@/components/common/ItemPrice.vue'
 import { deleteItem, getMyItems, offShelfItem, relistItem, submitItemAppeal } from '@/api/item'
@@ -199,10 +200,14 @@ async function handleOffShelf(item: MyItemRow) {
 
 async function handleRelist(item: MyItemRow) {
   try {
-    await ElMessageBox.confirm(`重新上架「${item.title}」前将执行本地合规检测，命中风险会转入人工审核。`, '重新上架', {
-      confirmButtonText: '检测并上架',
-      cancelButtonText: '取消',
-      type: 'info'
+    await confirmAction({
+      title: '重新上架',
+      description: '上架前会执行本地合规检测，命中风险将转入人工审核。',
+      subject: item.title,
+      subjectLabel: '商品',
+      confirmText: '检测并上架',
+      cancelText: '取消',
+      tone: 'success'
     })
   } catch {
     return
@@ -247,10 +252,14 @@ async function submitAppeal() {
 
 async function handleDelete(item: MyItemRow) {
   try {
-    await ElMessageBox.confirm(`确认删除「${item.title}」吗？删除后不可恢复。`, '删除商品', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning'
+    await confirmAction({
+      title: '删除商品',
+      description: '确认删除这个商品吗？删除后不可恢复。',
+      subject: item.title,
+      subjectLabel: '商品',
+      confirmText: '确认删除',
+      cancelText: '取消',
+      tone: 'danger'
     })
   } catch {
     return
@@ -401,5 +410,31 @@ onMounted(fetchItems)
   background: var(--red-bg);
   border-color: var(--red);
   color: var(--red-deep);
+}
+
+/* 我的发布刷新：表格行改成更清晰的卡片层级，窄屏保留操作可见。 */
+.my-items-page {
+  gap: 24px;
+}
+.item-list {
+  gap: 14px;
+}
+.item-row {
+  padding: 17px 20px;
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.item-row:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-m);
+}
+.item-row__thumb {
+  border-radius: 12px;
+}
+@media (max-width: 600px) {
+  .item-row {
+    padding: 14px;
+  }
 }
 </style>

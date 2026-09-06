@@ -5,12 +5,21 @@
     <img v-if="activeImage" :key="activeImage" :src="activeImage" :alt="alt" fetchpriority="high" decoding="async" class="main-img" @load="markLoaded" @error="markLoaded" />
     <!-- 类型徽标等内容由父级经作用域插槽注入（绝对定位于主图左上角） -->
     <slot name="overlay" />
-    <button v-if="images.length > 1" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
-    <button v-if="images.length > 1" class="gallery__nav gallery__nav--next" aria-label="下一张" @click="switchImage(1)">›</button>
+    <button v-if="images.length > 1" type="button" class="gallery__nav gallery__nav--prev" aria-label="上一张" @click="switchImage(-1)">‹</button>
+    <button v-if="images.length > 1" type="button" class="gallery__nav gallery__nav--next" aria-label="下一张" @click="switchImage(1)">›</button>
     <span v-if="images.length" class="gallery__count">{{ activeImageIndex + 1 }} / {{ images.length }}</span>
   </div>
   <div v-if="images.length > 1" class="gallery__thumbs">
-    <button v-for="image in images" :key="image" class="th" :class="{ active: image === activeImage }" @click="activeImage = image">
+    <button
+      v-for="(image, index) in images"
+      :key="image"
+      type="button"
+      class="th"
+      :class="{ active: image === activeImage }"
+      :aria-label="`查看第 ${index + 1} 张图片`"
+      :aria-current="image === activeImage ? 'true' : undefined"
+      @click="activeImage = image"
+    >
       <img :src="image" :alt="alt" loading="lazy" decoding="async" @load="markLoaded" @error="markLoaded" />
     </button>
   </div>
@@ -69,6 +78,7 @@ function markLoaded(event: Event): void {
   display: grid;
   place-items: center;
   overflow: hidden;
+  background: var(--paper-deep);
 }
 
 .gallery__main img {
@@ -103,10 +113,19 @@ function markLoaded(event: Event): void {
   box-shadow: var(--shadow-s);
   font-size: 26px;
   line-height: 1;
+  z-index: 2;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
 }
 
 .gallery__nav:hover {
   background: var(--paper-deep);
+  border-color: var(--line-strong);
+}
+.gallery__nav:active {
+  transform: translateY(1px);
 }
 
 .gallery__nav--prev {
@@ -160,6 +179,7 @@ function markLoaded(event: Event): void {
 .th.active {
   opacity: 1;
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
 }
 
 .th img {

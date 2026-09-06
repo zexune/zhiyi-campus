@@ -15,6 +15,7 @@ declare module 'vue' {
     AppDateTimePicker: typeof import('./src/components/common/AppDateTimePicker.vue')['default']
     AppSelect: typeof import('./src/components/common/AppSelect.vue')['default']
     CategoryIcon: typeof import('./src/components/common/CategoryIcon.vue')['default']
+    ConfirmContent: typeof import('./src/components/common/ConfirmContent.vue')['default']
     DefaultLayout: typeof import('./src/components/layout/DefaultLayout.vue')['default']
     ElConfigProvider: typeof import('element-plus/es')['ElConfigProvider']
     ElDatePicker: typeof import('element-plus/es')['ElDatePicker']

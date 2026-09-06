@@ -352,4 +352,30 @@ onMounted(() => {
     align-items: center;
   }
 }
+
+/* 订单页视觉层级，与买入订单保持一致。 */
+.orders-page {
+  max-width: 920px;
+}
+.nav-tabs {
+  margin-top: 18px;
+  border: 1px solid #e2e8f0;
+  background: #eef2f7;
+}
+.nav-tab {
+  min-height: 40px;
+  padding-inline: 20px;
+  border-radius: 9px;
+}
+.list-toolbar {
+  margin-top: 20px;
+}
+.order-list {
+  gap: 18px;
+}
+.order-item {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
 </style>

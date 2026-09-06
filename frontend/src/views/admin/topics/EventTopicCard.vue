@@ -1,6 +1,13 @@
 <template>
   <div class="tool-card card topic-card">
-    <h3 class="tool-card__title">大事件专题</h3>
+    <div class="tool-card__head">
+      <div>
+        <span class="tool-card__eyebrow">CAMPUS CAMPAIGN</span>
+        <h3 class="tool-card__title">大事件专题</h3>
+      </div>
+      <span class="tool-card__mark" aria-hidden="true">✦</span>
+    </div>
+    <p class="tool-card__intro">把毕业季、新生季等校园节点做成一张醒目的布告栏，让好物更快找到需要的人。</p>
     <div class="field">
       <label>专题名称</label>
       <input v-model.trim="form.title" class="input" maxlength="100" placeholder="如：毕业季闲置循环" />
@@ -59,7 +66,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmAction } from '@/utils/confirm'
 import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
@@ -181,7 +189,15 @@ async function saveTopic() {
 async function removeTopic(topic: EventTopic) {
   if (topic.id == null) return
   try {
-    await ElMessageBox.confirm(`确认删除专题「${topic.title}」？`, '删除专题', { type: 'warning' })
+    await confirmAction({
+      title: '删除专题',
+      description: '确认删除这个活动专题？删除后专题配置将无法恢复。',
+      subject: topic.title,
+      subjectLabel: '专题名称',
+      confirmText: '确认删除',
+      cancelText: '取消',
+      tone: 'danger'
+    })
   } catch {
     return
   }
@@ -198,7 +214,40 @@ onMounted(async () => {
 
 <style scoped>
 .tool-card {
-  padding: 24px;
+  padding: 28px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-m);
+}
+.tool-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.tool-card__eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.tool-card__mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--yellow-bg);
+  color: var(--yellow-ink);
+  font-size: 20px;
+}
+.tool-card__intro {
+  margin: 0 0 22px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
 }
 .tool-card__title {
   font-family: var(--font-display);
@@ -220,6 +269,9 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 13px;
   margin-bottom: 6px;
+}
+.topic-card .field + .field {
+  margin-top: 2px;
 }
 .form-pair {
   display: grid;
@@ -244,6 +296,16 @@ onMounted(async () => {
   align-items: center;
   gap: 16px;
   padding: 12px 14px;
+  border-color: #e2e8f0;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.topic-row:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-s);
+  transform: translateY(-1px);
 }
 .topic-time {
   font-size: 12px;
@@ -255,6 +317,9 @@ onMounted(async () => {
   gap: 8px;
 }
 @media (max-width: 768px) {
+  .tool-card {
+    padding: 22px 18px;
+  }
   .topic-row {
     align-items: flex-start;
     flex-direction: column;

@@ -414,9 +414,6 @@ onUnmounted(() => {
   outline-offset: 2px;
 }
 
-.footer {
-  margin-top: var(--spacing-xl);
-}
 .footer__brand {
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -443,6 +440,24 @@ onUnmounted(() => {
 @media (max-width: 480px) {
   .topbar__user .btn--ghost {
     display: none;
+  }
+}
+
+/* 壳层的留白与刷新后的卡片密度保持一致：首屏更轻，长页面不显得拥挤。 */
+.layout-main {
+  padding-top: 32px;
+  padding-bottom: 36px;
+}
+.footer {
+  margin-top: 56px;
+}
+@media (max-width: 768px) {
+  .layout-main {
+    padding-top: 22px;
+    padding-bottom: 28px;
+  }
+  .footer {
+    margin-top: 34px;
   }
 }
 </style>

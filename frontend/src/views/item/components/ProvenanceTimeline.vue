@@ -83,6 +83,35 @@ defineProps<{
   font-weight: 700;
 }
 
+.lineage-section__head::after {
+  content: '每一次转手，都是校园记忆的接力';
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.lineage-section :deep(.el-skeleton) {
+  display: grid;
+  gap: 10px;
+  padding-top: 20px;
+}
+
+.lineage-section :deep(.el-skeleton__item) {
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(100deg, var(--paper-deep) 25%, #fff 40%, var(--paper-deep) 55%);
+  background-size: 220% 100%;
+  animation: lineage-shimmer 1.4s linear infinite;
+}
+
+.lineage-section :deep(.el-skeleton__item:nth-child(2)) {
+  width: 78%;
+}
+.lineage-section :deep(.el-skeleton__item:nth-child(3)) {
+  width: 62%;
+}
+
 .lineage-timeline {
   display: flex;
   margin-top: 22px;
@@ -151,5 +180,29 @@ defineProps<{
   margin: 22px 0 2px;
   color: var(--ink-soft);
   font-size: 13px;
+}
+
+@keyframes lineage-shimmer {
+  to {
+    background-position: -120% 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .lineage-section__head::after {
+    display: none;
+  }
+  .lineage-section {
+    padding-inline: 18px;
+  }
+  .lineage-timeline {
+    margin-inline: -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineage-section :deep(.el-skeleton__item) {
+    animation: none;
+  }
 }
 </style>

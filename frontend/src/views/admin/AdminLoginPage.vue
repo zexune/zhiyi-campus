@@ -274,4 +274,61 @@ async function submit() {
     padding: 26px 20px;
   }
 }
+
+/* 管理员入口与后台数据页共用清晰的中性画布与高对比操作层。 */
+.admin-login-page {
+  background: radial-gradient(circle at 9% 18%, rgba(251, 146, 60, 0.16), transparent 24rem), radial-gradient(circle at 90% 8%, rgba(96, 165, 250, 0.1), transparent 24rem), var(--paper);
+}
+.login-header {
+  min-height: 72px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.045);
+}
+.login-main {
+  width: min(1120px, calc(100% - 48px));
+  grid-template-columns: 1fr minmax(340px, 440px);
+  gap: clamp(48px, 8vw, 104px);
+  padding-top: 76px;
+  padding-bottom: 76px;
+}
+.login-copy__mark {
+  filter: drop-shadow(0 4px 8px rgba(194, 65, 12, 0.16));
+}
+.login-copy h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  letter-spacing: -1px;
+}
+.login-copy p {
+  font-size: 16px;
+  line-height: 1.8;
+}
+.login-scope {
+  gap: 12px;
+}
+.login-scope li {
+  min-height: 38px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-s);
+}
+.login-card {
+  padding: 38px;
+  border-color: #dbe3ec;
+  box-shadow: var(--shadow-l);
+}
+.login-card h2 {
+  font-size: 23px;
+  letter-spacing: -0.3px;
+}
+@media (max-width: 760px) {
+  .login-main {
+    width: min(100% - 32px, 440px);
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+  .login-card {
+    padding: 28px 24px;
+  }
+}
 </style>

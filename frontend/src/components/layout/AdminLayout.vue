@@ -329,4 +329,67 @@ async function changePassword() {
     padding: 20px 12px;
   }
 }
+
+/* 后台壳层刷新：提高导航层级，给数据页留出更宽的呼吸空间。 */
+.admin-shell {
+  background: radial-gradient(circle at 90% -10%, rgba(59, 130, 246, 0.055), transparent 28rem), var(--paper);
+}
+.admin-header {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.045);
+}
+.admin-header__inner {
+  min-height: 72px;
+  gap: 28px;
+}
+.admin-brand {
+  font-size: 18px;
+}
+.admin-brand__mark {
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 3px 6px rgba(194, 65, 12, 0.16));
+}
+.admin-nav {
+  gap: 4px;
+}
+.admin-nav a {
+  padding: 9px 13px;
+  border-radius: 11px;
+}
+.admin-nav a.router-link-active {
+  box-shadow: inset 0 0 0 1px rgba(194, 65, 12, 0.08);
+}
+.admin-account {
+  gap: 8px;
+}
+.admin-account .btn {
+  min-height: 38px;
+}
+.admin-main {
+  width: min(1280px, 100%);
+  padding-top: 34px;
+  padding-bottom: 48px;
+}
+.admin-footer {
+  padding-top: 26px;
+  padding-bottom: 26px;
+  background: rgba(255, 255, 255, 0.72);
+}
+@media (max-width: 860px) {
+  .admin-header__inner {
+    min-height: 64px;
+  }
+  .admin-nav {
+    padding-bottom: 3px;
+  }
+}
+@media (max-width: 520px) {
+  .admin-main {
+    padding-top: 24px;
+    padding-bottom: 32px;
+  }
+}
 </style>

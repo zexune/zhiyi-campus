@@ -658,4 +658,36 @@ function violationBadge(type: string | undefined) {
     justify-content: flex-end;
   }
 }
+
+/* 数据大盘刷新：去掉重复内边距，提升统计卡与趋势图的呼吸感。 */
+.dashboard-page {
+  max-width: 1280px;
+  padding-inline: 0;
+}
+.stat-grid {
+  gap: 22px;
+  margin-bottom: 44px;
+}
+.stat-card {
+  padding: 30px 24px;
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+.stat-card--link:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-m);
+}
+.trend-card,
+.heatmap-card,
+.logs-section {
+  border-color: #dbe3ec;
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-s);
+}
+@media (max-width: 640px) {
+  .dashboard-page {
+    padding-inline: 0;
+  }
+}
 </style>
