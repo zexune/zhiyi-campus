@@ -225,12 +225,12 @@ zhiyi-campus/
 │   │   ├── api/                       # 按业务模块封装的 API 请求
 │   │   ├── assets/                    # 全局样式等静态资源
 │   │   ├── components/                # 通用、布局、用户和交易组件
-│   │   ├── composables/               # 分页列表、聊天事件流与请求竞态守卫
+│   │   ├── composables/               # 分页列表、聊天事件流、收藏与请求竞态守卫等组合式函数
 │   │   ├── constants/                 # API 领域状态码、统一展示映射与路由路径常量
 │   │   ├── router/                    # 页面路由与访问守卫
 │   │   ├── stores/                    # Pinia 状态管理
 │   │   ├── types/                     # OpenAPI 生成契约类型与领域别名
-│   │   ├── utils/                     # 请求、鉴权、信誉与交易工具
+│   │   ├── utils/                     # 请求、鉴权、幂等、信誉与交易等工具
 │   │   └── views/                     # 首页、商品、聊天、钱包、后台等页面
 │   ├── assets/                        # 品牌源图等构建输入（非应用资产，勿搬入 src/assets）
 │   ├── public/                        # 图标等原样复制的静态资产（由 gen:icons 生成）
