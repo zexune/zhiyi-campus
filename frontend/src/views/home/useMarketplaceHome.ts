@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { getActiveTopic, getAllTags, getCategories, getItemList, getItemRanking } from '@/api/item'
 import type { ItemFeedQuery } from '@/api/item'
 import type { Category, EventTopic, Item, TagCloudGroup } from '@/types/models'
-import { ITEM_TYPE_OPTIONS } from '@/constants/domain'
+import { ITEM_TYPE_OPTIONS, BIZ_CODE } from '@/constants/domain'
 import type { SelectOption } from '@/constants/domain'
 import { ApiError } from '@/utils/request'
 import { itemTypeLabel } from '@/utils/trade'
@@ -15,9 +15,6 @@ import { useLatestWins } from '@/composables/useLatestWins'
 import { useFavorite } from '@/composables/useFavorite'
 
 const PAGE_SIZE = 12
-
-/** Feed 游标过期/版本冲突业务码（后端 FEED_CURSOR_INVALID）：从首屏重启 */
-const FEED_CURSOR_INVALID_CODE = 2004
 
 /** 分类字典接口失败时的本地兜底；大厅只消费 id 与 name，用窄类型承接 */
 type CategoryOption = Pick<Category, 'id' | 'name'>
@@ -159,7 +156,7 @@ function formatTopicDate(value: string | null | undefined): string {
  * Feed 游标协议（B9 前端侧）：
  * - 随机/排序列表不再使用页码与精确 total；"加载更多"只提交服务端返回的 nextCursor；
  * - 筛选、排序变化时清空整条游标链并推进 latest-wins 代数；
- * - 游标过期/版本冲突（2004）保留当前筛选、清空旧列表并从首屏重取，
+ * - 游标过期/版本冲突（FEED_CURSOR_INVALID）保留当前筛选、清空旧列表并从首屏重取，
  *   不把旧游标和新条件拼接；前端不解析、修改或自行构造游标；
  * - 收藏互斥为 per-entity 集合：并发结束后合并一次 latest-wins 刷新。
  */
@@ -258,7 +255,7 @@ export function useMarketplaceHome(): MarketplaceHomeReturn {
   }
 
   function isFeedCursorInvalid(error: unknown): boolean {
-    return error instanceof ApiError && error.code === FEED_CURSOR_INVALID_CODE
+    return error instanceof ApiError && error.code === BIZ_CODE.FEED_CURSOR_INVALID
   }
 
   /** 首屏拉取（单次）：返回结果供外层决定是否重试 */

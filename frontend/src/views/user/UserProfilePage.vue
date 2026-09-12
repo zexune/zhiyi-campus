@@ -258,6 +258,7 @@ import ReputationRadar from '@/components/common/ReputationRadar.vue'
 import { updateProfile, getExpLog, changePassword, cancelAccount, getUserReputation, getSchools, uploadUserAvatar } from '@/api/auth'
 import { ApiError } from '@/utils/request'
 import { useUserStore } from '@/stores/user'
+import { BIZ_CODE } from '@/constants/domain'
 import { ROUTE_PATH } from '@/constants/routes'
 import { formatDate, formatDateTime } from '@/utils/format'
 import { usePagedList } from '@/composables/usePagedList'
@@ -349,8 +350,8 @@ async function handleSave() {
     const profile = await userStore.fetchProfile()
     fillEditForm(profile)
   } catch (error) {
-    // 资料版本冲突（1010）：不覆盖用户输入，展示服务端最新资料并要求确认合并
-    if (error instanceof ApiError && error.code === 1010) {
+    // 资料版本冲突（PROFILE_CONFLICT）：不覆盖用户输入，展示服务端最新资料并要求确认合并
+    if (error instanceof ApiError && error.code === BIZ_CODE.PROFILE_CONFLICT) {
       const latest = (error.detail as UserProfile | null) || (await userStore.fetchProfile())
       conflictProfile.value = latest
       if (latest?.profileVersion !== undefined) profileVersion.value = latest.profileVersion
@@ -550,7 +551,7 @@ function canBrowserDecode(file: File): Promise<boolean> {
 function applyAvatarProfile(profile: UserProfile | null) {
   if (!profile) return
   userStore.user = profile
-  // 上传会推进 profileVersion：必须用返回的最新资料刷新表单中的版本，否则 PUT /profile 触发 1010 冲突
+  // 上传会推进 profileVersion：必须用返回的最新资料刷新表单中的版本，否则 PUT /profile 触发 PROFILE_CONFLICT 冲突
   if (profile.profileVersion !== undefined) profileVersion.value = profile.profileVersion
 }
 
