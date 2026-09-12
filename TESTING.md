@@ -43,13 +43,13 @@ cd backend
 mvn verify -Pintegration
 ```
 
-该 profile 启动一次性 MySQL 9.7 LTS 容器，直接运行根目录的 `zhiyi_campus_init.sql`，并使用真实 SQL、索引、约束和事务语义。套件通过 `SELECT VERSION()` 校验数据库环境为 9.7.x。
+该 profile 启动一次性 MySQL 9.7 LTS 容器，直接运行 `database/zhiyi_campus_init.sql`，并使用真实 SQL、索引、约束和事务语义。套件通过 `SELECT VERSION()` 校验数据库环境为 9.7.x。
 
 `TradingConcurrencyIT` 在同一容器上以 CyclicBarrier 屏障交错执行双事务竞态验收：双下单同商品、下单 vs 编辑/删除、充值同键并发、封禁 vs 确认收货、违规确认 vs 确认收货/编辑；交易请求统一走生产入口 `TradingEntryService`（事务外准入闸门参与验收）。断言针对串行顺序无关的数据库不变量（I1-I3、I6/I7、I10-I13、I24），任何交错下都必须成立。
 
 ### 完整系统 E2E
 
-先使用 `zhiyi_campus_init.sql` 初始化专用测试数据库，并在 `http://127.0.0.1:8080` 启动后端；随后执行：
+先使用 `database/zhiyi_campus_init.sql` 初始化专用测试数据库，并在 `http://127.0.0.1:8080` 启动后端；随后执行：
 
 ```bash
 cd frontend

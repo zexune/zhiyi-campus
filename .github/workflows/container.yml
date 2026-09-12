@@ -112,7 +112,7 @@ jobs:
       # README 承诺的初始化命令必须原样可用
       - name: Import schema via README command
         run: |
-          docker compose exec -T dev mysql -uroot --default-character-set=utf8mb4 < zhiyi_campus_init.sql
+          docker compose exec -T dev mysql -uroot --default-character-set=utf8mb4 < database/zhiyi_campus_init.sql
           tables=$(docker compose exec -T dev mysql -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'zhiyi_campus'")
           echo "zhiyi_campus tables: ${tables}"
           [ "${tables}" -gt 0 ]

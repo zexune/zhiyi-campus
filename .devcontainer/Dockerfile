@@ -30,7 +30,7 @@ RUN install -d -m 0755 /etc/apt/keyrings \
 # 源文件，让 9.7 源静默漂移。静态 key 不可行，用 deb 内的 keyring 能通过验签。
 # mysql-community-server 的 postinst 会尝试初始化 /var/lib/mysql（root
 # 凭据不受我们控制），装完清空数据目录，把首次初始化交给 dev-entrypoint.sh
-# （root 无密码空库，zhiyi_campus_init.sql 由你手动导入）。
+# （root 无密码空库，database/zhiyi_campus_init.sql 由你手动导入）。
 RUN wget -q https://repo.mysql.com/mysql-apt-config_0.8.36-1_all.deb \
  && dpkg -i mysql-apt-config_0.8.36-1_all.deb \
  && apt-mark hold mysql-apt-config \

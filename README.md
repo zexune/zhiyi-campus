@@ -62,9 +62,10 @@ docker compose up -d          # 启动容器
 docker compose exec dev bash  # 进入 Docker 容器终端
 
 # —— 容器内，与普通机器完全一致 ——
-mysql -uroot < /repo/zhiyi_campus_init.sql    # 初始化数据库，仅首次需要
-cd frontend && npm ci && npm run dev          # 前端 http://localhost:3000
-cd backend  && mvn spring-boot:run            # 后端 http://localhost:8080
+mysql -uroot < /repo/database/zhiyi_campus_init.sql     # 初始化数据库，仅首次需要
+mysql -uroot < /repo/database/zhiyi_campus_demo.sql     # 可选：导入演示数据（开发展示用）
+cd frontend && npm ci && npm run dev                    # 前端 http://localhost:3000
+cd backend  && mvn spring-boot:run                      # 后端 http://localhost:8080
 
 # —— 停止 / 删除 / 重建 ——
 docker compose stop             # 停止容器
@@ -99,12 +100,29 @@ mysql -u root -p --default-character-set=utf8mb4
 进入 MySQL 客户端后执行初始化脚本；请将路径替换为本机项目的绝对路径：
 
 ```sql
-SOURCE C:/path/to/zhiyi-campus/zhiyi_campus_init.sql;
+SOURCE C:/path/to/zhiyi-campus/database/zhiyi_campus_init.sql;
 ```
 
-也可以使用 MySQL Workbench、DataGrip 等数据库客户端直接运行 [`zhiyi_campus_init.sql`](zhiyi_campus_init.sql)。脚本会删除并重建 `zhiyi_campus` 数据库，然后创建业务表和种子数据，仅适用于可重置的开发环境。
+也可以使用 MySQL Workbench、DataGrip 等数据库客户端直接运行 [`zhiyi_campus_init.sql`](database/zhiyi_campus_init.sql)。脚本会删除并重建 `zhiyi_campus` 数据库，然后创建业务表和种子数据，仅适用于可重置的开发环境。
 
 初始数据库包含一个默认管理员：后台账号 `admin`，初始密码 `123456`。
+
+如需开发展示数据，可在初始化后额外导入可选的演示脚本（11 个普通用户、34 件覆盖出售/求购/换物/跑腿的商品、订单与评价、站内会话、信誉指标与内容治理记录，密码与 admin 相同）：
+
+```sql
+SOURCE C:/path/to/zhiyi-campus/database/zhiyi_campus_demo.sql;
+```
+
+几个有戏可看的账号：
+
+- `23110001` 小萌主：高完成率卖家，评价样本尚不足（部分维度"样本不足"）；
+- `23110006` 一鸣游戏搬家：六维信誉全部有分的展示样板，且与 `23110007` 有 6 笔回购订单（可观察回购衰减的经验流水）；
+- `23110003` 浩然同学：新人未完善资料，信誉"数据积累中"；
+- `23110008` 悦宁爱英语：首响 EWMA 达 12 小时，响应速度地板分；
+- `23110005` 老周杂货铺：有一条随时间衰减的内容警告处罚和一条待审申诉（管理端可演示复核）；
+- `23110009` 楠楠不打烊：限时封禁中（管理端封禁列表演示）。
+
+华东师范大学的两名用户（`23120001` / `23120002`）用于演示跨学校数据隔离：上海大学账号在集市中看不到他们的商品。
 
 #### 2. 配置并启动后端
 
@@ -243,7 +261,9 @@ zhiyi-campus/
 ├── .devcontainer/                     # VS Code / Codespaces 直连同一 compose
 ├── .dockerignore                      # 构建上下文排除（node_modules / target 等）
 ├── .env.example                       # 容器编排密钥模板（.env 不入库）
-├── zhiyi_campus_init.sql              # MySQL 初始化脚本
+├── database/                          # SQL 脚本（初始化 + 可选演示数据）
+│   ├── zhiyi_campus_init.sql          # MySQL 初始化脚本
+│   └── zhiyi_campus_demo.sql          # 演示数据（可选，初始化后执行）
 ├── .github/workflows/                 # CI 流水线：测试金字塔与开发容器冒烟
 ├── TESTING.md                         # 测试策略、命令与质量规范
 ├── LICENSE                            # MIT 开源许可证
@@ -325,7 +345,7 @@ Swagger UI 默认将受保护接口标记为 JWT Bearer 鉴权。调用这类接
 
 - 后端控制器：[`backend/src/main/java/com/zhiyi/module`](backend/src/main/java/com/zhiyi/module/)
 - 前端请求封装：[`frontend/src/api`](frontend/src/api/)
-- 数据库结构：[`zhiyi_campus_init.sql`](zhiyi_campus_init.sql)
+- 数据库结构：[`zhiyi_campus_init.sql`](database/zhiyi_campus_init.sql)
 - 运行配置：[`backend/src/main/resources/application.yml`](backend/src/main/resources/application.yml)
 
 ## 开源许可

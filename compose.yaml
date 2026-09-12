@@ -10,7 +10,7 @@
 #   cd frontend && npm ci        # 仅首次（node_modules 是命名卷，重建容器不丢）
 #   cd frontend && npm run dev   # 前端 http://localhost:3000（HMR）
 #   cd backend  && mvn spring-boot:run   # 后端 http://localhost:8080
-#   mysql -uroot < /repo/zhiyi_campus_init.sql   # 首次使用或需要重置库时手动执行
+#   mysql -uroot < /repo/database/zhiyi_campus_init.sql   # 首次使用或需要重置库时手动执行
 
 services:
   dev:

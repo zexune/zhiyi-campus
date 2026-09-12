@@ -175,7 +175,7 @@
             </testResource>
             <!-- 生产初始化脚本也是集成测试的唯一数据库结构来源，防止测试 schema 漂移。 -->
             <testResource>
-                <directory>..</directory>
+                <directory>../database</directory>
                 <includes>
                     <include>zhiyi_campus_init.sql</include>
                 </includes>

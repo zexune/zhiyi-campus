@@ -175,7 +175,7 @@ jobs:
           java-version: '25'
           cache: maven
       - name: Initialize database schema
-        run: docker exec -i "${{ job.services.mysql.id }}" mysql --user=root --password=specroot --default-character-set=utf8mb4 < zhiyi_campus_init.sql
+        run: docker exec -i "${{ job.services.mysql.id }}" mysql --user=root --password=specroot --default-character-set=utf8mb4 < database/zhiyi_campus_init.sql
       - name: Package backend
         working-directory: backend
         run: mvn -B -q clean package -DskipTests
@@ -231,7 +231,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Initialize production MySQL schema and seed data
-        run: docker exec -i "${{ job.services.mysql.id }}" mysql --user=root --password=test --default-character-set=utf8mb4 < zhiyi_campus_init.sql
+        run: docker exec -i "${{ job.services.mysql.id }}" mysql --user=root --password=test --default-character-set=utf8mb4 < database/zhiyi_campus_init.sql
       - name: Start backend
         env:
           MYSQL_USERNAME: root
