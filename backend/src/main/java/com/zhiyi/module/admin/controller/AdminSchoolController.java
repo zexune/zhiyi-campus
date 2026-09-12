@@ -22,32 +22,32 @@ import java.util.List;
  * DELETE /api/admin/schools/{id}  删除学校
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/admin/schools")
 @RequiredArgsConstructor
 @RoleRequired
 public class AdminSchoolController {
 
     private final AdminSchoolService schoolService;
 
-    @GetMapping("/schools")
+    @GetMapping
     @BusinessErrors
     public ApiSuccess<List<SchoolVO>> list(@RequestParam(required = false) String status) {
         return ApiSuccess.ok(schoolService.listAll(status));
     }
 
-    @PostMapping("/schools")
+    @PostMapping
     @BusinessErrors
     public ApiSuccess<SchoolVO> create(@Valid @RequestBody SchoolDTO dto) {
         return ApiSuccess.ok(schoolService.create(dto));
     }
 
-    @PutMapping("/schools/{id}")
+    @PutMapping("/{id}")
     @BusinessErrors(ResultCode.NOT_FOUND)
     public ApiSuccess<SchoolVO> update(@PathVariable Long id, @Valid @RequestBody SchoolDTO dto) {
         return ApiSuccess.ok(schoolService.update(id, dto));
     }
 
-    @DeleteMapping("/schools/{id}")
+    @DeleteMapping("/{id}")
     @BusinessErrors(ResultCode.NOT_FOUND)
     public ApiSuccess<Void> delete(@PathVariable Long id) {
         schoolService.delete(id);

@@ -18,6 +18,7 @@ import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
+import com.zhiyi.module.user.service.UserGrowthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -65,6 +66,7 @@ class ItemPublishServiceTest {
     @Mock private LocalContentAnalyzer contentAnalyzer;
     @Mock private ItemTagService itemTagService;
     @Mock private ItemViewStatMapper viewStatMapper;
+    @Mock private UserGrowthService growthService;
 
     @TempDir Path uploadDirectory;
 
@@ -79,7 +81,7 @@ class ItemPublishServiceTest {
         ReflectionTestUtils.setField(imageStorage, "uploadPath", uploadDirectory.toString());
         service = new ItemPublishService(itemMapper, categoryMapper, violationReportMapper,
                 marketplaceService, userMapper, contentAnalyzer, itemTagService, viewStatMapper,
-                imageStorage);
+                imageStorage, growthService);
     }
 
     @Test

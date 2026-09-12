@@ -11,14 +11,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.zhiyi.testsupport.MybatisMetadata.initialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertTrue;import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -81,10 +81,45 @@ class ReputationPenaltyServiceTest {
         assertEquals(0, service.complianceScore(2L));
     }
 
+    @Test
+    void penaltyPointsDecayLinearlyWithAge() {
+        // 10 分处罚，90 天（半个衰减窗口）→ 有效 5 分
+        ReputationPenalty halfAged = penaltyAt(10, LocalDateTime.now().minusDays(90));
+        when(penaltyMapper.selectList(any())).thenReturn(List.of(halfAged));
+
+        assertEquals(5, service.activePenaltyPoints(2L));
+        assertEquals(95, service.complianceScore(2L));
+    }
+
+    @Test
+    void penaltiesBeyondDecayWindowNaturallyExpire() {
+        ReputationPenalty expired = penaltyAt(10, LocalDateTime.now().minusDays(200));
+        when(penaltyMapper.selectList(any())).thenReturn(List.of(expired));
+
+        assertEquals(0, service.activePenaltyPoints(2L));
+        assertEquals(100, service.complianceScore(2L));
+        assertTrue(service.activePenaltiesWithDecay(2L).isEmpty());
+    }
+
+    @Test
+    void freshPenaltyDeductsFullPoints() {
+        when(penaltyMapper.selectList(any())).thenReturn(
+                List.of(penaltyAt(10, LocalDateTime.now())));
+
+        assertEquals(10, service.activePenaltyPoints(2L));
+    }
+
     private ReputationPenalty penalty(int points) {
         ReputationPenalty penalty = new ReputationPenalty();
+        penalty.setId((long) points);
         penalty.setPoints(points);
         penalty.setStatus(PenaltyStatus.ACTIVE);
+        return penalty;
+    }
+
+    private ReputationPenalty penaltyAt(int points, LocalDateTime createdAt) {
+        ReputationPenalty penalty = penalty(points);
+        penalty.setCreatedAt(createdAt);
         return penalty;
     }
 }

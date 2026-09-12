@@ -34,7 +34,7 @@ import java.util.List;
  * GET /api/admin/chat/sessions    客服会话列表
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/admin/chat")
 @RequiredArgsConstructor
 @RoleRequired
 public class AdminChatController {
@@ -44,13 +44,13 @@ public class AdminChatController {
     private final ChatEventBroadcaster chatEventBroadcaster;
 
     /** 客服账号缺失/配置异常（500）与客服被跨校限制（403）都是显式契约。 */
-    @GetMapping("/chat/sessions")
+    @GetMapping("/sessions")
     @BusinessErrors({ResultCode.SERVER_ERROR, ResultCode.FORBIDDEN})
     public ApiSuccess<List<ConversationVO>> sessions() {
         return ApiSuccess.ok(adminChatService.getSessions());
     }
 
-    @GetMapping("/chat/messages")
+    @GetMapping("/messages")
     @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
     public ApiSuccess<ChatThreadVO> messages(@RequestAttribute("userId") Long adminId,
                                          @RequestParam String conversationId,
@@ -61,7 +61,7 @@ public class AdminChatController {
                 adminId, conversationId, peerId, relatedItemId, beforeId));
     }
 
-    @PostMapping("/chat/send")
+    @PostMapping("/send")
     @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN, ResultCode.USER_NOT_FOUND})
     public ApiSuccess<ChatMessageVO> send(@RequestAttribute("userId") Long adminId,
                                       @Valid @RequestBody ChatSendDTO dto) {
@@ -69,7 +69,7 @@ public class AdminChatController {
     }
 
     /** 管理端同模式显式已读确认（GET messages 只读）。 */
-    @PostMapping("/chat/ack")
+    @PostMapping("/ack")
     @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
     public ApiSuccess<Void> ack(@RequestAttribute("userId") Long adminId,
                             @RequestParam String conversationId,
@@ -78,7 +78,7 @@ public class AdminChatController {
         return ApiSuccess.ok(null);
     }
 
-    @GetMapping("/chat/unread")
+    @GetMapping("/unread")
     @BusinessErrors({ResultCode.NOT_FOUND, ResultCode.FORBIDDEN})
     public ApiSuccess<List<ChatMessageVO>> unread(@RequestAttribute("userId") Long adminId,
                                               @RequestParam(required = false) String conversationId) {
@@ -89,7 +89,7 @@ public class AdminChatController {
      * 管理端 SSE 事件流（text/event-stream）：与 /api/chat/stream 共享同一广播器；
      * 管理员只能访问 /api/admin/**（RoleInterceptor 命名空间隔离），故独立暴露。
      */
-    @GetMapping("/chat/stream")
+    @GetMapping("/stream")
     @BusinessErrors
     @Operation(summary = "订阅管理端聊天事件流（SSE）")
     @ApiResponse(responseCode = "200", description = "text/event-stream：event:ready（重连节奏）与 event:chat（MESSAGE/READ 变化信号）",

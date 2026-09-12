@@ -16,10 +16,13 @@ public record ExpLogResponse(
         Integer expAfter,
         Integer levelAfter,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String reason,
+        /** 经验事件编码（ORDER_SELLER/ITEM_PUBLISHED/...；历史行可为 null） */
+        String ruleCode,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime createdAt) {
 
     public static ExpLogResponse from(ExpLog log) {
         return new ExpLogResponse(log.getId(), log.getUserId(), log.getDelta(),
-                log.getExpAfter(), log.getLevelAfter(), log.getReason(), log.getCreatedAt());
+                log.getExpAfter(), log.getLevelAfter(), log.getReason(), log.getRuleCode(),
+                log.getCreatedAt());
     }
 }

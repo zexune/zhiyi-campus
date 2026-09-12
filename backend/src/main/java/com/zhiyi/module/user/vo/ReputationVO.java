@@ -1,28 +1,50 @@
 package com.zhiyi.module.user.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 /**
- * 信誉雷达六维分值（A6）—— 每项 0-100，供前端雷达图渲染。
+ * 信誉雷达六维明细（A6）—— 每维携带分值、样本量与一句话归因。
  *
- * 维度对应数据来源：
- * completionRate —— trade_order 完成/(完成+取消)
- * responseSpeed  —— chat_message 首次回复间隔反比
- * accuracy       —— trade_review.accurate 占比
- * praise         —— trade_review.rating 均值折算
- * activity       —— 近 30 天发布 + 成交数
- * compliance     —— 独立有效信誉处罚累计扣分后的合规度
+ * score 为 null 表示样本不足（低于最小样本门槛）：前端该维画中心点并标注
+ * "样本不足"，与"表现差"从视觉与语义上彻底区分；不再用固定基线冒充分值。
+ *
+ * 维度数据来源（详见 ReputationService）：
+ * completionRate —— 近 180 天订单完成率（卖家侧）
+ * responseSpeed  —— 首响间隔 EWMA（α=0.1）
+ * accuracy       —— 近 180 天评价描述相符占比
+ * praise         —— 近 180 天评价平均星级折算
+ * activity       —— 近 30 天发布与成交加权计数
+ * compliance     —— 有效处罚按配置窗口（zhiyi.moderation.penalty-decay-days）线性衰减后的合规度
  */
 @Data
 @AllArgsConstructor
 public class ReputationVO {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private Long userId;
-    private int completionRate; // 交易完成率
-    private int responseSpeed;  // 响应速度
-    private int accuracy;       // 描述准确度
-    private int praise;         // 历史好评
-    private int activity;       // 活跃度
-    private int compliance;     // 合规度
-    private int reviewCount;    // 已收到的评价数（前端展示样本量）
+    /** 固定六维顺序（与前端 REPUTATION_DIMENSIONS 一致） */
+    private List<DimensionVO> dimensions;
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class DimensionVO {
+        /** 维度键（completionRate/responseSpeed/accuracy/praise/activity/compliance） */
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        private String key;
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        private String label;
+        /** 0-100 分值；null = 样本不足 */
+        private Integer score;
+        /** 参与本维计算的样本量（订单数/评价数/处罚数等） */
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        private int samples;
+        /** 一句话归因（前端 hover 展示，解释"为什么是这个分"） */
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        private String summary;
+    }
 }

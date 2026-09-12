@@ -13,6 +13,7 @@ import com.zhiyi.module.user.entity.School;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.ExpLogMapper;
 import com.zhiyi.module.user.mapper.SysUserMapper;
+import com.zhiyi.module.user.support.ExpRule;
 import com.zhiyi.module.user.support.LevelRule;
 import com.zhiyi.module.user.vo.PublicUserCardVO;
 import com.zhiyi.module.user.vo.SellerDetailVO;
@@ -39,6 +40,7 @@ public class UserService {
     private final ExpLogMapper expLogMapper;
     private final SchoolService schoolService;
     private final LocalImageStorage imageStorage;
+    private final UserGrowthService growthService;
 
     /** 当前用户信息 */
     public UserVO getProfile(Long userId) {
@@ -142,6 +144,12 @@ public class UserService {
         if (affected == 0) {
             // 并发修改：另一提交已推进版本——显式冲突并返回最新资料
             throw profileConflict(userId);
+        }
+        // 首次集齐校园资料（校区/学院/年级/宿舍楼）的一次性奖励；同事务提交。
+        // 并发资料编辑已被 profileVersion 乐观锁串行化，先查后插无实际竞态窗口。
+        if (targetCampus != null && targetCollege != null
+                && targetGrade != null && targetDormitory != null) {
+            growthService.award(userId, ExpRule.PROFILE_COMPLETED);
         }
         return getProfile(userId);
     }

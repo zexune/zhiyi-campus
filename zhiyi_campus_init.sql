@@ -262,6 +262,7 @@ CREATE TABLE trade_order (
     INDEX idx_order_buyer_status_created (buyer_id, status, created_at DESC, id DESC),
     INDEX idx_order_seller_created (seller_id, created_at DESC, id DESC),
     INDEX idx_order_seller_status_created (seller_id, status, created_at DESC, id DESC),
+    INDEX idx_order_pair_status (buyer_id, seller_id, status),
     INDEX idx_order_status_completed_item (status, completed_at, item_id, price),
     INDEX idx_order_item_status (item_id, status, id),
     CONSTRAINT fk_order_item   FOREIGN KEY (item_id)   REFERENCES item(id),
@@ -435,7 +436,8 @@ CREATE TABLE chat_response_sample (
 CREATE TABLE user_reputation_metric (
     user_id           BIGINT   NOT NULL,
     sample_count      INT      NOT NULL DEFAULT 0,
-    total_gap_seconds BIGINT   NOT NULL DEFAULT 0,
+    ewma_gap_seconds  BIGINT   NOT NULL DEFAULT 0 COMMENT '首响间隔指数加权移动平均（α=0.1，秒）',
+    last_sample_at    DATETIME DEFAULT NULL COMMENT '最近一个样本时间（回填/观测用）',
     updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
     CONSTRAINT fk_metric_user FOREIGN KEY (user_id) REFERENCES sys_user(id)
@@ -562,10 +564,14 @@ CREATE TABLE exp_log (
     exp_after   INT             NOT NULL                 COMMENT '变动后累计经验',
     level_after INT             NOT NULL                 COMMENT '变动后等级',
     reason      VARCHAR(255)    NOT NULL                 COMMENT '变动原因',
+    rule_code   VARCHAR(40)     DEFAULT NULL             COMMENT '经验事件目录编码（ExpRule；历史/系统行为空）',
+    dedup_key   VARCHAR(80)     DEFAULT NULL             COMMENT '一次性任务去重键（ExpRule.name；可重复来源为 NULL）',
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '变动时间',
 
     PRIMARY KEY (id),
     INDEX idx_exp_user_created (user_id, created_at DESC, id DESC),
+    INDEX idx_exp_user_rule_created (user_id, rule_code, created_at),
+    UNIQUE KEY uk_exp_dedup (user_id, dedup_key),
     CONSTRAINT fk_exp_user FOREIGN KEY (user_id) REFERENCES sys_user(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='经验值变动记录表';
 

@@ -1755,6 +1755,34 @@
         ],
         "type": "object"
       },
+      "DimensionVO": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "samples": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "score": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "samples",
+          "summary"
+        ],
+        "type": "object"
+      },
       "EventTopicDTO": {
         "properties": {
           "bannerText": {
@@ -1891,6 +1919,9 @@
             "type": "integer"
           },
           "reason": {
+            "type": "string"
+          },
+          "ruleCode": {
             "type": "string"
           },
           "userId": {
@@ -3001,39 +3032,20 @@
       },
       "ReputationVO": {
         "properties": {
-          "accuracy": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "activity": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "completionRate": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "compliance": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "praise": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "responseSpeed": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "reviewCount": {
-            "format": "int32",
-            "type": "integer"
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/DimensionVO"
+            },
+            "type": "array"
           },
           "userId": {
             "format": "int64",
             "type": "integer"
           }
         },
+        "required": [
+          "userId"
+        ],
         "type": "object"
       },
       "ResetPasswordDTO": {

@@ -8,6 +8,8 @@ import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.entity.TradeReview;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
 import com.zhiyi.module.trade.mapper.TradeReviewMapper;
+import com.zhiyi.module.user.service.UserGrowthService;
+import com.zhiyi.module.user.support.ExpRule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +30,7 @@ class ReviewServiceTest {
 
     @Mock private TradeOrderMapper orderMapper;
     @Mock private TradeReviewMapper reviewMapper;
+    @Mock private UserGrowthService growthService;
 
     private ReviewService reviewService;
 
@@ -37,7 +40,7 @@ class ReviewServiceTest {
 
     @BeforeEach
     void setUp() {
-        reviewService = new ReviewService(orderMapper, reviewMapper);
+        reviewService = new ReviewService(orderMapper, reviewMapper, growthService);
     }
 
     private TradeOrder completedOrder() {
@@ -73,6 +76,19 @@ class ReviewServiceTest {
         assertEquals(5, saved.getRating());
         assertTrue(saved.getAccurate());
         assertEquals("很棒", saved.getComment());
+        // 4-5 星好评为卖家带来经验奖励（同事务）
+        verify(growthService).award(SELLER_ID, ExpRule.GOOD_REVIEW);
+    }
+
+    @Test
+    void lowRatingDoesNotAwardSellerExp() {
+        when(orderMapper.selectById(ORDER_ID)).thenReturn(completedOrder());
+        when(reviewMapper.selectCount(any())).thenReturn(0L);
+
+        reviewService.review(ORDER_ID, BUYER_ID, dto(3, true, "一般"));
+
+        verify(growthService, never()).award(any(), any());
+        verify(growthService, never()).award(any(), any(), org.mockito.ArgumentMatchers.anyDouble(), any());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.zhiyi.module.trade.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyi.common.BusinessException;
 import com.zhiyi.common.ResultCode;
@@ -26,6 +27,8 @@ import com.zhiyi.module.social.service.OutboxService;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.UserGrowthService;
+import com.zhiyi.module.user.support.ExpRule;
+import com.zhiyi.module.user.support.PairDecayRule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -244,9 +247,16 @@ public class OrderService {
         incomeLog.setRemark("售出商品收入");
         walletLogMapper.insert(incomeLog);
 
-        // 8. 双方经验（REQUIRED 传播，加入当前事务）
-        growthService.addExp(order.getBuyerId(), UserGrowthService.EXP_ORDER_COMPLETED, "买家完成订单");
-        growthService.addExp(order.getSellerId(), UserGrowthService.EXP_ORDER_COMPLETED, "卖家完成订单");
+        // 8. 双方经验（REQUIRED 传播，加入当前事务）：买卖差异化分值，
+        //    同一买家-卖家对按历史成交次数衰减（此时本次已计入 COMPLETED）
+        long pairCompleted = orderMapper.selectCount(new LambdaQueryWrapper<TradeOrder>()
+                .eq(TradeOrder::getBuyerId, order.getBuyerId())
+                .eq(TradeOrder::getSellerId, order.getSellerId())
+                .eq(TradeOrder::getStatus, OrderStatus.COMPLETED));
+        double expFactor = PairDecayRule.factorOf(pairCompleted);
+        String expNote = pairCompleted > 1 ? "第 " + pairCompleted + " 次成交" : null;
+        growthService.award(order.getSellerId(), ExpRule.ORDER_SELLER, expFactor, expNote);
+        growthService.award(order.getBuyerId(), ExpRule.ORDER_BUYER, expFactor, expNote);
 
         // 9. Outbox：订单完成系统通知（买卖双方独立 event_id，同事务）
         outboxService.appendNotice("ORDER:" + orderId + ":COMPLETED:BUYER",

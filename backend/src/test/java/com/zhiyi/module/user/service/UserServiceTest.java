@@ -45,9 +45,10 @@ class UserServiceTest {
     }
 
     private final LocalImageStorage imageStorage = mock(LocalImageStorage.class);
+    private final UserGrowthService growthService = mock(UserGrowthService.class);
 
     private UserService service(SysUserMapper userMapper, SchoolService schoolService) {
-        return new UserService(userMapper, null, schoolService, imageStorage);
+        return new UserService(userMapper, null, schoolService, imageStorage, growthService);
     }
 
     /** 真实 SchoolService 包一个 mock 的 SchoolMapper，避免把服务内部行为一并 mock 掉。 */

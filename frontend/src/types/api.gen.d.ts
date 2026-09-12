@@ -2040,6 +2040,15 @@ export interface components {
             /** Format: int64 */
             itemId: number;
         };
+        DimensionVO: {
+            key: string;
+            label: string;
+            /** Format: int32 */
+            samples: number;
+            /** Format: int32 */
+            score?: number;
+            summary: string;
+        };
         EventTopicDTO: {
             bannerText: string;
             enabled: boolean;
@@ -2089,6 +2098,7 @@ export interface components {
             /** Format: int32 */
             levelAfter?: number;
             reason: string;
+            ruleCode?: string;
             /** Format: int64 */
             userId?: number;
         };
@@ -2437,22 +2447,9 @@ export interface components {
             type: string;
         };
         ReputationVO: {
-            /** Format: int32 */
-            accuracy?: number;
-            /** Format: int32 */
-            activity?: number;
-            /** Format: int32 */
-            completionRate?: number;
-            /** Format: int32 */
-            compliance?: number;
-            /** Format: int32 */
-            praise?: number;
-            /** Format: int32 */
-            responseSpeed?: number;
-            /** Format: int32 */
-            reviewCount?: number;
+            dimensions?: components["schemas"]["DimensionVO"][];
             /** Format: int64 */
-            userId?: number;
+            userId: number;
         };
         ResetPasswordDTO: {
             confirmPassword: string;

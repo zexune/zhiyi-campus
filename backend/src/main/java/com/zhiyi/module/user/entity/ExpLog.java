@@ -22,6 +22,10 @@ public class ExpLog {
     private Integer levelAfter;     // 变动后等级
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private String reason;          // 变动原因
+    /** 经验事件目录编码（ExpRule.name()；历史/系统行可为空） */
+    private String ruleCode;
+    /** 一次性任务去重键（uk_exp_dedup；可重复来源为空） */
+    private String dedupKey;
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)

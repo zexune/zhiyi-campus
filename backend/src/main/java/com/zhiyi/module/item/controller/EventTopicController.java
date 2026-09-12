@@ -17,24 +17,26 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class EventTopicController {
     private final EventTopicService topicService;
 
     /** 大厅活动专题；"当前没有活动专题"是正常结果（data 为 null），非错误。 */
-    @GetMapping("/api/item/active-topic")
+    @GetMapping("/item/active-topic")
     @BusinessErrors
     public ApiSuccess<EventTopicResponse> activeTopic() {
         EventTopic active = topicService.activeTopic();
         return ApiSuccess.ok(active == null ? null : EventTopicResponse.from(active));
     }
 
-    @GetMapping("/api/admin/event-topics")
+    @GetMapping("/admin/event-topics")
     @RoleRequired
     @BusinessErrors
     public ApiSuccess<List<EventTopicResponse>> list() {
@@ -43,14 +45,14 @@ public class EventTopicController {
                 .toList());
     }
 
-    @PostMapping("/api/admin/event-topics")
+    @PostMapping("/admin/event-topics")
     @RoleRequired
     @BusinessErrors(ResultCode.NOT_FOUND)
     public ApiSuccess<EventTopicResponse> create(@RequestAttribute("userId") Long adminId, @Valid @RequestBody EventTopicDTO dto) {
         return ApiSuccess.ok("专题已创建", EventTopicResponse.from(topicService.save(null, adminId, dto)));
     }
 
-    @PutMapping("/api/admin/event-topics/{id}")
+    @PutMapping("/admin/event-topics/{id}")
     @RoleRequired
     @BusinessErrors(ResultCode.NOT_FOUND)
     public ApiSuccess<EventTopicResponse> update(@PathVariable Long id, @RequestAttribute("userId") Long adminId,
@@ -58,7 +60,7 @@ public class EventTopicController {
         return ApiSuccess.ok("专题已更新", EventTopicResponse.from(topicService.save(id, adminId, dto)));
     }
 
-    @DeleteMapping("/api/admin/event-topics/{id}")
+    @DeleteMapping("/admin/event-topics/{id}")
     @RoleRequired
     @BusinessErrors(ResultCode.NOT_FOUND)
     public ApiSuccess<Void> delete(@PathVariable Long id) {

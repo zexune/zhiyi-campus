@@ -9,6 +9,8 @@ import com.zhiyi.module.trade.entity.TradeOrder;
 import com.zhiyi.module.trade.entity.TradeReview;
 import com.zhiyi.module.trade.mapper.TradeOrderMapper;
 import com.zhiyi.module.trade.mapper.TradeReviewMapper;
+import com.zhiyi.module.user.service.UserGrowthService;
+import com.zhiyi.module.user.support.ExpRule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -21,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 约束：
  * - 订单必须存在且状态为 COMPLETED；
  * - 只有该订单的买家才能评价；
- * - 一单一评，重复评价被拒绝（DB 层 uk_order 兜底并发）。
+ * - 一单一评，重复评价被拒绝（DB 层 uk_order 兜底并发）；
+ * - 4-5 星好评为卖家带来小额经验（每日上限见 {@link ExpRule#GOOD_REVIEW}），
+ *   与评价写入同事务：评价回滚则经验不发放。
  */
 @Slf4j
 @Service
@@ -30,6 +34,7 @@ public class ReviewService {
 
     private final TradeOrderMapper orderMapper;
     private final TradeReviewMapper reviewMapper;
+    private final UserGrowthService growthService;
 
     @Transactional(rollbackFor = Exception.class)
     public TradeReview review(Long orderId, Long buyerId, ReviewDTO dto) {
@@ -64,8 +69,13 @@ public class ReviewService {
             throw new BusinessException(ResultCode.ORDER_ALREADY_REVIEWED);
         }
 
+        // 4-5 星好评奖励卖家经验（同事务，评价回滚则经验随回滚；日上限由目录控制）
+        if (entity.getRating() != null && entity.getRating() >= 4) {
+            growthService.award(entity.getTargetId(), ExpRule.GOOD_REVIEW);
+        }
+
         log.info("交易评价写入 orderId={} reviewer={} target={} rating={}",
-                orderId, buyerId, order.getSellerId(), dto.getRating());
+                orderId, buyerId, order.getSellerId(), entity.getRating());
         return entity;
     }
 }

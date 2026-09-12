@@ -23,6 +23,7 @@ import com.zhiyi.module.trade.vo.OrderVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
 import com.zhiyi.module.user.service.UserGrowthService;
+import com.zhiyi.module.user.support.ExpRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -433,9 +434,9 @@ class OrderServiceTest {
             assertEquals(PRICE, logCaptor.getValue().getAmount());
             assertEquals(1L, logCaptor.getValue().getOrderId());
 
-            // 双方加经验 + 买卖双方独立 event_id 的完成通知
-            verify(growthService).addExp(eq(BUYER_ID), eq(UserGrowthService.EXP_ORDER_COMPLETED), anyString());
-            verify(growthService).addExp(eq(SELLER_ID), eq(UserGrowthService.EXP_ORDER_COMPLETED), anyString());
+            // 双方经验按目录规则发放（首单全额）+ 买卖双方独立 event_id 的完成通知
+            verify(growthService).award(eq(SELLER_ID), eq(ExpRule.ORDER_SELLER), eq(1.0), isNull());
+            verify(growthService).award(eq(BUYER_ID), eq(ExpRule.ORDER_BUYER), eq(1.0), isNull());
             verify(outboxService, times(2)).appendNotice(any(), eq(OutboxService.AGGREGATE_ORDER),
                     eq(1L), eq(OutboxService.EVENT_ORDER_COMPLETED), any(), anyString());
         }

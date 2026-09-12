@@ -21,6 +21,8 @@ import com.zhiyi.module.item.vo.ItemCardVO;
 import com.zhiyi.module.item.vo.UploadImageVO;
 import com.zhiyi.module.user.entity.SysUser;
 import com.zhiyi.module.user.mapper.SysUserMapper;
+import com.zhiyi.module.user.service.UserGrowthService;
+import com.zhiyi.module.user.support.ExpRule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +66,7 @@ public class ItemPublishService {
     private final ItemTagService itemTagService;
     private final com.zhiyi.module.item.mapper.ItemViewStatMapper viewStatMapper;
     private final com.zhiyi.common.storage.LocalImageStorage imageStorage;
+    private final UserGrowthService growthService;
 
     public UploadImageVO uploadImage(MultipartFile file) {
         return new UploadImageVO(imageStorage.store(file, "items", MAX_IMAGE_BYTES));
@@ -88,6 +91,8 @@ public class ItemPublishService {
         stat.setViewCount(0L);
         viewStatMapper.insert(stat);
         itemTagService.replaceTags(item.getId(), check.tags());
+        // 发布奖励经验（同事务，每日上限见 ExpRule 目录；整改重发不重复触发——仅本方法计）
+        growthService.award(publisherId, ExpRule.ITEM_PUBLISHED);
         if (check.risky()) {
             saveReview(publisherId, null, item.getId(), dto, ViolationSource.LOCAL_RULE, "KEYWORD_MATCH",
                     check.reason(), check.matchedRules(), check.ruleVersion());

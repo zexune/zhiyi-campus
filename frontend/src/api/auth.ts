@@ -2,7 +2,7 @@ import { contracts } from '@/types/contracts'
 import type { Schemas } from '@/types/contracts'
 import { mapLoginData, mapPageData, mapRequiredData, mapVoidData } from '@/api/mappers'
 import type { ExpLog, PageQuery, School, UserProfile } from '@/types/models'
-import type { ReputationVo } from '@/utils/reputation'
+import { mapReputation } from '@/utils/reputation'
 
 /** 模块一：认证与用户 */
 
@@ -122,7 +122,7 @@ export function getUserRelation(userId: number) {
 
 // 信誉雷达六维分值（A6，公开）
 export function getUserReputation(userId: number) {
-  return contracts.get('/api/user/{id}/reputation', { path: { id: userId } }).then((res) => mapRequiredData(res, '/api/user/{id}/reputation', (wire) => wire as ReputationVo))
+  return contracts.get('/api/user/{id}/reputation', { path: { id: userId } }).then((res) => mapRequiredData(res, '/api/user/{id}/reputation', (wire) => mapReputation(wire)))
 }
 
 // —— 账号安全 ——
