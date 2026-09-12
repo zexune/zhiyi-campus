@@ -13,12 +13,7 @@ import { BIZ_CODE } from '@/constants/domain'
  * 完全一致：后端增删改业务码后，先跑 npm run gen:api:dev 更新快照，
  * 本测试随即指出 domain.ts 需要同步的条目。
  */
-const SNAPSHOT_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  'openapi.json'
-)
+const SNAPSHOT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'openapi.json')
 
 interface Operation {
   responses?: Record<string, { 'x-business-codes'?: unknown[] }>

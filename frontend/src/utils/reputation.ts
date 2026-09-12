@@ -65,8 +65,7 @@ export function mapReputation(wire: unknown): ReputationVo {
       byKey.set(dimension.key, { key: dimension.key, label: dimension.label, score: null, samples: 0, summary: '' })
     }
   }
-  const ordered = REPUTATION_DIMENSIONS.map((d) => byKey.get(d.key)!)
-    .concat([...byKey.values()].filter((d) => !REPUTATION_DIMENSIONS.some((k) => k.key === d.key)))
+  const ordered = REPUTATION_DIMENSIONS.map((d) => byKey.get(d.key)!).concat([...byKey.values()].filter((d) => !REPUTATION_DIMENSIONS.some((k) => k.key === d.key)))
   const userId = (source as { userId?: unknown } | null)?.userId
   return {
     userId: typeof userId === 'number' && Number.isFinite(userId) ? userId : null,

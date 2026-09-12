@@ -35,17 +35,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  REPUTATION_DIMENSIONS,
-  axisAngle,
-  radarPoint,
-  radarPolygon,
-  reputationValues,
-  reputationDimensions,
-  insufficientFlags,
-  overallScore,
-  reputationGrade
-} from '@/utils/reputation'
+import { REPUTATION_DIMENSIONS, axisAngle, radarPoint, radarPolygon, reputationValues, reputationDimensions, insufficientFlags, overallScore, reputationGrade } from '@/utils/reputation'
 import type { ReputationVo } from '@/utils/reputation'
 
 /**
